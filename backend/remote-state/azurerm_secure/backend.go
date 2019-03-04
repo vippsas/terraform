@@ -13,33 +13,35 @@ import (
 	"github.com/hashicorp/terraform/helper/schema"
 )
 
+// Backend does backend.
 type Backend struct {
 	*schema.Backend
 
 	// The fields below are set from configure.
-	blobClient storage.BlobStorageClient
-	containerName      string
-	keyName            string
-	leaseID            string
+	blobClient    storage.BlobStorageClient
+	containerName string
+	keyName       string
+	leaseID       string
 }
 
+// BackendConfig stores backend configuration.
 type BackendConfig struct {
 	// Resource Group:
-	ResourceGroupName  string
+	ResourceGroupName string
 
 	// Azure Storage Account:
 	StorageAccountName string
 	AccessKey          string
 
 	// Azure Key Vault:
-	KeyVaultName       string
+	KeyVaultName string
 
 	// Credentials:
-	Environment        string
-	ClientID           string
-	ClientSecret       string
-	SubscriptionID     string
-	TenantID           string
+	Environment    string
+	ClientID       string
+	ClientSecret   string
+	SubscriptionID string
+	TenantID       string
 }
 
 // New creates a new backend for remote state stored in Azure storage account and key vault.
@@ -140,21 +142,21 @@ func (b *Backend) configure(ctx context.Context) error {
 	b.keyName = data.Get("blob_name").(string)
 	config := BackendConfig{
 		// Resource Group:
-		ResourceGroupName:  data.Get("resource_group_name").(string),
+		ResourceGroupName: data.Get("resource_group_name").(string),
 
 		// Azure Storage Account:
 		StorageAccountName: data.Get("storage_account_name").(string),
 		AccessKey:          data.Get("access_key").(string),
 
 		// Azure Key Vault:
-		KeyVaultName:       data.Get("key_vault_name").(string),
+		KeyVaultName: data.Get("key_vault_name").(string),
 
 		// Credentials:
-		Environment:        data.Get("environment").(string),
-		TenantID:           data.Get("tenant_id").(string),
-		SubscriptionID:     data.Get("subscription_id").(string),
-		ClientID:           data.Get("client_id").(string),
-		ClientSecret:       data.Get("client_secret").(string),
+		Environment:    data.Get("environment").(string),
+		TenantID:       data.Get("tenant_id").(string),
+		SubscriptionID: data.Get("subscription_id").(string),
+		ClientID:       data.Get("client_id").(string),
+		ClientSecret:   data.Get("client_secret").(string),
 	}
 
 	blobClient, err := getBlobClient(config)
@@ -233,6 +235,7 @@ func getAccessKey(config BackendConfig, env azure.Environment) (string, error) {
 }
 
 func getAzureEnvironment(environment string) (azure.Environment, error) {
+	// If "environment" was not provided, use "public" by default.
 	if environment == "" {
 		return azure.PublicCloud, nil
 	}
@@ -246,6 +249,5 @@ func getAzureEnvironment(environment string) (azure.Environment, error) {
 			return env, fmt.Errorf("invalid 'environment' configuration: %s", err)
 		}
 	}
-
 	return env, nil
 }
