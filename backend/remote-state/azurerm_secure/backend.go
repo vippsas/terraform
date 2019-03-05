@@ -190,10 +190,6 @@ func getBlobClient(config BackendConfig) (storage.BlobStorageClient, error) {
 	return client, nil
 }
 
-func getKeyVaultClient() {
-	return nil
-}
-
 func getAccessKey(config BackendConfig, env azure.Environment) (string, error) {
 	if config.AccessKey != "" {
 		return config.AccessKey, nil
