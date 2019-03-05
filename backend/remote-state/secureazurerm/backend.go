@@ -306,7 +306,7 @@ func (b *Backend) State(name string) (state.State, error) {
 			return parent
 		}
 
-		// Grab the remote state.
+		// Grab the remote state from the specified storage account.
 		if err := remoteState.RefreshState(); err != nil {
 			return nil, unlock(err)
 		}
