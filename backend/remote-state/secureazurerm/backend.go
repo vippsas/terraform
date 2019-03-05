@@ -291,12 +291,12 @@ func (b *Backend) State(name string) (state.State, error) {
 		blobName:      b.path(name),
 	}
 
-	stateMgr := &remote.State{Client: client}
+	remoteState := &remote.State{Client: client}
 
 	//if this isn't the default state name, we need to create the object so
 	//it's listed by States.
 	if name != backend.DefaultStateName {
-		// take a lock on this state while we write it
+		// Lock state while we write it.
 		lockInfo := state.NewLockInfo()
 		lockInfo.Operation = "init"
 		lockID, err := client.Lock(lockInfo)
@@ -304,40 +304,37 @@ func (b *Backend) State(name string) (state.State, error) {
 			return nil, fmt.Errorf("failed to lock azure state: %s", err)
 		}
 
-		// Local helper function so we can call it multiple places
-		lockUnlock := func(parent error) error {
-			if err := stateMgr.Unlock(lockID); err != nil {
+		// Create reusable lambda to unlock mutex on remote state.
+		unlock := func(parent error) error {
+			if err := remoteState.Unlock(lockID); err != nil {
 				return fmt.Errorf(strings.TrimSpace(errStateUnlock), lockID, err)
 			}
 			return parent
 		}
 
-		// Grab the value
-		if err := stateMgr.RefreshState(); err != nil {
-			err = lockUnlock(err)
-			return nil, err
+		// Grab the remote state.
+		if err := remoteState.RefreshState(); err != nil {
+			return nil, unlock(err)
 		}
 
-		// If we have no state, we have to create an empty state
-		if v := stateMgr.State(); v == nil {
-			if err := stateMgr.WriteState(terraform.NewState()); err != nil {
-				err = lockUnlock(err)
-				return nil, err
+		// If we have no state, create an empty state.
+		if state := remoteState.State(); state == nil {
+			if err := remoteState.WriteState(terraform.NewState()); err != nil {
+				return nil, unlock(err)
 			}
-			if err := stateMgr.PersistState(); err != nil {
-				err = lockUnlock(err)
-				return nil, err
+			if err := remoteState.PersistState(); err != nil {
+				return nil, unlock(err)
 			}
 		}
 
-		// Unlock, the state should now be initialized
-		if err := lockUnlock(nil); err != nil {
+		// Unlock, the state should now be initialized.
+		if err := unlock(nil); err != nil {
 			return nil, err
 		}
 
 	}
 
-	return stateMgr, nil
+	return remoteState, nil
 }
 
 func (b *Backend) client() *Client {
