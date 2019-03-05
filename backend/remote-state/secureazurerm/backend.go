@@ -169,8 +169,7 @@ func getBlobClient(c config) (storage.BlobStorageClient, error) {
 		return client, fmt.Errorf("error creating storage client for storage account %q: %s", c.StorageAccountName, err)
 	}
 
-	client = storageClient.GetBlobService()
-	return client, nil
+	return storageClient.GetBlobService(), nil
 }
 
 // getAccessKey gets the access key needed to access the storage account that stores the remote state.
@@ -326,7 +325,6 @@ func (b *Backend) State(name string) (state.State, error) {
 		if err := unlock(nil); err != nil {
 			return nil, err
 		}
-
 	}
 
 	return remoteState, nil
