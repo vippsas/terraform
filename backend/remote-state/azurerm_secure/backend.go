@@ -25,7 +25,7 @@ type Backend struct {
 	// The fields below are set from configure.
 	blobClient    storage.BlobStorageClient
 	containerName string
-	keyName       string
+	blobName      string
 	leaseID       string
 }
 
@@ -137,7 +137,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	// Get the resource data from the backend configuration.
 	data := schema.FromContextBackendConfig(ctx)
 	b.containerName = data.Get("container_name").(string)
-	b.keyName = data.Get("blob_name").(string)
+	b.blobName = data.Get("blob_name").(string)
 	config := BackendConfig{
 		// Resource Group:
 		ResourceGroupName: data.Get("resource_group_name").(string),
@@ -254,7 +254,7 @@ const (
 
 // States return remote states.
 func (b *Backend) States() ([]string, error) {
-	prefix := b.keyName + keyEnvPrefix
+	prefix := b.blobName + keyEnvPrefix
 	params := storage.ListBlobsParameters{
 		Prefix: prefix,
 	}
@@ -363,10 +363,10 @@ func (b *Backend) client() *Client {
 
 func (b *Backend) path(name string) string {
 	if name == backend.DefaultStateName {
-		return b.keyName
+		return b.blobName
 	}
 
-	return b.keyName + keyEnvPrefix + name
+	return b.blobName + keyEnvPrefix + name
 }
 
 const errStateUnlock = `
