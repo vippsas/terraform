@@ -236,7 +236,7 @@ const (
 	keyEnvPrefix = "env:"
 )
 
-// States returns multiple remote states.
+// States returns all remote states.
 func (b *Backend) States() ([]string, error) {
 	prefix := b.blobName + keyEnvPrefix
 	params := storage.ListBlobsParameters{
@@ -275,15 +275,10 @@ func (b *Backend) DeleteState(name string) error {
 	if name == backend.DefaultStateName || name == "" {
 		return fmt.Errorf("can't delete default state")
 	}
-
-	containerReference := b.blobClient.GetContainerReference(b.containerName)
-	blobReference := containerReference.GetBlobReference(b.path(name))
-	options := &storage.DeleteBlobOptions{}
-
-	return blobReference.Delete(options)
+	return b.blobClient.GetContainerReference(b.containerName).GetBlobReference(b.path(name)).Delete(&storage.DeleteBlobOptions{})
 }
 
-// State returns remote state.
+// State returns remote state specified by name.
 func (b *Backend) State(name string) (state.State, error) {
 	client := &Client{
 		blobClient:    b.blobClient,
