@@ -3,6 +3,8 @@ package azurerm_secure
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 
 	armStorage "github.com/Azure/azure-sdk-for-go/arm/storage"
 	"github.com/Azure/azure-sdk-for-go/storage"
@@ -11,6 +13,9 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/hashicorp/terraform/backend"
 	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/hashicorp/terraform/state"
+	"github.com/hashicorp/terraform/state/remote"
+	"github.com/hashicorp/terraform/terraform"
 )
 
 // Backend does backend.
@@ -247,3 +252,134 @@ func getAzureEnvironment(environment string) (azure.Environment, error) {
 	}
 	return env, nil
 }
+
+const (
+	// This will be used as directory name, the odd looking colon is simply to
+	// reduce the chance of name conflicts with existing objects.
+	keyEnvPrefix = "env:"
+)
+
+// States return remote states.
+func (b *Backend) States() ([]string, error) {
+	prefix := b.keyName + keyEnvPrefix
+	params := storage.ListBlobsParameters{
+		Prefix: prefix,
+	}
+
+	container := b.blobClient.GetContainerReference(b.containerName)
+	resp, err := container.ListBlobs(params)
+	if err != nil {
+		return nil, err
+	}
+
+	envs := map[string]struct{}{}
+	for _, obj := range resp.Blobs {
+		key := obj.Name
+		if strings.HasPrefix(key, prefix) {
+			name := strings.TrimPrefix(key, prefix)
+			// we store the state in a key, not a directory
+			if strings.Contains(name, "/") {
+				continue
+			}
+
+			envs[name] = struct{}{}
+		}
+	}
+
+	result := []string{backend.DefaultStateName}
+	for name := range envs {
+		result = append(result, name)
+	}
+	sort.Strings(result[1:])
+	return result, nil
+}
+
+// DeleteState deletes remote state.
+func (b *Backend) DeleteState(name string) error {
+	if name == backend.DefaultStateName || name == "" {
+		return fmt.Errorf("can't delete default state")
+	}
+
+	containerReference := b.blobClient.GetContainerReference(b.containerName)
+	blobReference := containerReference.GetBlobReference(b.path(name))
+	options := &storage.DeleteBlobOptions{}
+
+	return blobReference.Delete(options)
+}
+
+// State delete State.
+func (b *Backend) State(name string) (state.State, error) {
+	client := &Client{
+		blobClient:    b.blobClient,
+		containerName: b.containerName,
+		blobName:      b.path(name),
+	}
+
+	stateMgr := &remote.State{Client: client}
+
+	//if this isn't the default state name, we need to create the object so
+	//it's listed by States.
+	if name != backend.DefaultStateName {
+		// take a lock on this state while we write it
+		lockInfo := state.NewLockInfo()
+		lockInfo.Operation = "init"
+		lockID, err := client.Lock(lockInfo)
+		if err != nil {
+			return nil, fmt.Errorf("failed to lock azure state: %s", err)
+		}
+
+		// Local helper function so we can call it multiple places
+		lockUnlock := func(parent error) error {
+			if err := stateMgr.Unlock(lockID); err != nil {
+				return fmt.Errorf(strings.TrimSpace(errStateUnlock), lockID, err)
+			}
+			return parent
+		}
+
+		// Grab the value
+		if err := stateMgr.RefreshState(); err != nil {
+			err = lockUnlock(err)
+			return nil, err
+		}
+
+		// If we have no state, we have to create an empty state
+		if v := stateMgr.State(); v == nil {
+			if err := stateMgr.WriteState(terraform.NewState()); err != nil {
+				err = lockUnlock(err)
+				return nil, err
+			}
+			if err := stateMgr.PersistState(); err != nil {
+				err = lockUnlock(err)
+				return nil, err
+			}
+		}
+
+		// Unlock, the state should now be initialized
+		if err := lockUnlock(nil); err != nil {
+			return nil, err
+		}
+
+	}
+
+	return stateMgr, nil
+}
+
+func (b *Backend) client() *Client {
+	return &Client{}
+}
+
+func (b *Backend) path(name string) string {
+	if name == backend.DefaultStateName {
+		return b.keyName
+	}
+
+	return b.keyName + keyEnvPrefix + name
+}
+
+const errStateUnlock = `
+Error unlocking Azure state. Lock ID: %s
+
+Error: %s
+
+You may have to force-unlock this state in order to use it again.
+`
