@@ -115,11 +115,11 @@ func (c *Client) Delete() error {
 	blobReference := containerReference.GetBlobReference(c.blobName)
 
 	// Delete blob.
-	options := &storage.DeleteBlobOptions{} // set delete blob options.
+	options := &storage.DeleteBlobOptions{} // Set delete blob options.
 	if c.leaseID != "" {
 		options.LeaseID = c.leaseID
 	}
-	return blobReference.Delete(options) // call the API to delete it!
+	return blobReference.Delete(options) // Call the API to delete it!
 }
 
 // Lock locks the mutex of the storage account containing the remote state blob.
