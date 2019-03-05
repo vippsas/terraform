@@ -66,20 +66,17 @@ func New() backend.Backend {
 				Required:    true,
 				Description: "The name of the storage account.",
 			},
-
 			"access_key": { // storage account access key.
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "The access key.",
 				DefaultFunc: schema.EnvDefaultFunc("ACCESS_KEY", ""),
 			},
-
 			"container_name": {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: "The container name.",
 			},
-
 			"blob_name": { // renamed from "key", so developers won't confuse it with keys in key vault.
 				Type:        schema.TypeString,
 				Required:    true,
@@ -100,28 +97,24 @@ func New() backend.Backend {
 				Description: "The Azure cloud environment.",
 				DefaultFunc: schema.EnvDefaultFunc("ENVIRONMENT", ""),
 			},
-
 			"tenant_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "The tenant ID.",
 				DefaultFunc: schema.EnvDefaultFunc("TENANT_ID", ""),
 			},
-
 			"subscription_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "The subscription ID.",
 				DefaultFunc: schema.EnvDefaultFunc("SUBSCRIPTION_ID", ""),
 			},
-
 			"client_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "The client ID.",
 				DefaultFunc: schema.EnvDefaultFunc("CLIENT_ID", ""),
 			},
-
 			"client_secret": {
 				Type:        schema.TypeString,
 				Optional:    true,
