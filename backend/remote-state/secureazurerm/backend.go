@@ -1,4 +1,4 @@
-package azurerm_secure
+package secureazurerm
 
 import (
 	"context"
@@ -22,11 +22,14 @@ import (
 type Backend struct {
 	*schema.Backend
 
-	// The fields below are set from configure.
+	// Fields used by Storage Account:
 	blobClient    storage.BlobStorageClient
 	containerName string
 	blobName      string
 	leaseID       string
+
+	// Fields used by Key Vault:
+	keyVaultName string
 }
 
 // BackendConfig stores backend configuration.
@@ -129,6 +132,7 @@ func New() backend.Backend {
 	return result
 }
 
+// configure bootstraps the Azure resources needed to use this backend.
 func (b *Backend) configure(ctx context.Context) error {
 	if b.containerName != "" {
 		return nil

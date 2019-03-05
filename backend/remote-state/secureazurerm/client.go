@@ -1,4 +1,4 @@
-package azurerm_secure
+package secureazurerm
 
 import (
 	"bytes"
