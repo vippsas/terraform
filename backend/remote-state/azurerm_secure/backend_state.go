@@ -65,10 +65,10 @@ func (b *Backend) DeleteState(name string) error {
 }
 
 func (b *Backend) State(name string) (state.State, error) {
-	client := &RemoteClient{
+	client := &Client{
 		blobClient:    b.blobClient,
 		containerName: b.containerName,
-		keyName:       b.path(name),
+		blobName:      b.path(name),
 	}
 
 	stateMgr := &remote.State{Client: client}
@@ -120,8 +120,8 @@ func (b *Backend) State(name string) (state.State, error) {
 	return stateMgr, nil
 }
 
-func (b *Backend) client() *RemoteClient {
-	return &RemoteClient{}
+func (b *Backend) client() *Client {
+	return &Client{}
 }
 
 func (b *Backend) path(name string) string {
