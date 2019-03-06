@@ -49,16 +49,16 @@ func Init(services *disco.Disco) {
 		"remote": func() backend.Backend { return backendRemote.New(services) },
 
 		// Remote State backends.
-		"atlas":         func() backend.Backend { return backendAtlas.New() },
-		"azurerm":       func() backend.Backend { return backendAzure.New() },
-		"secureazurerm": func() backend.Backend { return backendSecureAzure.New() },
-		"consul":        func() backend.Backend { return backendConsul.New() },
-		"etcdv3":        func() backend.Backend { return backendEtcdv3.New() },
-		"gcs":           func() backend.Backend { return backendGCS.New() },
-		"inmem":         func() backend.Backend { return backendInmem.New() },
-		"manta":         func() backend.Backend { return backendManta.New() },
-		"s3":            func() backend.Backend { return backendS3.New() },
-		"swift":         func() backend.Backend { return backendSwift.New() },
+		"atlas":          func() backend.Backend { return backendAtlas.New() },
+		"azurerm":        func() backend.Backend { return backendAzure.New() },
+		"secure_azurerm": func() backend.Backend { return backendSecureAzure.New() },
+		"consul":         func() backend.Backend { return backendConsul.New() },
+		"etcdv3":         func() backend.Backend { return backendEtcdv3.New() },
+		"gcs":            func() backend.Backend { return backendGCS.New() },
+		"inmem":          func() backend.Backend { return backendInmem.New() },
+		"manta":          func() backend.Backend { return backendManta.New() },
+		"s3":             func() backend.Backend { return backendS3.New() },
+		"swift":          func() backend.Backend { return backendSwift.New() },
 
 		// Deprecated backends.
 		"azure": deprecateBackend(backendAzure.New(),
