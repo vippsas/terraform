@@ -329,10 +329,7 @@ func (b *Backend) State(name string) (state.State, error) {
 	return remoteState, nil
 }
 
-func (b *Backend) client() *Client {
-	return &Client{}
-}
-
+// path returns the blob name path to the remote state named name.
 func (b *Backend) path(name string) string {
 	if name == backend.DefaultStateName {
 		return b.blobName
