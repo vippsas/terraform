@@ -68,7 +68,7 @@ func (c *Client) Get() (*remote.Payload, error) {
 	return payload, nil
 }
 
-// Put puts the remote state into a blob and key vault.
+// Put puts the remote state data into a blob and the key vault.
 func (c *Client) Put(data []byte) error {
 	getOptions := &storage.GetBlobMetadataOptions{}
 	setOptions := &storage.SetBlobPropertiesOptions{}
@@ -254,10 +254,7 @@ func (c *Client) getLockInfo() (*state.LockInfo, error) {
 func (c *Client) writeLockInfo(info *state.LockInfo) error {
 	containerReference := c.blobClient.GetContainerReference(c.containerName)
 	blobReference := containerReference.GetBlobReference(c.blobName)
-	err := blobReference.GetMetadata(&storage.GetBlobMetadataOptions{
-		LeaseID: c.leaseID,
-	})
-	if err != nil {
+	if err := blobReference.GetMetadata(&storage.GetBlobMetadataOptions{LeaseID: c.leaseID}); err != nil {
 		return err
 	}
 
