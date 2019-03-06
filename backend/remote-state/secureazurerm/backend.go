@@ -287,8 +287,7 @@ func (b *Backend) State(name string) (state.State, error) {
 
 	remoteState := &remote.State{Client: client}
 
-	//if this isn't the default state name, we need to create the object so
-	//it's listed by States.
+	// If this isn't the default state name, we need to create the object so it's listed by States.
 	if name != backend.DefaultStateName {
 		// Lock state while we write it.
 		lockInfo := state.NewLockInfo()
