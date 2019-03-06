@@ -154,20 +154,20 @@ func (c *Client) Lock(info *state.LockInfo) (string, error) {
 		}
 
 		// failed to lock as there was no state blob, write empty state
-		stateMgr := &remote.State{Client: c}
+		remoteState := &remote.State{Client: c}
 
 		// ensure state is actually empty
-		if err := stateMgr.RefreshState(); err != nil {
+		if err := remoteState.RefreshState(); err != nil {
 			return "", fmt.Errorf("failed to refresh state before writing empty state for locking: %s", err)
 		}
 
 		log.Print("[DEBUG] Could not lock as state blob did not exist, creating with empty state")
 
-		if v := stateMgr.State(); v == nil {
-			if err := stateMgr.WriteState(terraform.NewState()); err != nil {
+		if v := remoteState.State(); v == nil {
+			if err := remoteState.WriteState(terraform.NewState()); err != nil {
 				return "", fmt.Errorf("failed to write empty state for locking: %s", err)
 			}
-			if err := stateMgr.PersistState(); err != nil {
+			if err := remoteState.PersistState(); err != nil {
 				return "", fmt.Errorf("failed to persist empty state for locking: %s", err)
 			}
 		}
