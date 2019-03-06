@@ -99,7 +99,7 @@ func (c *Client) Put(data []byte) error {
 		}
 	}
 
-	// Create a blob and upload the remote state in JSON to the blob.
+	// Create a block blob and upload the remote state in JSON to the blob.
 	if err = blobReference.CreateBlockBlobFromReader(bytes.NewReader(data), putOptions); err != nil {
 		return err
 	}
