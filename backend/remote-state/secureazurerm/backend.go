@@ -334,7 +334,6 @@ func (b *Backend) path(name string) string {
 	if name == backend.DefaultStateName {
 		return b.blobName
 	}
-
 	return b.blobName + keyEnvPrefix + name
 }
 

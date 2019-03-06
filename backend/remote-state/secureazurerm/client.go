@@ -94,6 +94,10 @@ func (c *Client) Put(data []byte) error {
 		return err
 	}
 	if exists {
+		// Create a new snapshot of the existing remote state blob.
+		blobReference.CreateSnapshot(&storage.SnapshotOptions{})
+
+		// ??
 		if err = blobReference.GetMetadata(getOptions); err != nil {
 			return err
 		}
