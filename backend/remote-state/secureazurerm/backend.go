@@ -79,13 +79,13 @@ func New() backend.Backend {
 			// Credentials:
 			"environment": { // optional, automatically set to "public" if empty.
 				Type:        schema.TypeString,
-				Optional:    true,
+				Required:    true,
 				Description: "The Azure cloud environment.",
 				DefaultFunc: schema.EnvDefaultFunc("ENVIRONMENT", ""),
 			},
 			"tenant_id": {
 				Type:        schema.TypeString,
-				Optional:    true,
+				Required:    true,
 				Description: "The tenant ID.",
 				DefaultFunc: schema.EnvDefaultFunc("TENANT_ID", ""),
 			},
