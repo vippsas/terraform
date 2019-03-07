@@ -91,7 +91,7 @@ func New() backend.Backend {
 			},
 			"subscription_id": {
 				Type:        schema.TypeString,
-				Optional:    true,
+				Required:    true, // ensure that you don't accidently write to the wrong subscription incorrectly set by 'az'.
 				Description: "The subscription ID.",
 				DefaultFunc: schema.EnvDefaultFunc("SUBSCRIPTION_ID", ""),
 			},
@@ -105,6 +105,8 @@ func New() backend.Backend {
 
 // configure bootstraps the Azure resources needed to use this backend.
 func (b *Backend) configure(ctx context.Context) error {
+	// TODO: Check for right tenant-id and subscription.
+
 	if b.containerName != "" {
 		return nil
 	}
