@@ -57,7 +57,8 @@ func (c *Client) Get() (*remote.Payload, error) {
 	payload := &remote.Payload{
 		Data: buf.Bytes(), // remote state data.
 	}
-	if len(payload.Data) == 0 { // blob is empty.
+	// Check if blob is empty.
+	if len(payload.Data) == 0 {
 		return nil, nil
 	}
 	return payload, nil
