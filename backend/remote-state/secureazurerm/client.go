@@ -225,8 +225,8 @@ func (c *Client) Unlock(id string) error {
 func (c *Client) getLockInfo() (*state.LockInfo, error) {
 	containerReference := c.blobClient.GetContainerReference(c.containerName)
 	blobReference := containerReference.GetBlobReference(c.blobName)
-	err := blobReference.GetMetadata(&storage.GetBlobMetadataOptions{})
-	if err != nil {
+
+	if err := blobReference.GetMetadata(&storage.GetBlobMetadataOptions{}); err != nil {
 		return nil, err
 	}
 
@@ -241,8 +241,7 @@ func (c *Client) getLockInfo() (*state.LockInfo, error) {
 	}
 
 	lockInfo := &state.LockInfo{}
-	err = json.Unmarshal(data, lockInfo)
-	if err != nil {
+	if err = json.Unmarshal(data, lockInfo); err != nil {
 		return nil, err
 	}
 
