@@ -75,13 +75,6 @@ func New() backend.Backend {
 				Description: "The blob name.",
 			},
 
-			// Azure Key Vault:
-			"key_vault_name": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "The key vault name.",
-			},
-
 			// Credentials:
 			"environment": { // optional, automatically set to "public" if empty.
 				Type:        schema.TypeString,
