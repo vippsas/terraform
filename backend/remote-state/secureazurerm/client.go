@@ -211,14 +211,11 @@ func (c *Client) Unlock(id string) error {
 
 	containerReference := c.blobClient.GetContainerReference(c.containerName)
 	blobReference := containerReference.GetBlobReference(c.blobName)
-	err = blobReference.ReleaseLease(id, &storage.LeaseOptions{})
-	if err != nil {
+	if err = blobReference.ReleaseLease(id, &storage.LeaseOptions{}); err != nil {
 		lockErr.Err = err
 		return lockErr
 	}
-
 	c.leaseID = ""
-
 	return nil
 }
 
