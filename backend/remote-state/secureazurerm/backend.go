@@ -34,6 +34,7 @@ type config struct {
 	// Azure Storage Account:
 	StorageAccountName string
 	AccessKey          string
+	ContainerName      string
 
 	// Credentials:
 	Environment    string
@@ -119,6 +120,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		// Azure Storage Account:
 		StorageAccountName: data.Get("storage_account_name").(string),
 		AccessKey:          data.Get("access_key").(string),
+		ContainerName:      data.Get("container_name").(string),
 
 		// Credentials:
 		Environment:    data.Get("environment").(string),
@@ -153,7 +155,22 @@ func getBlobClient(c config) (storage.BlobStorageClient, error) {
 		return client, fmt.Errorf("error creating storage client for storage account %q: %s", c.StorageAccountName, err)
 	}
 
-	return storageClient.GetBlobService(), nil
+	// Check if the given container exists.
+	blobService := storageClient.GetBlobService()
+	params := storage.ListContainersParameters{
+		Prefix:     c.ContainerName,
+		MaxResults: 1,
+	}
+	resp, err := blobService.ListContainers(params)
+	if err != nil {
+		return client, fmt.Errorf("failed to list containers")
+	}
+	for _, container := range resp.Containers {
+		if container.Name == c.ContainerName {
+			return blobService, nil
+		}
+	}
+	return client, fmt.Errorf("cannot find container: %s", c.ContainerName)
 }
 
 // getAccessKey gets the access key needed to access the storage account that stores the remote state.
