@@ -107,6 +107,7 @@ func New() backend.Backend {
 func (b *Backend) configure(ctx context.Context) error {
 	// TODO: Check for right tenant-id and subscription.
 
+	// TODO: Replace with panic()?
 	if b.containerName != "" {
 		return nil
 	}
