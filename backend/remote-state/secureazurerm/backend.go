@@ -49,7 +49,7 @@ func New() backend.Backend {
 			// Resource group:
 			"resource_group_name": {
 				Type:        schema.TypeString,
-				Optional:    true,
+				Required:    true,
 				Description: "The resource group name.",
 			},
 
@@ -61,7 +61,7 @@ func New() backend.Backend {
 			},
 			"access_key": { // storage account access key.
 				Type:        schema.TypeString,
-				Optional:    true,
+				Required:    true,
 				Description: "The access key.",
 				DefaultFunc: schema.EnvDefaultFunc("ACCESS_KEY", ""),
 			},
