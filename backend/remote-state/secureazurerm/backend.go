@@ -24,9 +24,6 @@ type Backend struct {
 	containerName string
 	blobName      string
 	leaseID       string
-
-	// Fields used by Key Vault:
-	keyVaultName string
 }
 
 // config stores backend configuration.
@@ -37,9 +34,6 @@ type config struct {
 	// Azure Storage Account:
 	StorageAccountName string
 	AccessKey          string
-
-	// Azure Key Vault:
-	KeyVaultName string
 
 	// Credentials:
 	Environment    string
@@ -132,9 +126,6 @@ func (b *Backend) configure(ctx context.Context) error {
 		// Azure Storage Account:
 		StorageAccountName: data.Get("storage_account_name").(string),
 		AccessKey:          data.Get("access_key").(string),
-
-		// Azure Key Vault:
-		KeyVaultName: data.Get("key_vault_name").(string),
 
 		// Credentials:
 		Environment:    data.Get("environment").(string),

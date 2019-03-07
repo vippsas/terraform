@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 
-	//"github.com/Azure/azure-sdk-for-go/services/keyvault/v7.0/keyvault"
 	"github.com/Azure/azure-sdk-for-go/storage"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-uuid"
@@ -28,10 +27,6 @@ type Client struct {
 	containerName string                    // The name of the container that contains the blob storing the remote state in JSON.
 	blobName      string                    // The name of the blob that stores the remote state in JSON.
 	leaseID       string                    // ??
-
-	// Client to operate on Azure Key Vault:
-	//keyVaultClient keyvault.BaseClient // Client to communicate with Azure Resource Manager to operate on Azure Key Vaults.
-	keyVaultName string // The name of the key vault that stores the sensitive values of the remote state.
 }
 
 // Get gets the remote state from Azure Storage Account.
