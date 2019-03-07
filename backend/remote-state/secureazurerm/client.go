@@ -152,7 +152,7 @@ func (c *Client) Lock(info *state.LockInfo) (string, error) {
 			return "", getLockInfoErr(err)
 		}
 
-		// failed to lock as there was no state blob, write empty state
+		// failed to lock as there was no state blob, thus write empty state.
 		remoteState := &remote.State{Client: c}
 
 		// ensure state is actually empty
