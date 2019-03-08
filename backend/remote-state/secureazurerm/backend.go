@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -70,11 +69,6 @@ func New() backend.Backend {
 				Required:    true,
 				Description: "The container name.",
 			},
-			"blob_name": { // renamed from "key", so developers won't confuse it with keys in key vault.
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "The blob name.",
-			},
 
 			// Credentials:
 			"environment": { // optional, automatically set to "public" if empty.
@@ -112,7 +106,6 @@ func (b *Backend) configure(ctx context.Context) error {
 	// Get the resource data from the backend configuration.
 	data := schema.FromContextBackendConfig(ctx)
 	b.containerName = data.Get("container_name").(string)
-	b.blobName = data.Get("blob_name").(string)
 	c := config{
 		// Resource Group:
 		ResourceGroupName: data.Get("resource_group_name").(string),
@@ -165,11 +158,7 @@ func getBlobClient(c config) (storage.BlobStorageClient, error) {
 
 	// Check if the given container exists.
 	blobService := storageClient.GetBlobService()
-	params := storage.ListContainersParameters{
-		Prefix:     c.ContainerName,
-		MaxResults: 1,
-	}
-	resp, err := blobService.ListContainers(params)
+	resp, err := blobService.ListContainers(storage.ListContainersParameters{Prefix: c.ContainerName, MaxResults: 1})
 	if err != nil {
 		return client, fmt.Errorf("failed to list containers")
 	}
@@ -238,44 +227,22 @@ func getAzureEnvironment(environment string) (azure.Environment, error) {
 	return env, nil
 }
 
-const (
-	// This will be used as directory name, the odd looking colon is simply to
-	// reduce the chance of name conflicts with existing objects.
-	keyEnvPrefix = "env:"
-)
-
-// States returns all remote states.
+// States returns all remote states stored in separate unique blob named after the workspace.
+// remote state = workspace = blob.
 func (b *Backend) States() ([]string, error) {
-	prefix := b.blobName + keyEnvPrefix
-	params := storage.ListBlobsParameters{
-		Prefix: prefix,
-	}
-
-	container := b.blobClient.GetContainerReference(b.containerName)
-	resp, err := container.ListBlobs(params)
+	// Get blobs of container.
+	resp, err := b.blobClient.GetContainerReference(b.containerName).ListBlobs(storage.ListBlobsParameters{})
 	if err != nil {
 		return nil, err
 	}
 
-	envs := map[string]struct{}{}
-	for _, obj := range resp.Blobs {
-		key := obj.Name
-		if strings.HasPrefix(key, prefix) {
-			name := strings.TrimPrefix(key, prefix)
-			// we store the state in a key, not a directory
-			if strings.Contains(name, "/") {
-				continue
-			}
-			envs[name] = struct{}{}
-		}
+	// List workspaces (which is equivalent to blobs) in the container.
+	workspaces := []string{}
+	for _, blob := range resp.Blobs {
+		workspaces = append(workspaces, blob.Name)
 	}
-
-	result := []string{backend.DefaultStateName}
-	for name := range envs {
-		result = append(result, name)
-	}
-	sort.Strings(result[1:])
-	return result, nil
+	sort.Strings(workspaces[1:]) // default is placed first.
+	return workspaces, nil
 }
 
 // DeleteState deletes remote state.
@@ -283,7 +250,7 @@ func (b *Backend) DeleteState(name string) error {
 	if name == backend.DefaultStateName || name == "" {
 		return fmt.Errorf("can't delete default state")
 	}
-	return b.blobClient.GetContainerReference(b.containerName).GetBlobReference(b.path(name)).Delete(&storage.DeleteBlobOptions{})
+	return b.blobClient.GetContainerReference(b.containerName).GetBlobReference(name).Delete(&storage.DeleteBlobOptions{})
 }
 
 // State returns remote state specified by name.
@@ -291,25 +258,27 @@ func (b *Backend) State(name string) (state.State, error) {
 	client := &Client{
 		blobClient:    b.blobClient,
 		containerName: b.containerName,
-		blobName:      b.path(name),
+		blobName:      name,
 	}
 
 	remoteState := &remote.State{Client: client}
 
+	// TODO: Check if blob exists. If not, create it.
+
 	// If this isn't the default state name, we need to create the object so it's listed by States.
 	if name != backend.DefaultStateName {
-		// Lock state while we write it.
+		// Lock state while we write to it.
 		lockInfo := state.NewLockInfo()
 		lockInfo.Operation = "init"
 		lockID, err := client.Lock(lockInfo)
 		if err != nil {
-			return nil, fmt.Errorf("failed to lock azure state: %s", err)
+			return nil, fmt.Errorf("failed to lock remote state: %s", err)
 		}
 
 		// Create reusable lambda to unlock mutex on remote state.
 		unlock := func(parent error) error {
 			if err := remoteState.Unlock(lockID); err != nil {
-				return fmt.Errorf(strings.TrimSpace(errStateUnlock), lockID, err)
+				return fmt.Errorf("%s (break lease on lock ID %s in order to use it again)", err, lockID)
 			}
 			return parent
 		}
@@ -319,8 +288,9 @@ func (b *Backend) State(name string) (state.State, error) {
 			return nil, unlock(err)
 		}
 
-		// If we have no state, create an empty state.
+		// If there is no existing remote state, create an empty state.
 		if state := remoteState.State(); state == nil {
+			b.blobName = name
 			if err := remoteState.WriteState(terraform.NewState()); err != nil {
 				return nil, unlock(err)
 			}
@@ -337,19 +307,3 @@ func (b *Backend) State(name string) (state.State, error) {
 
 	return remoteState, nil
 }
-
-// path returns the blob name path to the remote state named name.
-func (b *Backend) path(name string) string {
-	if name == backend.DefaultStateName {
-		return b.blobName
-	}
-	return b.blobName + keyEnvPrefix + name
-}
-
-const errStateUnlock = `
-Error unlocking Azure state. Lock ID: %s
-
-Error: %s
-
-You may have to force-unlock this state in order to use it again.
-`
