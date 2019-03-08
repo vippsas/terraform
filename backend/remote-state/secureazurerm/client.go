@@ -148,6 +148,7 @@ func (c *Client) Lock(info *state.LockInfo) (string, error) {
 	containerReference := c.blobClient.GetContainerReference(c.containerName)
 	blobReference := containerReference.GetBlobReference(c.blobName)
 	leaseID, err := blobReference.AcquireLease(-1, info.ID, &storage.LeaseOptions{})
+	// If failed to acquire lease.
 	if err != nil {
 		if storErr, ok := err.(storage.AzureStorageServiceError); ok && storErr.Code != "BlobNotFound" {
 			return "", getLockInfoErr(err)
