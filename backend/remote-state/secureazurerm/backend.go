@@ -132,6 +132,7 @@ func (b *Backend) configure(ctx context.Context) error {
 
 	// TODO:
 	// 1. Check if the given resource group exists.
+	//   - If not, create it!
 	// 2. Check if the necessary Azure resources has been made in the resource group.
 	//   - If not, provision it!
 
