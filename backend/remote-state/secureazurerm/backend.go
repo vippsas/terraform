@@ -95,9 +95,9 @@ func New() backend.Backend {
 		},
 	}
 
-	result := &Backend{Backend: s}
-	result.Backend.ConfigureFunc = result.configure
-	return result
+	b := &Backend{Backend: s}
+	b.Backend.ConfigureFunc = b.configure
+	return b
 }
 
 // configure bootstraps the Azure resources needed to use this backend.
