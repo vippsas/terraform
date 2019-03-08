@@ -258,8 +258,7 @@ func (c *Client) writeLockInfo(info *state.LockInfo) error {
 	if info == nil {
 		delete(blobReference.Metadata, lockInfoMetaKey)
 	} else {
-		value := base64.StdEncoding.EncodeToString(info.Marshal())
-		blobReference.Metadata[lockInfoMetaKey] = value
+		blobReference.Metadata[lockInfoMetaKey] = base64.StdEncoding.EncodeToString(info.Marshal())
 	}
 
 	opts := &storage.SetBlobMetadataOptions{
