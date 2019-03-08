@@ -9,14 +9,9 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/storage"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/state/remote"
 	"github.com/hashicorp/terraform/terraform"
-)
-
-const (
-	lockInfoMetaKey = "terraformlockid" // Must be lower case!
 )
 
 // Client holds the state to communicate with Azure Resource Manager.
@@ -123,17 +118,9 @@ func (c *Client) Delete() error {
 func (c *Client) Lock(info *state.LockInfo) (string, error) {
 	info.Path = fmt.Sprintf("%s/%s", c.containerName, c.blobName)
 
-	// bao: this is useless:
-	if info.ID == "" {
-		lockID, err := uuid.GenerateUUID()
-		if err != nil {
-			return "", err
-		}
-		info.ID = lockID
-	}
-
 	blobReference := c.blobClient.GetContainerReference(c.containerName).GetBlobReference(c.blobName)
-	leaseID, err := blobReference.AcquireLease(-1, info.ID, &storage.LeaseOptions{})
+	var err error
+	info.ID, err = blobReference.AcquireLease(-1, info.ID, &storage.LeaseOptions{})
 	// If failed to acquire lease.
 	if err != nil {
 		getLockInfoErr := func(err error) error {
@@ -168,16 +155,14 @@ func (c *Client) Lock(info *state.LockInfo) (string, error) {
 			}
 		}
 
-		leaseID, err = blobReference.AcquireLease(-1, info.ID, &storage.LeaseOptions{})
+		info.ID, err = blobReference.AcquireLease(-1, info.ID, &storage.LeaseOptions{})
 		if err != nil {
 			return "", getLockInfoErr(err)
 		}
 	}
+	c.leaseID = info.ID
 
-	info.ID = leaseID
-	c.leaseID = leaseID
-
-	if err := c.writeLockInfo(info); err != nil {
+	if err = c.writeLockInfo(info); err != nil {
 		return "", err
 	}
 
@@ -215,6 +200,10 @@ func (c *Client) Unlock(id string) error {
 	return nil
 }
 
+const (
+	lockInfoMetaKey = "terraformlockid" // Must be lower case!
+)
+
 // getLockInfo returns metadata about the lock.
 func (c *Client) getLockInfo() (*state.LockInfo, error) {
 	containerReference := c.blobClient.GetContainerReference(c.containerName)
@@ -242,22 +231,16 @@ func (c *Client) getLockInfo() (*state.LockInfo, error) {
 	return lockInfo, nil
 }
 
-// writeLockInfo writes info to blob metadata, and deletes metadata entry if info is nil.
+// writeLockInfo writes lock info in base64 to blob metadata, and deletes metadata entry if info is nil.
 func (c *Client) writeLockInfo(info *state.LockInfo) error {
-	containerReference := c.blobClient.GetContainerReference(c.containerName)
-	blobReference := containerReference.GetBlobReference(c.blobName)
+	blobReference := c.blobClient.GetContainerReference(c.containerName).GetBlobReference(c.blobName)
 	if err := blobReference.GetMetadata(&storage.GetBlobMetadataOptions{LeaseID: c.leaseID}); err != nil {
 		return err
 	}
-
 	if info == nil {
 		delete(blobReference.Metadata, lockInfoMetaKey)
 	} else {
 		blobReference.Metadata[lockInfoMetaKey] = base64.StdEncoding.EncodeToString(info.Marshal())
 	}
-
-	opts := &storage.SetBlobMetadataOptions{
-		LeaseID: c.leaseID,
-	}
-	return blobReference.SetMetadata(opts)
+	return blobReference.SetMetadata(&storage.SetBlobMetadataOptions{LeaseID: c.leaseID})
 }
