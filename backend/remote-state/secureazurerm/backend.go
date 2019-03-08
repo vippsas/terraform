@@ -227,8 +227,9 @@ func getAzureEnvironment(environment string) (azure.Environment, error) {
 	return env, nil
 }
 
-// States returns all remote states stored in separate unique blob named after the workspace.
-// remote state = workspace = blob.
+// States returns a list of the names of all remote states stored in separate unique blob.
+// They are all named after the workspace.
+// Basically, remote state = workspace = blob.
 func (b *Backend) States() ([]string, error) {
 	// Get blobs of container.
 	resp, err := b.blobClient.GetContainerReference(b.containerName).ListBlobs(storage.ListBlobsParameters{})
