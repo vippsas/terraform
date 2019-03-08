@@ -130,7 +130,10 @@ func (b *Backend) configure(ctx context.Context) error {
 		// TODO: Use MSI.
 	}
 
-	// TODO: Check if you placed the resources in the resource group specified in the configuration file.
+	// TODO:
+	// 1. Check if the given resource group exists.
+	// 2. Check if the necessary Azure resources has been made in the resource group.
+	//   - If not, provision it!
 
 	blobClient, err := getBlobClient(c)
 	if err != nil {
