@@ -126,7 +126,11 @@ func (b *Backend) configure(ctx context.Context) error {
 		Environment:    data.Get("environment").(string),
 		TenantID:       data.Get("tenant_id").(string),
 		SubscriptionID: data.Get("subscription_id").(string),
+
+		// TODO: Use MSI.
 	}
+
+	// TODO: Check if you placed the resources in the resource group specified in the configuration file.
 
 	blobClient, err := getBlobClient(c)
 	if err != nil {
