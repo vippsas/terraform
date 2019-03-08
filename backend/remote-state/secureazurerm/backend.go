@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/terraform/terraform"
 )
 
-// Backend does backend.
+// Backend maintains the remote state in Azure.
 type Backend struct {
 	*schema.Backend
 
