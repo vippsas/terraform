@@ -45,6 +45,7 @@ type config struct {
 // New creates a new backend for remote state stored in Azure storage account and key vault.
 func New() backend.Backend {
 	s := &schema.Backend{
+		// Fields in backend {}. Ensure that all values are stored only in the configuration files.
 		Schema: map[string]*schema.Schema{
 			// Resource group:
 			"resource_group_name": {
@@ -63,7 +64,6 @@ func New() backend.Backend {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: "The access key.",
-				DefaultFunc: schema.EnvDefaultFunc("ACCESS_KEY", ""),
 			},
 			"container_name": {
 				Type:        schema.TypeString,
@@ -81,19 +81,16 @@ func New() backend.Backend {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: "The Azure cloud environment.",
-				DefaultFunc: schema.EnvDefaultFunc("ENVIRONMENT", ""),
 			},
 			"tenant_id": {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: "The tenant ID.",
-				DefaultFunc: schema.EnvDefaultFunc("TENANT_ID", ""),
 			},
 			"subscription_id": {
 				Type:        schema.TypeString,
 				Required:    true, // ensure that you don't accidently write to the wrong subscription incorrectly set by 'az'.
 				Description: "The subscription ID.",
-				DefaultFunc: schema.EnvDefaultFunc("SUBSCRIPTION_ID", ""),
 			},
 		},
 	}
