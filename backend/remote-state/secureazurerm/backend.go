@@ -268,7 +268,6 @@ func (b *Backend) State(name string) (state.State, error) {
 	if err != nil {
 		return nil, err // failed to check blob existence.
 	}
-
 	// If not exists, write empty state blob (no need for lock when the blob does not exists).
 	if !exists {
 		// Create new state in-memory.
