@@ -19,8 +19,8 @@ type Client struct {
 	// Client to operate on Azure Storage Account:
 	blobClient    storage.BlobStorageClient // Client to communicate with Azure Resource Manager to operate on Azure Storage Accounts.
 	containerName string                    // The name of the container that contains the blob storing the remote state in JSON.
-	blobName      string                    // The name of the blob that stores the remote state in JSON.
-	leaseID       string                    // The ID to the lease used as a lock/mutex.
+	blobName      string                    // The name of the blob that stores the remote state in JSON. Should be equal to workspace-name.
+	leaseID       string                    // The lease ID used as a lock/mutex to the blob.
 }
 
 // Get gets the remote state from the blob in the container in the Azure Storage Account.
@@ -32,13 +32,21 @@ func (c *Client) Get() (*remote.Payload, error) {
 		options.LeaseID = c.leaseID
 	}
 
+	// Check if blob exists.
+	blobExists, err := blob.Exists()
+	if err != nil {
+		return nil, err
+	}
+	// Create blob if it does not exists.
+	if !blobExists {
+		blob.CreateBlockBlob(&storage.PutBlobOptions{})
+	}
+
 	// Get remote state from blob.
 	data, err := blob.Get(options)
 	if err != nil {
 		if storErr, ok := err.(storage.AzureStorageServiceError); ok {
-			if storErr.Code == "BlobNotFound" {
-				return nil, nil
-			}
+			return nil, fmt.Errorf(storErr.Code)
 		}
 		return nil, err
 	}
@@ -49,11 +57,9 @@ func (c *Client) Get() (*remote.Payload, error) {
 	if _, err := io.Copy(buf, data); err != nil {
 		return nil, fmt.Errorf("failed to read remote state: %s", err)
 	}
-	payload := &remote.Payload{
-		Data: buf.Bytes(), // remote state data.
-	}
-	// Check if blob is empty.
-	if len(payload.Data) == 0 {
+	// Make payload from remote state blob data.
+	payload := &remote.Payload{Data: buf.Bytes()}
+	if len(payload.Data) == 0 { // is payload empty?
 		return nil, nil
 	}
 	return payload, nil
