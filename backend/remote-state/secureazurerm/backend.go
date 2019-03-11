@@ -272,8 +272,7 @@ func (b *Backend) State(name string) (state.State, error) {
 	// If not exists, write empty state blob (no need for lock when the blob does not exists).
 	if !exists {
 		// Create new state in-memory.
-		s := terraform.NewState()
-		if err := remoteState.WriteState(s); err != nil {
+		if err := remoteState.WriteState(terraform.NewState()); err != nil {
 			return nil, err
 		}
 		// Write that in-memory state to remote state.
