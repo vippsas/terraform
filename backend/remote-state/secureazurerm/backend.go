@@ -251,7 +251,12 @@ func (b *Backend) DeleteState(name string) error {
 	if name == backend.DefaultStateName {
 		return fmt.Errorf("can't delete default state")
 	}
-	return b.blobClient.GetContainerReference(b.containerName).GetBlobReference(name).Delete(&storage.DeleteBlobOptions{})
+	c := &Client{
+		blobClient:    b.blobClient,
+		containerName: b.containerName,
+		blobName:      name, // workspace name.
+	}
+	return c.Delete()
 }
 
 // State returns remote state specified by name.
