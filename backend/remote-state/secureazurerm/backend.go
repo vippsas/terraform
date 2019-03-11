@@ -261,7 +261,7 @@ func (b *Backend) State(name string) (state.State, error) {
 		containerName: b.containerName,
 		blobName:      name, // workspace name.
 	}
-	remoteState := &remote.State{Client: c}
+	s := &remote.State{Client: c}
 
 	// Check if blob exists.
 	exists, err := c.Exists()
@@ -272,14 +272,14 @@ func (b *Backend) State(name string) (state.State, error) {
 	// If not exists, write empty state blob (no need for lock when the blob does not exists).
 	if !exists {
 		// Create new state in-memory.
-		if err := remoteState.WriteState(terraform.NewState()); err != nil {
+		if err := s.WriteState(terraform.NewState()); err != nil {
 			return nil, err
 		}
 		// Write that in-memory state to remote state.
-		if err := remoteState.PersistState(); err != nil {
+		if err := s.PersistState(); err != nil {
 			return nil, err
 		}
 	}
 
-	return remoteState, nil
+	return s, nil
 }
