@@ -256,13 +256,13 @@ func (b *Backend) DeleteState(name string) error {
 
 // State returns remote state specified by name.
 func (b *Backend) State(name string) (state.State, error) {
-	client := &Client{
+	c := &Client{
 		blobClient:    b.blobClient,
 		containerName: b.containerName,
 		blobName:      name,
 	}
 
-	remoteState := &remote.State{Client: client}
+	remoteState := &remote.State{Client: c}
 
 	// TODO: Check if blob exists. If not, create it.
 
@@ -271,7 +271,7 @@ func (b *Backend) State(name string) (state.State, error) {
 		// Lock state while we write to it.
 		lockInfo := state.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockID, err := client.Lock(lockInfo)
+		lockID, err := c.Lock(lockInfo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to lock remote state: %s", err)
 		}
