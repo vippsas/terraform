@@ -232,14 +232,14 @@ func getAzureEnvironment(environment string) (azure.Environment, error) {
 // Basically, remote state = workspace = blob.
 func (b *Backend) States() ([]string, error) {
 	// Get blobs of container.
-	resp, err := b.blobClient.GetContainerReference(b.containerName).ListBlobs(storage.ListBlobsParameters{})
+	r, err := b.blobClient.GetContainerReference(b.containerName).ListBlobs(storage.ListBlobsParameters{})
 	if err != nil {
 		return nil, err
 	}
 
 	// List workspaces (which is equivalent to blobs) in the container.
 	workspaces := []string{}
-	for _, blob := range resp.Blobs {
+	for _, blob := range r.Blobs {
 		workspaces = append(workspaces, blob.Name)
 	}
 	sort.Strings(workspaces[1:]) // default is placed first.
