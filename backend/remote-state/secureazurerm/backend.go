@@ -242,7 +242,7 @@ func (b *Backend) States() ([]string, error) {
 	for _, blob := range r.Blobs {
 		workspaces = append(workspaces, blob.Name)
 	}
-	sort.Strings(workspaces[1:]) // default is placed first.
+	sort.Strings(workspaces[1:]) // default is placed first in the returned list.
 	return workspaces, nil
 }
 
