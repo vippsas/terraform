@@ -62,7 +62,7 @@ func (c *Client) Get() (*remote.Payload, error) {
 // Put puts the remote state data into a blob and the key vault.
 func (c *Client) Put(data []byte) error {
 	// Check if the remote state blob to work on has been set.
-	if c.blobName != "" {
+	if c.blobName == "" {
 		return fmt.Errorf("blob name is empty")
 	}
 	// Check if no lease has been acquired.
