@@ -21,10 +21,6 @@ type Client struct {
 	leaseID       string                    // The lease ID used as a lock/mutex to the blob.
 }
 
-func (c *Client) getBlobRef() *storage.Blob {
-	return c.blobClient.GetContainerReference(c.containerName).GetBlobReference(c.blobName)
-}
-
 // Exists check if remote state blob exists already.
 func (c *Client) Exists() (bool, error) {
 	// Check if blob exists.
@@ -193,6 +189,11 @@ func (c *Client) Unlock(id string) error {
 	}
 	c.leaseID = ""
 	return nil
+}
+
+// getBlobRef returns the blob reference to the client's blob.
+func (c *Client) getBlobRef() *storage.Blob {
+	return c.blobClient.GetContainerReference(c.containerName).GetBlobReference(c.blobName)
 }
 
 // IsValid checks if the client's fields are set correctly before using it.
