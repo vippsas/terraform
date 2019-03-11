@@ -259,49 +259,25 @@ func (b *Backend) State(name string) (state.State, error) {
 	c := &Client{
 		blobClient:    b.blobClient,
 		containerName: b.containerName,
-		blobName:      name,
+		blobName:      name, // workspace name.
 	}
-
 	remoteState := &remote.State{Client: c}
 
-	// TODO: Check if blob exists. If not, create it.
+	// Check if blob exists. If not, create it.
+	exists, err := c.Exists()
+	if err != nil {
+		return nil, err
+	}
 
-	// If this isn't the default state name, we need to create the object so it's listed by States.
-	if name != backend.DefaultStateName {
-		// Lock state while we write to it.
-		lockInfo := state.NewLockInfo()
-		lockInfo.Operation = "init"
-		lockID, err := c.Lock(lockInfo)
-		if err != nil {
-			return nil, fmt.Errorf("failed to lock remote state: %s", err)
+	// If not exists, write empty state blob (no need for lock when the blob does not exists).
+	if !exists {
+		// Create new state in-memory.
+		s := terraform.NewState()
+		if err := remoteState.WriteState(s); err != nil {
+			return nil, err
 		}
-
-		// Create reusable lambda to unlock mutex on remote state.
-		unlock := func(parent error) error {
-			if err := remoteState.Unlock(lockID); err != nil {
-				return fmt.Errorf("%s (break lease on lock ID %s in order to use it again)", err, lockID)
-			}
-			return parent
-		}
-
-		// Grab the remote state from the specified storage account.
-		if err := remoteState.RefreshState(); err != nil {
-			return nil, unlock(err)
-		}
-
-		// If there is no existing remote state, create an empty state.
-		if state := remoteState.State(); state == nil {
-			b.blobName = name
-			if err := remoteState.WriteState(terraform.NewState()); err != nil {
-				return nil, unlock(err)
-			}
-			if err := remoteState.PersistState(); err != nil {
-				return nil, unlock(err)
-			}
-		}
-
-		// Unlock, the state should now be initialized.
-		if err := unlock(nil); err != nil {
+		// Write that in-memory state to remote state.
+		if err := remoteState.PersistState(); err != nil {
 			return nil, err
 		}
 	}
