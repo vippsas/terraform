@@ -263,10 +263,10 @@ func (b *Backend) State(name string) (state.State, error) {
 	}
 	remoteState := &remote.State{Client: c}
 
-	// Check if blob exists. If not, create it.
+	// Check if blob exists.
 	exists, err := c.Exists()
 	if err != nil {
-		return nil, err
+		return nil, err // failed to check blob existence.
 	}
 
 	// If not exists, write empty state blob (no need for lock when the blob does not exists).
