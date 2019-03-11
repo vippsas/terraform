@@ -248,7 +248,7 @@ func (b *Backend) States() ([]string, error) {
 
 // DeleteState deletes remote state.
 func (b *Backend) DeleteState(name string) error {
-	if name == backend.DefaultStateName || name == "" {
+	if name == backend.DefaultStateName {
 		return fmt.Errorf("can't delete default state")
 	}
 	return b.blobClient.GetContainerReference(b.containerName).GetBlobReference(name).Delete(&storage.DeleteBlobOptions{})
