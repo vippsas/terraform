@@ -82,7 +82,6 @@ func New() backend.Backend {
 			},
 		},
 	}
-
 	b := &Backend{Backend: s}
 	b.Backend.ConfigureFunc = b.configure
 	return b
@@ -90,14 +89,7 @@ func New() backend.Backend {
 
 // configure bootstraps the Azure resources needed to use this backend.
 func (b *Backend) configure(ctx context.Context) error {
-	// TODO: Check for right tenant-id and subscription.
-
-	// TODO: Replace with panic()?
-	if b.containerName != "" {
-		return nil
-	}
-
-	// Get the resource data from the backend configuration.
+	// Get the data fields from the "backend"-block.
 	data := schema.FromContextBackendConfig(ctx)
 	b.containerName = data.Get("container_name").(string)
 	c := config{
@@ -122,51 +114,54 @@ func (b *Backend) configure(ctx context.Context) error {
 	// 2. Check if the necessary Azure resources has been made in the resource group.
 	//   - If not, provision it!
 
-	blobClient, err := getBlobClient(c)
-	if err != nil {
-		return err
-	}
-	b.blobClient = blobClient
-
-	return nil
-}
-
-func getBlobClient(c config) (storage.BlobStorageClient, error) {
-	var client storage.BlobStorageClient
+	/*
+		blobClient, err := getBlobClient(c)
+		if err != nil {
+			return err
+		}
+		b.blobClient = blobClient
+	*/
 
 	env := azure.PublicCloud // currently only supports AzurePublicCloud.
 
-	accessKey, err := getAccessKey(c, env)
-	if err != nil {
-		return client, err
+	/*
+		accessKey, err := getAccessKey(c, env)
+		if err != nil {
+			return err
+		}
+	*/
+	if c.AccessKey == "" {
+		return fmt.Errorf("access key not provided")
 	}
 
-	storageClient, err := storage.NewClient(c.StorageAccountName, accessKey, env.StorageEndpointSuffix, storage.DefaultAPIVersion, true)
+	// Create new storage account client.
+	storageClient, err := storage.NewClient(c.StorageAccountName, c.AccessKey, env.StorageEndpointSuffix, storage.DefaultAPIVersion, true)
 	if err != nil {
-		return client, fmt.Errorf("error creating storage client for storage account %q: %s", c.StorageAccountName, err)
+		return fmt.Errorf("error creating client for storage account %q: %s", c.StorageAccountName, err)
 	}
 
 	// Check if the given container exists.
 	blobService := storageClient.GetBlobService()
 	resp, err := blobService.ListContainers(storage.ListContainersParameters{Prefix: c.ContainerName, MaxResults: 1})
 	if err != nil {
-		return client, fmt.Errorf("failed to list containers")
+		return fmt.Errorf("failed to list containers")
 	}
 	for _, container := range resp.Containers {
 		if container.Name == c.ContainerName {
-			return blobService, nil
+			b.blobClient = blobService
+			return nil // success!
 		}
 	}
-	return client, fmt.Errorf("cannot find container: %s", c.ContainerName)
+	return fmt.Errorf("cannot find container: %s", c.ContainerName)
 }
 
+/*
 // getAccessKey gets the access key needed to access the storage account that stores the remote state.
 func getAccessKey(c config, env azure.Environment) (string, error) {
 	if c.AccessKey != "" {
 		return c.AccessKey, nil
 	}
 
-	/*
 		if c.ResourceGroupName != "" || c.SubscriptionID != "" || c.TenantID != "" {
 			return "", fmt.Errorf("resource_group_name and credentials must be provided when access_key is absent")
 		}
@@ -195,9 +190,9 @@ func getAccessKey(c config, env azure.Environment) (string, error) {
 
 		accessKeys := *keys.Keys
 		return *accessKeys[0].Value, nil
-	*/
 	return "", fmt.Errorf("access key not provided")
 }
+*/
 
 // States returns a list of the names of all remote states stored in separate unique blob.
 // They are all named after the workspace.
