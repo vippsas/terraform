@@ -209,7 +209,7 @@ func (c *Client) isLeased() error {
 }
 
 const (
-	lockInfoMetaKey = "terraformlockid" // Must be lower case!
+	lockinfo = "lockinfo" // must be lower case!
 )
 
 // getLockInfo retrieves lock info from metadata.
@@ -220,9 +220,9 @@ func (c *Client) getLockInfo() (*state.LockInfo, error) {
 		return nil, err
 	}
 
-	raw := blobRef.Metadata[lockInfoMetaKey]
+	raw := blobRef.Metadata[lockinfo]
 	if raw == "" {
-		return nil, fmt.Errorf("blob metadata %q was empty", lockInfoMetaKey)
+		return nil, fmt.Errorf("blob metadata %q was empty", lockinfo)
 	}
 
 	data, err := base64.StdEncoding.DecodeString(raw)
@@ -245,9 +245,9 @@ func (c *Client) writeLockInfo(info *state.LockInfo) error {
 		return err
 	}
 	if info == nil {
-		delete(blobRef.Metadata, lockInfoMetaKey)
+		delete(blobRef.Metadata, lockinfo)
 	} else {
-		blobRef.Metadata[lockInfoMetaKey] = base64.StdEncoding.EncodeToString(info.Marshal())
+		blobRef.Metadata[lockinfo] = base64.StdEncoding.EncodeToString(info.Marshal())
 	}
 	return blobRef.SetMetadata(&storage.SetBlobMetadataOptions{LeaseID: c.leaseID})
 }
