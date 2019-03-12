@@ -118,7 +118,7 @@ func (c *Client) Put(data []byte) error {
 	return blobRef.SetProperties(&storage.SetBlobPropertiesOptions{LeaseID: c.leaseID})
 }
 
-// Delete deletes blob that contains the blob state.
+// Delete deletes blob that contains the state.
 func (c *Client) Delete() error {
 	// Is client's fields set correctly?
 	if err := c.isValid(); err != nil {
@@ -133,7 +133,7 @@ func (c *Client) Delete() error {
 	return c.getBlobRef().Delete(&storage.DeleteBlobOptions{LeaseID: c.leaseID, DeleteSnapshots: &del})
 }
 
-// Lock acquires the lease of the remote state blob.
+// Lock acquires the lease of the blob.
 func (c *Client) Lock(info *state.LockInfo) (string, error) {
 	// Check if client's fields are set correctly.
 	if err := c.isValid(); err != nil {
@@ -157,7 +157,7 @@ func (c *Client) Lock(info *state.LockInfo) (string, error) {
 	return info.ID, nil
 }
 
-// Unlock unlocks the mutex of remote state.
+// Unlock breaks the lease of the blob.
 func (c *Client) Unlock(id string) error {
 	// Check if client's fields are set correctly.
 	if err := c.isValid(); err != nil {
@@ -165,10 +165,9 @@ func (c *Client) Unlock(id string) error {
 	}
 
 	lockErr := &state.LockError{}
-
 	lockInfo, err := c.getLockInfo()
 	if err != nil {
-		lockErr.Err = fmt.Errorf("failed to retrieve lock info: %s", err)
+		lockErr.Err = fmt.Errorf("error retrieving lock info: %s", err)
 		return lockErr
 	}
 	lockErr.Info = lockInfo
@@ -179,12 +178,12 @@ func (c *Client) Unlock(id string) error {
 	}
 
 	if err := c.writeLockInfo(nil); err != nil {
-		lockErr.Err = fmt.Errorf("failed to delete lock info from metadata: %s", err)
+		lockErr.Err = fmt.Errorf("error deleting lock info from metadata: %s", err)
 		return lockErr
 	}
 
-	blob := c.getBlobRef()
-	if err = blob.ReleaseLease(id, &storage.LeaseOptions{}); err != nil {
+	blobRef := c.getBlobRef()
+	if err = blobRef.ReleaseLease(id, &storage.LeaseOptions{}); err != nil {
 		lockErr.Err = err
 		return lockErr
 	}
