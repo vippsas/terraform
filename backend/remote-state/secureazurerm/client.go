@@ -200,6 +200,7 @@ func (c *Client) isValid() error {
 	return nil
 }
 
+// isLeased checks if a lease has been acquired on blob.
 func (c *Client) isLeased() error {
 	// Check if no lease has been acquired.
 	if c.leaseID == "" {
