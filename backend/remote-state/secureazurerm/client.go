@@ -33,9 +33,8 @@ func (c *Client) Exists() (bool, error) {
 
 // Get gets the remote state from the blob in the container in the Azure Storage Account.
 func (c *Client) Get() (*remote.Payload, error) {
-	// Check if client's field are set correctly.
 	if err := c.isValid(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client is invalid: %s", err)
 	}
 
 	// Get blob containing remote state.
@@ -81,7 +80,7 @@ func (c *Client) Get() (*remote.Payload, error) {
 func (c *Client) Put(data []byte) error {
 	// Check if client's fields are set correctly.
 	if err := c.isValid(); err != nil {
-		return err
+		return fmt.Errorf("client is invalid: %s", err)
 	}
 
 	// Get blob reference to the remote blob in the container in the storage account.
@@ -122,7 +121,7 @@ func (c *Client) Put(data []byte) error {
 func (c *Client) Delete() error {
 	// Is client's fields set correctly?
 	if err := c.isValid(); err != nil {
-		return err
+		return fmt.Errorf("client is invalid: %s", err)
 	}
 	// Is blob leased?
 	if err := c.isLeased(); err != nil {
@@ -136,7 +135,7 @@ func (c *Client) Delete() error {
 // Lock acquires the lease of the blob.
 func (c *Client) Lock(info *state.LockInfo) (string, error) {
 	if err := c.isValid(); err != nil {
-		return "", err
+		return "", fmt.Errorf("client is invalid: %s", err)
 	}
 
 	blobRef := c.getBlobRef()
@@ -159,7 +158,7 @@ func (c *Client) Lock(info *state.LockInfo) (string, error) {
 // Unlock breaks the lease of the blob.
 func (c *Client) Unlock(id string) error {
 	if err := c.isValid(); err != nil {
-		return err
+		return fmt.Errorf("client is invalid: %s", err)
 	}
 
 	lockErr := &state.LockError{}
