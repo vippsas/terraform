@@ -135,7 +135,6 @@ func (c *Client) Delete() error {
 
 // Lock acquires the lease of the blob.
 func (c *Client) Lock(info *state.LockInfo) (string, error) {
-	// Check if client's fields are set correctly.
 	if err := c.isValid(); err != nil {
 		return "", err
 	}
@@ -159,7 +158,6 @@ func (c *Client) Lock(info *state.LockInfo) (string, error) {
 
 // Unlock breaks the lease of the blob.
 func (c *Client) Unlock(id string) error {
-	// Check if client's fields are set correctly.
 	if err := c.isValid(); err != nil {
 		return err
 	}
