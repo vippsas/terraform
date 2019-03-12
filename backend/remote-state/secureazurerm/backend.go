@@ -6,7 +6,6 @@ import (
 	"sort"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
-	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/hashicorp/terraform/backend"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/state"
@@ -75,17 +74,15 @@ func New() backend.Backend {
 func (b *Backend) configure(ctx context.Context) error {
 	// Get the data fields from the "backend"-block.
 	data := schema.FromContextBackendConfig(ctx)
-	b.containerName = data.Get("container_name").(string)
-	c := config{
-		// Resource Group:
-		ResourceGroupName: data.Get("resource_group_name").(string),
 
-		// Azure Storage Account:
-		StorageAccountName: data.Get("storage_account_name").(string),
-		ContainerName:      data.Get("container_name").(string),
-		AccessKey:          data.Get("access_key").(string),
-		// TODO: Use MSI.
-	}
+	// Resource Group:
+	//resourceGroupName := data.Get("resource_group_name").(string)
+
+	// Azure Storage Account:
+	storageAccountName := data.Get("storage_account_name").(string)
+	b.containerName = data.Get("container_name").(string)
+	accessKey := data.Get("access_key").(string)
+	// TODO: Use MSI.
 
 	// TODO:
 	// 1. Check if the given resource group exists.
@@ -93,31 +90,29 @@ func (b *Backend) configure(ctx context.Context) error {
 	// 2. Check if the necessary Azure resources has been made in the resource group.
 	//   - If not, provision it!
 
-	env := azure.PublicCloud // currently only supports AzurePublicCloud.
-
-	if c.AccessKey == "" {
+	if accessKey == "" {
 		return fmt.Errorf("access key not provided")
 	}
 
 	// Create new storage account client.
-	storageClient, err := storage.NewClient(c.StorageAccountName, c.AccessKey, env.StorageEndpointSuffix, storage.DefaultAPIVersion, true)
+	storageClient, err := storage.NewBasicClient(storageAccountName, accessKey)
 	if err != nil {
-		return fmt.Errorf("error creating client for storage account %q: %s", c.StorageAccountName, err)
+		return fmt.Errorf("error creating client for storage account %q: %s", storageAccountName, err)
 	}
 
 	// Check if the given container exists.
 	blobService := storageClient.GetBlobService()
-	resp, err := blobService.ListContainers(storage.ListContainersParameters{Prefix: c.ContainerName, MaxResults: 1})
+	resp, err := blobService.ListContainers(storage.ListContainersParameters{Prefix: b.containerName, MaxResults: 1})
 	if err != nil {
 		return fmt.Errorf("error listing containers: %s", err)
 	}
 	for _, container := range resp.Containers {
-		if container.Name == c.ContainerName {
+		if container.Name == b.containerName {
 			b.blobClient = blobService
 			return nil // success!
 		}
 	}
-	return fmt.Errorf("cannot find container: %s", c.ContainerName)
+	return fmt.Errorf("cannot find container: %s", b.containerName)
 }
 
 /*
