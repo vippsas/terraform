@@ -114,22 +114,8 @@ func (b *Backend) configure(ctx context.Context) error {
 	// 2. Check if the necessary Azure resources has been made in the resource group.
 	//   - If not, provision it!
 
-	/*
-		blobClient, err := getBlobClient(c)
-		if err != nil {
-			return err
-		}
-		b.blobClient = blobClient
-	*/
-
 	env := azure.PublicCloud // currently only supports AzurePublicCloud.
 
-	/*
-		accessKey, err := getAccessKey(c, env)
-		if err != nil {
-			return err
-		}
-	*/
 	if c.AccessKey == "" {
 		return fmt.Errorf("access key not provided")
 	}
@@ -144,7 +130,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	blobService := storageClient.GetBlobService()
 	resp, err := blobService.ListContainers(storage.ListContainersParameters{Prefix: c.ContainerName, MaxResults: 1})
 	if err != nil {
-		return fmt.Errorf("failed to list containers")
+		return fmt.Errorf("error listing containers: %s", err)
 	}
 	for _, container := range resp.Containers {
 		if container.Name == c.ContainerName {
@@ -223,7 +209,19 @@ func (b *Backend) DeleteState(name string) error {
 		containerName: b.containerName,
 		blobName:      name, // workspace name.
 	}
-	return c.Delete()
+	lockInfo := state.NewLockInfo()
+	lockInfo.Operation = "init"
+	leaseID, err := c.Lock(lockInfo)
+	if err != nil {
+		return fmt.Errorf("error locking blob: %s", err)
+	}
+	if err = c.Delete(); err != nil {
+		if err := c.Unlock(leaseID); err != nil {
+			return fmt.Errorf("error unlocking blob (may need to be manually broken): %s", err)
+		}
+		return fmt.Errorf("error deleting blob: %s", err)
+	}
+	return nil
 }
 
 // State returns remote state specified by name.
