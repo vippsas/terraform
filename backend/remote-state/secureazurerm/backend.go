@@ -36,7 +36,6 @@ type config struct {
 	ContainerName      string
 
 	// Credentials:
-	Environment    string
 	SubscriptionID string
 	TenantID       string
 }
@@ -111,7 +110,6 @@ func (b *Backend) configure(ctx context.Context) error {
 		ContainerName:      data.Get("container_name").(string),
 
 		// Credentials:
-		Environment:    data.Get("environment").(string),
 		TenantID:       data.Get("tenant_id").(string),
 		SubscriptionID: data.Get("subscription_id").(string),
 
