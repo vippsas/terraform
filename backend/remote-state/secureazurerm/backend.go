@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sort"
 
+	armStorage "github.com/Azure/azure-sdk-for-go/arm/storage"
 	"github.com/Azure/azure-sdk-for-go/storage"
-	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/hashicorp/terraform/backend"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/state"
@@ -23,17 +23,6 @@ type Backend struct {
 	containerName string
 	blobName      string
 	leaseID       string
-}
-
-// config stores backend configuration.
-type config struct {
-	// Resource Group:
-	ResourceGroupName string
-
-	// Azure Storage Account:
-	StorageAccountName string
-	ContainerName      string
-	AccessKey          string
 }
 
 // New creates a new backend for remote state stored in Azure storage account and key vault.
@@ -59,10 +48,12 @@ func New() backend.Backend {
 				Required:    true,
 				Description: "The container name.",
 			},
-			"access_key": { // storage account access key.
+
+			// Credentials:
+			"subscription_id": {
 				Type:        schema.TypeString,
 				Required:    true,
-				Description: "The access key.",
+				Description: "The subscription ID",
 			},
 		},
 	}
@@ -75,17 +66,16 @@ func New() backend.Backend {
 func (b *Backend) configure(ctx context.Context) error {
 	// Get the data fields from the "backend"-block.
 	data := schema.FromContextBackendConfig(ctx)
-	b.containerName = data.Get("container_name").(string)
-	c := config{
-		// Resource Group:
-		ResourceGroupName: data.Get("resource_group_name").(string),
 
-		// Azure Storage Account:
-		StorageAccountName: data.Get("storage_account_name").(string),
-		ContainerName:      data.Get("container_name").(string),
-		AccessKey:          data.Get("access_key").(string),
-		// TODO: Use MSI.
-	}
+	// Resource Group:
+	resourceGroupName := data.Get("resource_group_name").(string)
+
+	// Azure Storage Account:
+	storageAccountName := data.Get("storage_account_name").(string)
+	containerName := data.Get("container_name").(string)
+
+	// Credentials:
+	subscriptionID := data.Get("subscription_id").(string)
 
 	// TODO:
 	// 1. Check if the given resource group exists.
@@ -93,31 +83,41 @@ func (b *Backend) configure(ctx context.Context) error {
 	// 2. Check if the necessary Azure resources has been made in the resource group.
 	//   - If not, provision it!
 
-	env := azure.PublicCloud // currently only supports AzurePublicCloud.
+	authorizer, err := auth.NewAuthorizerFromEnvironment()
+	if err != nil {
+		return fmt.Errorf("error creating authorizer from environment: %s", err)
+	}
+	accountsClient := armStorage.NewAccountsClient(subscriptionID)
+	accountsClient.Authorizer = authorizer
 
-	if c.AccessKey == "" {
-		return fmt.Errorf("access key not provided")
+	// List storage account keys
+	keys, err := accountsClient.ListKeys(resourceGroupName, storageAccountName)
+	if err != nil {
+		return fmt.Errorf("error listing keys from storage account %q: %s", storageAccountName, err)
+	}
+	if keys.Keys == nil {
+		return fmt.Errorf("no keys returned from storage account %q", storageAccountName)
 	}
 
 	// Create new storage account client.
-	storageClient, err := storage.NewClient(c.StorageAccountName, c.AccessKey, env.StorageEndpointSuffix, storage.DefaultAPIVersion, true)
+	storageClient, err := storage.NewBasicClient(storageAccountName, *(*keys.Keys)[0].Value)
 	if err != nil {
-		return fmt.Errorf("error creating client for storage account %q: %s", c.StorageAccountName, err)
+		return fmt.Errorf("error creating client for storage account %q: %s", storageAccountName, err)
 	}
 
 	// Check if the given container exists.
 	blobService := storageClient.GetBlobService()
-	resp, err := blobService.ListContainers(storage.ListContainersParameters{Prefix: c.ContainerName, MaxResults: 1})
+	resp, err := blobService.ListContainers(storage.ListContainersParameters{Prefix: containerName, MaxResults: 1})
 	if err != nil {
 		return fmt.Errorf("error listing containers: %s", err)
 	}
 	for _, container := range resp.Containers {
-		if container.Name == c.ContainerName {
+		if container.Name == containerName {
 			b.blobClient = blobService
 			return nil // success!
 		}
 	}
-	return fmt.Errorf("cannot find container: %s", c.ContainerName)
+	return fmt.Errorf("cannot find container: %s", containerName)
 }
 
 /*
