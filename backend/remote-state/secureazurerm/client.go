@@ -143,8 +143,7 @@ func (c *Client) Lock(info *state.LockInfo) (string, error) {
 	blobRef := c.getBlobRef()
 	var err error
 	leaseID, err := blobRef.AcquireLease(-1, info.ID, &storage.LeaseOptions{})
-	// If failed to acquire lease.
-	if err != nil {
+	if err != nil { // failed to acquire lease.
 		return "", err
 	}
 	info.ID = leaseID
