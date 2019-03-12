@@ -103,11 +103,6 @@ func (c *Client) Put(data []byte) error {
 
 		// Create a new snapshot of the existing remote state blob.
 		blobRef.CreateSnapshot(&storage.SnapshotOptions{})
-
-		// Get blob metadata.
-		if err = blobRef.GetMetadata(&storage.GetBlobMetadataOptions{LeaseID: c.leaseID}); err != nil {
-			return err
-		}
 	}
 
 	// Create a block blob and upload the remote state in JSON to the blob.
