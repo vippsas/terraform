@@ -82,13 +82,8 @@ func (c *Client) Put(data []byte) error {
 	if err := c.isValid(); err != nil {
 		return fmt.Errorf("client is invalid: %s", err)
 	}
-
 	// Get blob reference to the remote blob in the container in the storage account.
 	blobRef := c.getBlobRef()
-	// Set blob content type, which is JSON.
-	blobRef.Properties.ContentType = "application/json"
-	// Set blob content length.
-	blobRef.Properties.ContentLength = int64(len(data))
 
 	// Check if blob exists.
 	blobExists, err := blobRef.Exists()
@@ -100,16 +95,22 @@ func (c *Client) Put(data []byte) error {
 		if err := c.isLeased(); err != nil {
 			return err
 		}
-
 		// Create a new snapshot of the existing remote state blob.
 		blobRef.CreateSnapshot(&storage.SnapshotOptions{})
+		// Get the existing blob's metadata, which will be re-used in the new block blob that replaces the old one.
+		if err := blobRef.GetMetadata(&storage.GetBlobMetadataOptions{LeaseID: c.leaseID}); err != nil {
+			return fmt.Errorf("error getting metadata: %s", err)
+		}
 	}
-
-	// Create a block blob and upload the remote state in JSON to the blob.
+	// Set blob content type, which is JSON.
+	blobRef.Properties.ContentType = "application/json"
+	// Set blob content length.
+	blobRef.Properties.ContentLength = int64(len(data))
+	// Create a block blob that replaces the old one and upload the remote state in JSON to the blob.
 	if err = blobRef.CreateBlockBlobFromReader(bytes.NewReader(data), &storage.PutBlobOptions{LeaseID: c.leaseID}); err != nil {
 		return fmt.Errorf("error creating block blob: %s", err)
 	}
-	return blobRef.SetProperties(&storage.SetBlobPropertiesOptions{LeaseID: c.leaseID})
+	return blobRef.SetProperties(&storage.SetBlobPropertiesOptions{LeaseID: c.leaseID}) // if a blob existed previously, it will set the properties of it on the newly created blob.
 }
 
 // Delete deletes blob that contains the state.
@@ -243,7 +244,7 @@ func (c *Client) getLockInfo() (*state.LockInfo, error) {
 func (c *Client) writeLockInfo(info *state.LockInfo) error {
 	blobRef := c.getBlobRef()
 	if err := blobRef.GetMetadata(&storage.GetBlobMetadataOptions{LeaseID: c.leaseID}); err != nil {
-		return err
+		return fmt.Errorf("error getting metadata: %s", err)
 	}
 	if info == nil {
 		delete(blobRef.Metadata, lockinfo)
