@@ -107,7 +107,7 @@ func (c *Client) Put(data []byte) error {
 
 	// Create a block blob and upload the remote state in JSON to the blob.
 	if err = blobRef.CreateBlockBlobFromReader(bytes.NewReader(data), &storage.PutBlobOptions{LeaseID: c.leaseID}); err != nil {
-		return err
+		return fmt.Errorf("error creating block blob: %s", err)
 	}
 	return blobRef.SetProperties(&storage.SetBlobPropertiesOptions{LeaseID: c.leaseID})
 }
