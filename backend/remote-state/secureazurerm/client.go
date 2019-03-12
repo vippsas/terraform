@@ -33,6 +33,7 @@ func (c *Client) Exists() (bool, error) {
 
 // Get gets the remote state from the blob in the container in the Azure Storage Account.
 func (c *Client) Get() (*remote.Payload, error) {
+	// Check if client's fields are set correctly.
 	if err := c.isValid(); err != nil {
 		return nil, fmt.Errorf("client is invalid: %s", err)
 	}
