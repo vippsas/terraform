@@ -32,12 +32,8 @@ type config struct {
 
 	// Azure Storage Account:
 	StorageAccountName string
-	AccessKey          string
 	ContainerName      string
-
-	// Credentials:
-	SubscriptionID string
-	TenantID       string
+	AccessKey          string
 }
 
 // New creates a new backend for remote state stored in Azure storage account and key vault.
@@ -68,18 +64,6 @@ func New() backend.Backend {
 				Required:    true,
 				Description: "The container name.",
 			},
-
-			// Credentials:
-			"tenant_id": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "The tenant ID.",
-			},
-			"subscription_id": {
-				Type:        schema.TypeString,
-				Required:    true, // ensure that you don't accidently write to the wrong subscription incorrectly set by 'az'.
-				Description: "The subscription ID.",
-			},
 		},
 	}
 	b := &Backend{Backend: s}
@@ -100,10 +84,6 @@ func (b *Backend) configure(ctx context.Context) error {
 		StorageAccountName: data.Get("storage_account_name").(string),
 		AccessKey:          data.Get("access_key").(string),
 		ContainerName:      data.Get("container_name").(string),
-
-		// Credentials:
-		TenantID:       data.Get("tenant_id").(string),
-		SubscriptionID: data.Get("subscription_id").(string),
 
 		// TODO: Use MSI.
 	}
