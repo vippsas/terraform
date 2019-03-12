@@ -54,15 +54,15 @@ func New() backend.Backend {
 				Required:    true,
 				Description: "The name of the storage account.",
 			},
-			"access_key": { // storage account access key.
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "The access key.",
-			},
 			"container_name": {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: "The container name.",
+			},
+			"access_key": { // storage account access key.
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: "The access key.",
 			},
 		},
 	}
@@ -82,9 +82,8 @@ func (b *Backend) configure(ctx context.Context) error {
 
 		// Azure Storage Account:
 		StorageAccountName: data.Get("storage_account_name").(string),
-		AccessKey:          data.Get("access_key").(string),
 		ContainerName:      data.Get("container_name").(string),
-
+		AccessKey:          data.Get("access_key").(string),
 		// TODO: Use MSI.
 	}
 
