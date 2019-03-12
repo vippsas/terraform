@@ -212,33 +212,33 @@ const (
 	lockinfo = "lockinfo" // must be lower case!
 )
 
-// getLockInfo retrieves lock info from metadata.
+// getLockInfo retrieves lock info from the blob's metadata.
 func (c *Client) getLockInfo() (*state.LockInfo, error) {
 	blobRef := c.getBlobRef()
 
 	if err := blobRef.GetMetadata(&storage.GetBlobMetadataOptions{}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting metadata: %s", err)
 	}
 
-	raw := blobRef.Metadata[lockinfo]
-	if raw == "" {
+	lockInfoInBase64 := blobRef.Metadata[lockinfo]
+	if lockInfoInBase64 == "" {
 		return nil, fmt.Errorf("blob metadata %q was empty", lockinfo)
 	}
 
-	data, err := base64.StdEncoding.DecodeString(raw)
+	lockInfoInJSON, err := base64.StdEncoding.DecodeString(lockInfoInBase64)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error decoding base64: %s", err)
 	}
 
 	lockInfo := &state.LockInfo{}
-	if err = json.Unmarshal(data, lockInfo); err != nil {
-		return nil, err
+	if err = json.Unmarshal(lockInfoInJSON, lockInfo); err != nil {
+		return nil, fmt.Errorf("error unmarshalling lock info from JSON: %s", err)
 	}
 
 	return lockInfo, nil
 }
 
-// writeLockInfo writes lock info in base64 to blob metadata, and deletes metadata entry if info is nil.
+// writeLockInfo writes lock info in base64 to the blob's metadata, and deletes metadata entry if info is nil.
 func (c *Client) writeLockInfo(info *state.LockInfo) error {
 	blobRef := c.getBlobRef()
 	if err := blobRef.GetMetadata(&storage.GetBlobMetadataOptions{LeaseID: c.leaseID}); err != nil {
