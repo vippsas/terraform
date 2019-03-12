@@ -71,11 +71,6 @@ func New() backend.Backend {
 			},
 
 			// Credentials:
-			"environment": { // optional, automatically set to "public" if empty.
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "The Azure cloud environment.",
-			},
 			"tenant_id": {
 				Type:        schema.TypeString,
 				Required:    true,
@@ -141,10 +136,7 @@ func (b *Backend) configure(ctx context.Context) error {
 func getBlobClient(c config) (storage.BlobStorageClient, error) {
 	var client storage.BlobStorageClient
 
-	env, err := getAzureEnvironment(c.Environment)
-	if err != nil {
-		return client, err
-	}
+	env := azure.PublicCloud // currently only supports AzurePublicCloud.
 
 	accessKey, err := getAccessKey(c, env)
 	if err != nil {
@@ -207,24 +199,6 @@ func getAccessKey(c config, env azure.Environment) (string, error) {
 		return *accessKeys[0].Value, nil
 	*/
 	return "", fmt.Errorf("access key not provided")
-}
-
-func getAzureEnvironment(environment string) (azure.Environment, error) {
-	// If "environment" was not provided, use "public" by default.
-	if environment == "" {
-		return azure.PublicCloud, nil
-	}
-
-	env, err := azure.EnvironmentFromName(environment)
-	if err != nil {
-		// try again with wrapped value to support readable values like german instead of AZUREGERMANCLOUD
-		var innerErr error
-		env, innerErr = azure.EnvironmentFromName(fmt.Sprintf("AZURE%sCLOUD", environment))
-		if innerErr != nil {
-			return env, fmt.Errorf("invalid 'environment' configuration: %s", err)
-		}
-	}
-	return env, nil
 }
 
 // States returns a list of the names of all remote states stored in separate unique blob.
