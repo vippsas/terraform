@@ -129,7 +129,8 @@ func (c *Client) Delete() error {
 		return err
 	}
 	// Call the API to delete the blob!
-	return c.getBlobRef().Delete(&storage.DeleteBlobOptions{LeaseID: c.leaseID})
+	del := true
+	return c.getBlobRef().Delete(&storage.DeleteBlobOptions{LeaseID: c.leaseID, DeleteSnapshots: &del})
 }
 
 // Lock acquires the lease of the remote state blob.
