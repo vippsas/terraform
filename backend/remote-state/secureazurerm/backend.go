@@ -215,17 +215,17 @@ func (b *Backend) State(name string) (state.State, error) {
 	// Check if blob exists.
 	exists, err := c.Exists()
 	if err != nil {
-		return nil, err // failed to check blob existence.
+		return nil, fmt.Errorf("error checking blob existence: %s", err)
 	}
 	// If not exists, write empty state blob (no need for lock when the blob does not exists).
 	if !exists {
 		// Create new state in-memory.
 		if err := s.WriteState(terraform.NewState()); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error creating new state in-memory: %s", err)
 		}
 		// Write that in-memory state to remote state.
 		if err := s.PersistState(); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error writing in-memory state to remote: %s", err)
 		}
 	}
 
