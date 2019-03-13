@@ -24,19 +24,6 @@ type Backend struct {
 	leaseID       string
 }
 
-/*
-// config stores backend configuration.
-type config struct {
-	// Resource Group:
-	ResourceGroupName string
-
-	// Azure Storage Account:
-	StorageAccountName string
-	ContainerName      string
-	AccessKey          string
-}
-*/
-
 // New creates a new backend for remote state stored in Azure storage account and key vault.
 func New() backend.Backend {
 	s := &schema.Backend{
