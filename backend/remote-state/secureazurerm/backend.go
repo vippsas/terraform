@@ -82,6 +82,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	// 2. Check if the necessary Azure resources has been made in the resource group.
 	//   - If not, provision it!
 
+	// Fetch access key for storage account.
 	if subscriptionID == "" {
 		return fmt.Errorf("missing subscription_id in backend-block in config file")
 	}
