@@ -40,7 +40,7 @@ func New() backend.Backend {
 			"storage_account_name": {
 				Type:        schema.TypeString,
 				Required:    true,
-				Description: "The name of the storage account.",
+				Description: "The storage account name.",
 			},
 			"container_name": {
 				Type:        schema.TypeString,
