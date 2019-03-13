@@ -133,45 +133,6 @@ func (b *Backend) configure(ctx context.Context) error {
 	return fmt.Errorf("cannot find container: %s", b.containerName)
 }
 
-/*
-// getAccessKey gets the access key needed to access the storage account that stores the remote state.
-func getAccessKey(c config, env azure.Environment) (string, error) {
-	if c.AccessKey != "" {
-		return c.AccessKey, nil
-	}
-
-		if c.ResourceGroupName != "" || c.SubscriptionID != "" || c.TenantID != "" {
-			return "", fmt.Errorf("resource_group_name and credentials must be provided when access_key is absent")
-		}
-
-		oauthConfig, err := adal.NewOAuthConfig(env.ActiveDirectoryEndpoint, c.TenantID)
-		if err != nil {
-			return "", err
-		}
-
-		spt, err := adal.NewServicePrincipalToken(*oauthConfig, c.ClientID, c.ClientSecret, env.ResourceManagerEndpoint)
-		if err != nil {
-			return "", err
-		}
-
-		accountsClient := armStorage.NewAccountsClientWithBaseURI(env.ResourceManagerEndpoint, c.SubscriptionID)
-		accountsClient.Authorizer = autorest.NewBearerAuthorizer(spt)
-
-		keys, err := accountsClient.ListKeys(c.ResourceGroupName, c.StorageAccountName)
-		if err != nil {
-			return "", fmt.Errorf("error retrieving keys for storage account %q: %s", c.StorageAccountName, err)
-		}
-
-		if keys.Keys == nil {
-			return "", fmt.Errorf("nil key returned for storage account %q", c.StorageAccountName)
-		}
-
-		accessKeys := *keys.Keys
-		return *accessKeys[0].Value, nil
-	return "", fmt.Errorf("access key not provided")
-}
-*/
-
 // States returns a list of the names of all remote states stored in separate unique blob.
 // They are all named after the workspace.
 // Basically, remote state = workspace = blob.
