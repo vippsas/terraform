@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"sort"
 
+	armStorage "github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2018-07-01/storage"
 	"github.com/Azure/azure-sdk-for-go/storage"
+	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/hashicorp/terraform/backend"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/state"
@@ -47,10 +49,10 @@ func New() backend.Backend {
 				Required:    true,
 				Description: "The container name.",
 			},
-			"access_key": { // storage account access key.
+			"subscription_id": {
 				Type:        schema.TypeString,
 				Required:    true,
-				Description: "The access key.",
+				Description: "The subscription ID.",
 			},
 		},
 	}
@@ -68,10 +70,10 @@ func (b *Backend) configure(ctx context.Context) error {
 	//resourceGroupName := data.Get("resource_group_name").(string)
 
 	// Azure Storage Account:
+	resourceGroupName := data.Get("resource_group_name").(string)
 	storageAccountName := data.Get("storage_account_name").(string)
 	b.containerName = data.Get("container_name").(string)
-	accessKey := data.Get("access_key").(string)
-	// TODO: Use MSI.
+	subscriptionID := data.Get("subscription_id").(string)
 
 	// TODO:
 	// 1. Check if the given resource group exists.
@@ -79,8 +81,27 @@ func (b *Backend) configure(ctx context.Context) error {
 	// 2. Check if the necessary Azure resources has been made in the resource group.
 	//   - If not, provision it!
 
+	accountsClient := armStorage.NewAccountsClient(subscriptionID)
+	authorizer, err := auth.NewAuthorizerFromCLI()
+	if err != nil {
+		return fmt.Errorf("error creating new authorizer from CLI: %s", err)
+	}
+	accountsClient.Authorizer = authorizer
+	// TODO: Use MSI.
+
+	keys, err := accountsClient.ListKeys(ctx, resourceGroupName, storageAccountName)
+	if err != nil {
+		return fmt.Errorf("error listing the access keys in the storage account %q: %s", storageAccountName, err)
+	}
+
+	if keys.Keys == nil {
+		return fmt.Errorf("no keys returned from storage account %q", storageAccountName)
+	}
+
+	accessKeys := *keys.Keys
+	accessKey := *accessKeys[0].Value
 	if accessKey == "" {
-		return fmt.Errorf("access key not provided")
+		return fmt.Errorf("missing access key")
 	}
 
 	// Create new storage account client.
