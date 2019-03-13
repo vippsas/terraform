@@ -96,7 +96,6 @@ func (b *Backend) configure(ctx context.Context) error {
 		}
 	}
 	accountsClient.Authorizer = authorizer
-	// TODO: Use MSI.
 
 	keys, err := accountsClient.ListKeys(ctx, resourceGroupName, storageAccountName)
 	if err != nil {
