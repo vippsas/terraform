@@ -53,6 +53,7 @@ func New() backend.Backend {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: "The subscription ID.",
+				DefaultFunc: schema.EnvDefaultFunc(auth.SubscriptionID, ""),
 			},
 		},
 	}
@@ -81,10 +82,18 @@ func (b *Backend) configure(ctx context.Context) error {
 	// 2. Check if the necessary Azure resources has been made in the resource group.
 	//   - If not, provision it!
 
+	if subscriptionID == "" {
+		return fmt.Errorf("missing subscription_id in backend-block in config file")
+	}
+
 	accountsClient := armStorage.NewAccountsClient(subscriptionID)
 	authorizer, err := auth.NewAuthorizerFromCLI()
 	if err != nil {
-		return fmt.Errorf("error creating new authorizer from CLI: %s", err)
+		var innerErr error
+		authorizer, innerErr = auth.NewAuthorizerFromEnvironment()
+		if innerErr != nil {
+			return fmt.Errorf("error creating authorizer from CLI: %s: error creating authorizer from environment: %s", err, innerErr)
+		}
 	}
 	accountsClient.Authorizer = authorizer
 	// TODO: Use MSI.
@@ -98,14 +107,13 @@ func (b *Backend) configure(ctx context.Context) error {
 		return fmt.Errorf("no keys returned from storage account %q", storageAccountName)
 	}
 
-	accessKeys := *keys.Keys
-	accessKey := *accessKeys[0].Value
-	if accessKey == "" {
+	accessKey1 := *(*keys.Keys)[0].Value
+	if accessKey1 == "" {
 		return fmt.Errorf("missing access key")
 	}
 
 	// Create new storage account client.
-	storageClient, err := storage.NewBasicClient(storageAccountName, accessKey)
+	storageClient, err := storage.NewBasicClient(storageAccountName, accessKey1)
 	if err != nil {
 		return fmt.Errorf("error creating client for storage account %q: %s", storageAccountName, err)
 	}
