@@ -134,10 +134,16 @@ func (b *Backend) configure(ctx context.Context) error {
 	return fmt.Errorf("cannot find container: %s", b.containerName)
 }
 
+const containerNameNotSetErrorMsg = "container name is not set"
+
 // States returns a list of the names of all remote states stored in separate unique blob.
 // They are all named after the workspace.
 // Basically, remote state = workspace = blob.
 func (b *Backend) States() ([]string, error) {
+	if b.containerName == "" {
+		return nil, fmt.Errorf(containerNameNotSetErrorMsg)
+	}
+
 	// Get blobs of container.
 	r, err := b.blobClient.GetContainerReference(b.containerName).ListBlobs(storage.ListBlobsParameters{})
 	if err != nil {
@@ -155,6 +161,10 @@ func (b *Backend) States() ([]string, error) {
 
 // DeleteState deletes remote state.
 func (b *Backend) DeleteState(name string) error {
+	if b.containerName == "" {
+		return fmt.Errorf(containerNameNotSetErrorMsg)
+	}
+
 	if name == backend.DefaultStateName {
 		return fmt.Errorf("can't delete default state")
 	}
@@ -180,6 +190,10 @@ func (b *Backend) DeleteState(name string) error {
 
 // State returns remote state specified by name.
 func (b *Backend) State(name string) (state.State, error) {
+	if b.containerName == "" {
+		return nil, fmt.Errorf(containerNameNotSetErrorMsg)
+	}
+
 	c := &Client{
 		blobClient:    b.blobClient,
 		containerName: b.containerName,
