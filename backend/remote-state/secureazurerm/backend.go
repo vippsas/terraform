@@ -39,7 +39,7 @@ func New() backend.Backend {
 				Description: "The resource group name.",
 			},
 
-			// Azure Storage Account:
+			// Storage Account:
 			"storage_account_name": {
 				Type:        schema.TypeString,
 				Required:    true,
@@ -50,12 +50,8 @@ func New() backend.Backend {
 				Required:    true,
 				Description: "The container name.",
 			},
-			"subscription_id": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "The subscription ID.",
-				DefaultFunc: schema.EnvDefaultFunc(auth.SubscriptionID, ""),
-			},
+
+			// TODO: Key Vault:
 		},
 	}
 	b := &Backend{Backend: s}
@@ -75,7 +71,6 @@ func (b *Backend) configure(ctx context.Context) error {
 	resourceGroupName := data.Get("resource_group_name").(string)
 	storageAccountName := data.Get("storage_account_name").(string)
 	b.containerName = data.Get("container_name").(string)
-	subscriptionID := data.Get("subscription_id").(string)
 
 	// TODO:
 	// 1. Check if the given resource group exists.
@@ -84,22 +79,27 @@ func (b *Backend) configure(ctx context.Context) error {
 	//   - If not, provision it!
 	// (idempotent)
 
-	// Fetch access key for storage account.
+	settings, err := auth.GetSettingsFromEnvironment()
+	if err != nil {
+		return fmt.Errorf("error getting settings from environment: %s", err)
+	}
+	subscriptionID := settings.GetSubscriptionID()
 	if subscriptionID == "" {
-		return errors.New("missing subscription_id in backend-block in config file")
+		return fmt.Errorf("%s is empty", auth.SubscriptionID)
 	}
 
 	accountsClient := armStorage.NewAccountsClient(subscriptionID)
 	authorizer, err := auth.NewAuthorizerFromCLI()
 	if err != nil {
 		var innerErr error
-		authorizer, innerErr = auth.NewAuthorizerFromEnvironment()
+		authorizer, innerErr = settings.GetMSI().Authorizer()
 		if innerErr != nil {
 			return fmt.Errorf("error creating authorizer from CLI: %s: error creating authorizer from environment: %s", err, innerErr)
 		}
 	}
 	accountsClient.Authorizer = authorizer
 
+	// Fetch access key for storage account.
 	keys, err := accountsClient.ListKeys(ctx, resourceGroupName, storageAccountName)
 	if err != nil {
 		return fmt.Errorf("error listing the access keys in the storage account %q: %s", storageAccountName, err)
