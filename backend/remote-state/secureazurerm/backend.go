@@ -82,8 +82,10 @@ func (b *Backend) configure(ctx context.Context) error {
 	// (idempotent)
 
 	var subscriptionID string
+	// Try authorizing using Azure CLI.
 	authorizer, err := auth.NewAuthorizerFromCLI()
 	if err != nil {
+		// Fetch subscriptionID from environment variable AZURE_SUBSCRIPTION_ID.
 		settings, err := auth.GetSettingsFromEnvironment()
 		if err != nil {
 			return fmt.Errorf("error getting settings from environment: %s", err)
@@ -92,6 +94,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		if subscriptionID == "" {
 			return fmt.Errorf("environment variable %s is not set", auth.SubscriptionID)
 		}
+		// Authorize using MSI.
 		var innerErr error
 		authorizer, innerErr = settings.GetMSI().Authorizer()
 		if innerErr != nil {
