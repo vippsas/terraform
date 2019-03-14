@@ -81,6 +81,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	//   - If not, create it!
 	// 2. Check if the necessary Azure resources has been made in the resource group.
 	//   - If not, provision it!
+	// (idempotent)
 
 	// Fetch access key for storage account.
 	if subscriptionID == "" {
