@@ -2,6 +2,7 @@ package secureazurerm
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -98,12 +99,15 @@ func (b *Backend) configure(ctx context.Context) error {
 		}
 	} else {
 		// Fetch subscriptionID from Azure CLI.
-		cmd := exec.Command("az", "account", "show", "--output", "tsv", "--query", "id")
-		b, err := cmd.Output()
+		cmd := exec.Command("az", "account", "show", "--output", "json", "--query", "id")
+		out, err := cmd.Output()
 		if err != nil {
-			return fmt.Errorf("error fetching subscription id using azure-cli: %s", err)
+			return fmt.Errorf("error fetching subscription id using Azure CLI: %s", err)
 		}
-		subscriptionID = string(b)
+		err = json.Unmarshal(out, &subscriptionID)
+		if err != nil {
+			return fmt.Errorf("error unmarshalling JSON output from Azure CLI: %s", err)
+		}
 	}
 	accountsClient := armStorage.NewAccountsClient(subscriptionID)
 	accountsClient.Authorizer = authorizer
