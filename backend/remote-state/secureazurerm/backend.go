@@ -99,13 +99,11 @@ func (b *Backend) configure(ctx context.Context) error {
 		}
 	} else {
 		// Fetch subscriptionID from Azure CLI.
-		cmd := exec.Command("az", "account", "show", "--output", "json", "--query", "id")
-		out, err := cmd.Output()
+		out, err := exec.Command("az", "account", "show", "--output", "json", "--query", "id").Output()
 		if err != nil {
 			return fmt.Errorf("error fetching subscription id using Azure CLI: %s", err)
 		}
-		err = json.Unmarshal(out, &subscriptionID)
-		if err != nil {
+		if err = json.Unmarshal(out, &subscriptionID); err != nil {
 			return fmt.Errorf("error unmarshalling JSON output from Azure CLI: %s", err)
 		}
 	}
