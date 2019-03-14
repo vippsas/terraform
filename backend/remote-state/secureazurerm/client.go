@@ -180,7 +180,7 @@ func (c *Client) Unlock(id string) error {
 		lockErr.Err = err
 		return lockErr
 	}
-	c.leaseID = "" // set to no lease acquired.
+	c.leaseID = "" // set to "no lease acquired".
 	return nil
 }
 
