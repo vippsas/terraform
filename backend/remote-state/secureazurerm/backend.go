@@ -2,6 +2,7 @@ package secureazurerm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -85,7 +86,7 @@ func (b *Backend) configure(ctx context.Context) error {
 
 	// Fetch access key for storage account.
 	if subscriptionID == "" {
-		return fmt.Errorf("missing subscription_id in backend-block in config file")
+		return errors.New("missing subscription_id in backend-block in config file")
 	}
 
 	accountsClient := armStorage.NewAccountsClient(subscriptionID)
@@ -110,7 +111,7 @@ func (b *Backend) configure(ctx context.Context) error {
 
 	accessKey1 := *(*keys.Keys)[0].Value
 	if accessKey1 == "" {
-		return fmt.Errorf("missing access key")
+		return errors.New("missing access key")
 	}
 
 	// Create new storage account client.
@@ -141,7 +142,7 @@ const containerNameNotSetErrorMsg = "container name is not set"
 // Basically, remote state = workspace = blob.
 func (b *Backend) States() ([]string, error) {
 	if b.containerName == "" {
-		return nil, fmt.Errorf(containerNameNotSetErrorMsg)
+		return nil, errors.New(containerNameNotSetErrorMsg)
 	}
 
 	// Get blobs of container.
@@ -162,11 +163,11 @@ func (b *Backend) States() ([]string, error) {
 // DeleteState deletes remote state.
 func (b *Backend) DeleteState(name string) error {
 	if b.containerName == "" {
-		return fmt.Errorf(containerNameNotSetErrorMsg)
+		return errors.New(containerNameNotSetErrorMsg)
 	}
 
 	if name == backend.DefaultStateName {
-		return fmt.Errorf("can't delete default state")
+		return errors.New("can't delete default state")
 	}
 	c := &Client{
 		blobClient:    b.blobClient,
@@ -191,7 +192,7 @@ func (b *Backend) DeleteState(name string) error {
 // State returns remote state specified by name.
 func (b *Backend) State(name string) (state.State, error) {
 	if b.containerName == "" {
-		return nil, fmt.Errorf(containerNameNotSetErrorMsg)
+		return nil, errors.New(containerNameNotSetErrorMsg)
 	}
 
 	c := &Client{
