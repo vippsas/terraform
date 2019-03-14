@@ -118,17 +118,15 @@ func (b *Backend) configure(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error listing the access keys in the storage account %q: %s", storageAccountName, err)
 	}
-
 	if keys.Keys == nil {
 		return fmt.Errorf("no keys returned from storage account %q", storageAccountName)
 	}
-
 	accessKey1 := *(*keys.Keys)[0].Value
 	if accessKey1 == "" {
 		return errors.New("missing access key")
 	}
 
-	// Create new storage account client.
+	// Create new storage account client using fetched access key.
 	storageClient, err := storage.NewBasicClient(storageAccountName, accessKey1)
 	if err != nil {
 		return fmt.Errorf("error creating client for storage account %q: %s", storageAccountName, err)
