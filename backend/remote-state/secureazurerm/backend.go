@@ -85,7 +85,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 	subscriptionID := settings.GetSubscriptionID()
 	if subscriptionID == "" {
-		return fmt.Errorf("%s is empty", auth.SubscriptionID)
+		return fmt.Errorf("environment variable %s is not set", auth.SubscriptionID)
 	}
 
 	accountsClient := armStorage.NewAccountsClient(subscriptionID)
