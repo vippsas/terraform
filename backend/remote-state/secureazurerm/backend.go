@@ -163,7 +163,7 @@ func (b *Backend) DeleteState(name string) error {
 		blobName:      name, // workspace name.
 	}
 	lockInfo := state.NewLockInfo()
-	lockInfo.Operation = "init"
+	lockInfo.Operation = "DeleteState"
 	leaseID, err := c.Lock(lockInfo)
 	if err != nil {
 		return fmt.Errorf("error locking blob: %s", err)
