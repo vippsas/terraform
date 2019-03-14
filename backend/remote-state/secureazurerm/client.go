@@ -158,7 +158,7 @@ func (c *Client) Unlock(id string) error {
 	}
 
 	lockErr := &state.LockError{}
-	lockInfo, err := c.getLockInfo()
+	lockInfo, err := c.readLockInfo()
 	if err != nil {
 		lockErr.Err = fmt.Errorf("error retrieving lock info: %s", err)
 		return lockErr
@@ -211,12 +211,10 @@ func (c *Client) isLeased() error {
 	return nil
 }
 
-const (
-	lockinfo = "lockinfo" // must be lower case!
-)
+const lockinfo = "lockinfo" // must be lower case!
 
-// getLockInfo retrieves lock info from the blob's metadata.
-func (c *Client) getLockInfo() (*state.LockInfo, error) {
+// readLockInfo reads lockInfo from the blob's metadata.
+func (c *Client) readLockInfo() (*state.LockInfo, error) {
 	blobRef := c.getBlobRef()
 
 	if err := blobRef.GetMetadata(&storage.GetBlobMetadataOptions{}); err != nil {
@@ -241,7 +239,7 @@ func (c *Client) getLockInfo() (*state.LockInfo, error) {
 	return lockInfo, nil
 }
 
-// writeLockInfo writes lock info in base64 to the blob's metadata, and deletes metadata entry if info is nil.
+// writeLockInfo writes lockInfo to the blob's metadata.
 func (c *Client) writeLockInfo(info *state.LockInfo) error {
 	blobRef := c.getBlobRef()
 	if err := blobRef.GetMetadata(&storage.GetBlobMetadataOptions{LeaseID: c.leaseID}); err != nil {
