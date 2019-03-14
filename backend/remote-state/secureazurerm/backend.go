@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os/exec"
 	"sort"
 
 	armStorage "github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2018-07-01/storage"
@@ -79,24 +80,32 @@ func (b *Backend) configure(ctx context.Context) error {
 	//   - If not, provision it!
 	// (idempotent)
 
-	settings, err := auth.GetSettingsFromEnvironment()
-	if err != nil {
-		return fmt.Errorf("error getting settings from environment: %s", err)
-	}
-	subscriptionID := settings.GetSubscriptionID()
-	if subscriptionID == "" {
-		return fmt.Errorf("environment variable %s is not set", auth.SubscriptionID)
-	}
-
-	accountsClient := armStorage.NewAccountsClient(subscriptionID)
+	var subscriptionID string
 	authorizer, err := auth.NewAuthorizerFromCLI()
 	if err != nil {
+		settings, err := auth.GetSettingsFromEnvironment()
+		if err != nil {
+			return fmt.Errorf("error getting settings from environment: %s", err)
+		}
+		subscriptionID = settings.GetSubscriptionID()
+		if subscriptionID == "" {
+			return fmt.Errorf("environment variable %s is not set", auth.SubscriptionID)
+		}
 		var innerErr error
 		authorizer, innerErr = settings.GetMSI().Authorizer()
 		if innerErr != nil {
 			return fmt.Errorf("error creating authorizer from CLI: %s: error creating authorizer from environment: %s", err, innerErr)
 		}
+	} else {
+		// Fetch subscriptionID from Azure CLI.
+		cmd := exec.Command("az", "account", "show", "--output", "tsv", "--query", "id")
+		b, err := cmd.Output()
+		if err != nil {
+			return fmt.Errorf("error fetching subscription id using azure-cli: %s", err)
+		}
+		subscriptionID = string(b)
 	}
+	accountsClient := armStorage.NewAccountsClient(subscriptionID)
 	accountsClient.Authorizer = authorizer
 
 	// Fetch access key for storage account.
