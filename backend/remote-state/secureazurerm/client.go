@@ -218,7 +218,7 @@ func (c *Client) readLockInfo() (*state.LockInfo, error) {
 	blobRef := c.getBlobRef()
 
 	if err := blobRef.GetMetadata(&storage.GetBlobMetadataOptions{}); err != nil {
-		return nil, fmt.Errorf("error getting metadata: %s", err)
+		return nil, fmt.Errorf("error getting blob metadata: %s", err)
 	}
 
 	lockInfoInBase64 := blobRef.Metadata[lockinfo]
