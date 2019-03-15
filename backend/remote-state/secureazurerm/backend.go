@@ -41,6 +41,13 @@ func New() backend.Backend {
 				Description: "The resource group name.",
 			},
 
+			// Key Vault:
+			"key_vault_name": {
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: "The key vault name.",
+			},
+
 			// Storage Account:
 			"storage_account_name": {
 				Type:        schema.TypeString,
@@ -52,8 +59,6 @@ func New() backend.Backend {
 				Required:    true,
 				Description: "The container name.",
 			},
-
-			// TODO: Key Vault:
 		},
 	}
 	b := &Backend{Backend: s}
@@ -68,6 +73,9 @@ func (b *Backend) configure(ctx context.Context) error {
 
 	// Resource Group:
 	//resourceGroupName := data.Get("resource_group_name").(string)
+
+	// Azure Key Vault:
+	//keyVaultName := dataAttrs.Get("key_vault_name").(string)
 
 	// Azure Storage Account:
 	resourceGroupName := dataAttrs.Get("resource_group_name").(string)
