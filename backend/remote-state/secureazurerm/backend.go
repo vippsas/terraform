@@ -21,7 +21,7 @@ import (
 // Backend maintains the remote state in Azure.
 // TODO: Store the backend-configuration in a (separate) container instead of .terraform-dir?
 type Backend struct {
-	*schema.Backend
+	schema.Backend
 
 	// Fields used by Storage Account:
 	blobClient    storage.BlobStorageClient
@@ -32,37 +32,38 @@ type Backend struct {
 
 // New creates a new backend for remote state stored in Azure storage account and key vault.
 func New() backend.Backend {
-	s := &schema.Backend{
-		// Fields in backend {}. Ensure that all values are stored only in the configuration files.
-		Schema: map[string]*schema.Schema{
-			// Resource group:
-			"resource_group_name": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "The resource group name.",
-			},
+	b := &Backend{
+		Backend: schema.Backend{
+			// Fields in backend {}. Ensure that all values are stored only in the configuration files.
+			Schema: map[string]*schema.Schema{
+				// Resource group:
+				"resource_group_name": {
+					Type:        schema.TypeString,
+					Required:    true,
+					Description: "The resource group name.",
+				},
 
-			// Key Vault:
-			"key_vault_name": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "The key vault name.",
-			},
+				// Key Vault:
+				"key_vault_name": {
+					Type:        schema.TypeString,
+					Required:    true,
+					Description: "The key vault name.",
+				},
 
-			// Storage Account:
-			"storage_account_name": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "The storage account name.",
-			},
-			"container_name": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "The container name.",
+				// Storage Account:
+				"storage_account_name": {
+					Type:        schema.TypeString,
+					Required:    true,
+					Description: "The storage account name.",
+				},
+				"container_name": {
+					Type:        schema.TypeString,
+					Required:    true,
+					Description: "The container name.",
+				},
 			},
 		},
 	}
-	b := &Backend{Backend: s}
 	b.Backend.ConfigureFunc = b.configure
 	return b
 }
