@@ -92,7 +92,6 @@ func (b *Backend) configure(ctx context.Context) error {
 	// 2. Check if the storage account has been made in the resource group.
 	//   - If not, create it!
 	// (idempotent)
-	b.containerName = dataAttrs.Get("container_name").(string) // bao: pre-compute this?
 
 	var subscriptionID string
 	// Try authorizing using Azure CLI.
@@ -147,6 +146,7 @@ func (b *Backend) configure(ctx context.Context) error {
 
 	// Check if the given container exists.
 	blobService := storageClient.GetBlobService()
+	b.containerName = dataAttrs.Get("container_name").(string)
 	resp, err := blobService.ListContainers(storage.ListContainersParameters{Prefix: b.containerName, MaxResults: 1})
 	if err != nil {
 		return fmt.Errorf("error listing containers: %s", err)
@@ -157,6 +157,7 @@ func (b *Backend) configure(ctx context.Context) error {
 			return nil // success!
 		}
 	}
+	// TODO: Create container if it does not exists.
 	return fmt.Errorf("cannot find container: %s", b.containerName)
 }
 
