@@ -19,6 +19,7 @@ import (
 )
 
 // Backend maintains the remote state in Azure.
+// TODO: Store the backend-configuration in a (separate) container instead of .terraform-dir?
 type Backend struct {
 	*schema.Backend
 
@@ -241,3 +242,15 @@ func (b *Backend) State(name string) (state.State, error) {
 
 	return s, nil
 }
+
+/*
+// Operation TODO!
+func (b *Backend) Operation(c context.Context, op *backend.Operation) (*backend.RunningOperation, error) {
+	return nil, errors.New("todo")
+}
+
+// Context TODO!
+func (b *Backend) Context(op *backend.Operation) (*terraform.Context, state.State, error) {
+	return nil, nil, errors.New("todo")
+}
+*/
