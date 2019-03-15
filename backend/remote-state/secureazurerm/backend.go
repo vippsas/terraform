@@ -74,22 +74,25 @@ func (b *Backend) configure(ctx context.Context) error {
 	dataAttrs := schema.FromContextBackendConfig(ctx)
 
 	// Resource Group:
-	//resourceGroupName := data.Get("resource_group_name").(string)
-
-	// Azure Key Vault:
-	//keyVaultName := dataAttrs.Get("key_vault_name").(string)
-
-	// Azure Storage Account:
 	resourceGroupName := dataAttrs.Get("resource_group_name").(string)
-	storageAccountName := dataAttrs.Get("storage_account_name").(string)
-	b.containerName = dataAttrs.Get("container_name").(string)
-
-	// TODO:
+	fmt.Printf("TODO: Provision resource group: %s\n", resourceGroupName)
 	// 1. Check if the given resource group exists.
 	//   - If not, create it!
-	// 2. Check if the necessary Azure resources has been made in the resource group.
-	//   - If not, provision it!
 	// (idempotent)
+
+	// Azure Key Vault:
+	keyVaultName := dataAttrs.Get("key_vault_name").(string)
+	fmt.Printf("TODO: Provision key vault: %s\n", keyVaultName)
+	// 2. Check if the key vault has been made in the resource group.
+	//   - If not, create it!
+	// (idempotent)
+
+	// Azure Storage Account:
+	storageAccountName := dataAttrs.Get("storage_account_name").(string)
+	// 2. Check if the storage account has been made in the resource group.
+	//   - If not, create it!
+	// (idempotent)
+	b.containerName = dataAttrs.Get("container_name").(string) // bao: pre-compute this?
 
 	var subscriptionID string
 	// Try authorizing using Azure CLI.
