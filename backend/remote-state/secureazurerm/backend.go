@@ -63,16 +63,16 @@ func New() backend.Backend {
 
 // configure bootstraps the Azure resources needed to use this backend.
 func (b *Backend) configure(ctx context.Context) error {
-	// Get the data fields from the "backend"-block.
-	backendConfigFields := schema.FromContextBackendConfig(ctx)
+	// Get the data attributes from the "backend"-block.
+	dataAttrs := schema.FromContextBackendConfig(ctx)
 
 	// Resource Group:
 	//resourceGroupName := data.Get("resource_group_name").(string)
 
 	// Azure Storage Account:
-	resourceGroupName := backendConfigFields.Get("resource_group_name").(string)
-	storageAccountName := backendConfigFields.Get("storage_account_name").(string)
-	b.containerName = backendConfigFields.Get("container_name").(string)
+	resourceGroupName := dataAttrs.Get("resource_group_name").(string)
+	storageAccountName := dataAttrs.Get("storage_account_name").(string)
+	b.containerName = dataAttrs.Get("container_name").(string)
 
 	// TODO:
 	// 1. Check if the given resource group exists.
