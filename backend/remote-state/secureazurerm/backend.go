@@ -7,15 +7,19 @@ import (
 	"fmt"
 	"os/exec"
 	"sort"
+	"sync"
 
 	armStorage "github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2018-07-01/storage"
 	"github.com/Azure/azure-sdk-for-go/storage"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/hashicorp/terraform/backend"
+	"github.com/hashicorp/terraform/command/clistate"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/state/remote"
 	"github.com/hashicorp/terraform/terraform"
+	"github.com/mitchellh/cli"
+	"github.com/mitchellh/colorstring"
 )
 
 // Backend maintains the remote state in Azure.
@@ -28,6 +32,16 @@ type Backend struct {
 	containerName string
 	blobName      string
 	leaseID       string
+
+	// CLI shit.
+	CLI                 cli.Ui
+	CLIColor            *colorstring.Colorize
+	ContextOpts         *terraform.ContextOpts
+	OpInput             bool
+	OpValidation        bool
+	RunningInAutomation bool
+
+	mu sync.Mutex
 }
 
 // New creates a new backend for remote state stored in Azure storage account and key vault.
@@ -248,14 +262,89 @@ func (b *Backend) State(name string) (state.State, error) {
 	return s, nil
 }
 
-/*
 // Operation TODO!
-func (b *Backend) Operation(c context.Context, op *backend.Operation) (*backend.RunningOperation, error) {
-	return nil, errors.New("todo")
+func (b *Backend) Operation(ctx context.Context, op *backend.Operation) (*backend.RunningOperation, error) {
+	var f func(context.Context, context.Context, *backend.Operation, *backend.RunningOperation)
+	switch op.Type {
+	case backend.OperationTypeRefresh:
+		f = b.refresh
+	case backend.OperationTypePlan:
+		f = b.plan
+	case backend.OperationTypeApply:
+		f = b.apply
+	default:
+		return nil, fmt.Errorf("unsupported operation type: %s", op.Type.String())
+	}
+
+	// Prepare
+	b.mu.Lock()
+
+	runningCtx, done := context.WithCancel(context.Background())
+	runningOp := &backend.RunningOperation{Context: runningCtx}
+
+	stopCtx, stop := context.WithCancel(ctx)
+	runningOp.Stop = stop
+
+	cancelCtx, cancel := context.WithCancel(context.Background())
+	runningOp.Cancel = cancel
+
+	if op.LockState {
+		op.StateLocker = clistate.NewLocker(stopCtx, op.StateLockTimeout, b.CLI, b.Colorize())
+	} else {
+		op.StateLocker = clistate.NewNoopLocker()
+	}
+
+	// Do it
+	go func() { // Terraform wants to do the operations in a goroutine.
+		defer done()
+		defer stop()
+		defer cancel()
+		defer func() {
+			runningOp.Err = op.StateLocker.Unlock(runningOp.Err)
+		}()
+		defer b.mu.Unlock()
+
+		f(stopCtx, cancelCtx, op, runningOp)
+	}()
+
+	return runningOp, nil
 }
 
-// Context TODO!
-func (b *Backend) Context(op *backend.Operation) (*terraform.Context, state.State, error) {
-	return nil, nil, errors.New("todo")
+// CLIInit inits CLI.
+func (b *Backend) CLIInit(opts *backend.CLIOpts) error {
+	b.CLI = opts.CLI                 // neckbeard cli.
+	b.CLIColor = opts.CLIColor       // i <3 my colors.
+	b.ContextOpts = opts.ContextOpts // muh context.
+
+	b.OpInput = opts.Input           // i want user input or not.
+	b.OpValidation = opts.Validation // i want to validate or not.
+
+	b.RunningInAutomation = opts.RunningInAutomation // i am running in automation tool with no user interaction or not.
+	return nil
 }
-*/
+
+// Colorize makes the CLI output colored text.
+func (b *Backend) Colorize() *colorstring.Colorize {
+	if b.CLIColor != nil {
+		return b.CLIColor
+	}
+	return &colorstring.Colorize{
+		Colors:  colorstring.DefaultColors,
+		Disable: false, // ofc, we want color.
+	}
+}
+
+// terraform refresh
+func (b *Backend) refresh(stopCtx context.Context, cancelCtx context.Context, op *backend.Operation, runningOp *backend.RunningOperation) {
+	panic("todo")
+}
+
+// terraform plan
+func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *backend.Operation, runningOp *backend.RunningOperation) {
+	panic("todo")
+}
+
+// terraform apply
+func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *backend.Operation, runningOp *backend.RunningOperation) {
+	panic("todo")
+}
