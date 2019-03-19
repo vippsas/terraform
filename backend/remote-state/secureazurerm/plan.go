@@ -46,6 +46,8 @@ Resource actions are indicated with the following symbols:
 	// Render plan.
 	b.CLI.Output("Terraform will perform the following actions:\n")
 	b.CLI.Output(plan.Format(b.Colorize()))
+
+	// Render number of actions.
 	stats := plan.Stats()
 	b.CLI.Output(b.Colorize().Color(fmt.Sprintf("[reset] %d to add, %d to change, [bold]⚠%d to destroy (may be irreversible)⚠[reset].",
 		stats.ToAdd, stats.ToChange, stats.ToDestroy,
