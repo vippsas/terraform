@@ -6,7 +6,6 @@ import (
 	"sort"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
-	"github.com/hashicorp/terraform/backend"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/comm"
 	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/state/remote"
@@ -44,9 +43,6 @@ func (b *Backend) DeleteState(name string) error {
 		return errors.New(containerNameNotSetErrorMsg)
 	}
 
-	if name == backend.DefaultStateName {
-		return errors.New("can't delete default state")
-	}
 	c := &Client{
 		blobClient:    b.blobClient,
 		containerName: b.containerName,
