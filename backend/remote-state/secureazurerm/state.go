@@ -43,10 +43,10 @@ func (b *Backend) DeleteState(name string) error {
 		return errors.New(containerNameNotSetErrorMsg)
 	}
 
-	c := &Client{
-		blobClient:    b.blobClient,
-		containerName: b.containerName,
-		blobName:      name, // workspace name.
+	c := &comm.Client{
+		BlobClient:    b.blobClient,
+		ContainerName: b.containerName,
+		BlobName:      name, // workspace name.
 	}
 	lockInfo := state.NewLockInfo()
 	lockInfo.Operation = "DeleteState"
