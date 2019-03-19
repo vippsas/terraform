@@ -63,8 +63,7 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 		dispPlan := format.NewPlan(plan)
 		emptyPlan := dispPlan.Empty()
 		hasUI := op.UIOut != nil && op.UIIn != nil
-		mustConfirm := hasUI && ((op.Destroy && (!op.DestroyForce && !op.AutoApprove)) || (!op.Destroy && !op.AutoApprove && !emptyPlan))
-		if mustConfirm {
+		if hasUI && ((op.Destroy && (!op.DestroyForce && !op.AutoApprove)) || (!op.Destroy && !op.AutoApprove && !emptyPlan)) {
 			var desc, query string
 			if op.Destroy {
 				query = "Do you really want to destroy all resources in workspace \"" + op.Workspace + "\"?"
@@ -78,8 +77,8 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 
 			if !emptyPlan {
 				// Display the plan of what we are going to apply/destroy.
-				b.renderPlan(dispPlan)
-				b.cli.CLI.Output("")
+				b.render(dispPlan)
+				b.CLI.Output("")
 			}
 
 			v, err := op.UIIn.Input(stopCtx, &terraform.InputOpts{
@@ -137,8 +136,7 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 
 	if applyErr != nil {
 		runningOp.Err = fmt.Errorf(
-			"Error applying plan:\n\n"+
-				"%s\n\n"+
+			"Error applying plan: %s\n\n"+
 				"Terraform does not automatically rollback in the face of errors.\n"+
 				"Instead, your Terraform state file has been partially updated with\n"+
 				"any resources that successfully completed. Please address the error\n"+
