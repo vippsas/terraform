@@ -19,16 +19,14 @@ import (
 // TODO: Store the backend-configuration in a (separate) container instead of .terraform-dir?
 type Backend struct {
 	schema.Backend
+	CLI CLI
+	mu  sync.Mutex
 
 	// Fields used by Storage Account:
 	blobClient    storage.BlobStorageClient
 	containerName string
 	blobName      string
 	leaseID       string
-
-	cli CLI
-
-	mu sync.Mutex
 }
 
 // New creates a new backend for remote state stored in Azure storage account and key vault.

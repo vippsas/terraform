@@ -9,7 +9,8 @@ import (
 
 // CLI shit.
 type CLI struct {
-	CLI         cli.Ui
+	cli.Ui
+
 	CLIColor    *colorstring.Colorize
 	ContextOpts *terraform.ContextOpts
 	// never ask for input. always validate. always run in automation.
@@ -32,10 +33,4 @@ func (cli *CLI) Colorize() *colorstring.Colorize {
 		Colors:  colorstring.DefaultColors,
 		Disable: false, // ofc, we want color.
 	}
-}
-
-func (cli *CLI) Warn(msg string) {
-}
-
-func (cli *CLI) Error(msg string) {
 }

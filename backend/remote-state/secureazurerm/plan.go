@@ -16,31 +16,38 @@ func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *b
 	panic("todo")
 }
 
-func (b *Backend) renderPlan(dispPlan *format.Plan) {
-	headerBuf := &bytes.Buffer{}
-	fmt.Fprintf(headerBuf, "\n%s\n", strings.TrimSpace(planHeaderIntro))
-	counts := dispPlan.ActionCounts()
+// render renders terraform plan.
+func (b *Backend) render(plan *format.Plan) {
+	// Render introductary header.
+	const planHeaderIntro = `
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
+`
+	header := &bytes.Buffer{}
+	fmt.Fprintf(header, "\n%s\n", strings.TrimSpace(planHeaderIntro))
+	counts := plan.ActionCounts()
 	if counts[terraform.DiffCreate] > 0 {
-		fmt.Fprintf(headerBuf, "%s create\n", format.DiffActionSymbol(terraform.DiffCreate))
+		fmt.Fprintf(header, "%s: create new resource\n", format.DiffActionSymbol(terraform.DiffCreate))
 	}
 	if counts[terraform.DiffUpdate] > 0 {
-		fmt.Fprintf(headerBuf, "%s update in-place\n", format.DiffActionSymbol(terraform.DiffUpdate))
+		fmt.Fprintf(header, "%s: update in-place\n", format.DiffActionSymbol(terraform.DiffUpdate))
 	}
 	if counts[terraform.DiffDestroy] > 0 {
-		fmt.Fprintf(headerBuf, "%s destroy\n", format.DiffActionSymbol(terraform.DiffDestroy))
+		fmt.Fprintf(header, "%s: destroy existing resource\n", format.DiffActionSymbol(terraform.DiffDestroy))
 	}
 	if counts[terraform.DiffDestroyCreate] > 0 {
-		fmt.Fprintf(headerBuf, "%s destroy and then create replacement\n", format.DiffActionSymbol(terraform.DiffDestroyCreate))
+		fmt.Fprintf(header, "%s: destroy and then create replacement resource\n", format.DiffActionSymbol(terraform.DiffDestroyCreate))
 	}
 	if counts[terraform.DiffRefresh] > 0 {
-		fmt.Fprintf(headerBuf, "%s read (data resources)\n", format.DiffActionSymbol(terraform.DiffRefresh))
+		fmt.Fprintf(header, "%s read data resources\n", format.DiffActionSymbol(terraform.DiffRefresh))
 	}
-	b.CLI.Output(b.Colorize().Color(headerBuf.String()))
+	b.CLI.Output(b.Colorize().Color(header.String()))
+
+	// Render plan.
 	b.CLI.Output("Terraform will perform the following actions:\n")
-	b.CLI.Output(dispPlan.Format(b.Colorize()))
-	stats := dispPlan.Stats()
-	b.CLI.Output(b.Colorize().Color(fmt.Sprintf(
-		"[reset][bold]Plan:[reset] %d to add, %d to change, [bold]⚠%d to destroy (irreversibly)⚠[reset].",
+	b.CLI.Output(plan.Format(b.Colorize()))
+	stats := plan.Stats()
+	b.CLI.Output(b.Colorize().Color(fmt.Sprintf("[reset] %d to add, %d to change, [bold]⚠%d to destroy (may be irreversible)⚠[reset].",
 		stats.ToAdd, stats.ToChange, stats.ToDestroy,
 	)))
 }
