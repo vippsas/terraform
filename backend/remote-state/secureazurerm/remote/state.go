@@ -1,23 +1,24 @@
-package secureazurerm
+package remote
 
 import (
 	"encoding/json"
 	"errors"
 	"sync"
 
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/comm"
 	"github.com/hashicorp/terraform/terraform"
 )
 
-// RemoteState contains the remote state.
-type RemoteState struct {
+// State contains the remote state.
+type State struct {
 	mu          sync.Mutex
-	Client      *Client
+	Client      *comm.Client
 	state       *terraform.State
 	maskedState map[string]interface{}
 }
 
 // State reads the remote state.
-func (s *RemoteState) Read() *terraform.State {
+func (s *State) Read() *terraform.State {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -41,6 +42,6 @@ func (s *RemoteState) Read() *terraform.State {
 }
 
 // WriteState writes the remote state.
-func (s *RemoteState) Write() error {
+func (s *State) Write() error {
 	return errors.New("todo")
 }
