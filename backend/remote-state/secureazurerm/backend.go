@@ -13,9 +13,6 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/hashicorp/terraform/backend"
 	"github.com/hashicorp/terraform/helper/schema"
-	"github.com/hashicorp/terraform/terraform"
-	"github.com/mitchellh/cli"
-	"github.com/mitchellh/colorstring"
 )
 
 // Backend maintains the remote state in Azure.
@@ -29,13 +26,7 @@ type Backend struct {
 	blobName      string
 	leaseID       string
 
-	// CLI shit.
-	CLI                 cli.Ui
-	CLIColor            *colorstring.Colorize
-	ContextOpts         *terraform.ContextOpts
-	OpInput             bool
-	OpValidation        bool
-	RunningInAutomation bool
+	cli CLI
 
 	mu sync.Mutex
 }

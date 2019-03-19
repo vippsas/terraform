@@ -13,9 +13,9 @@ import (
 // Client communicates with Azure.
 type Client struct {
 	// Client to operate on Azure Storage Account:
-	blobClient    storage.BlobStorageClient // Client to communicate with Azure Resource Manager to operate on Azure Storage Accounts.
-	containerName string                    // The name of the container that contains the blob storing the remote state in JSON.
-	blobName      string                    // The name of the blob that stores the remote state in JSON. Should be equal to workspace-name.
+	BlobClient    storage.BlobStorageClient // Client to communicate with Azure Resource Manager to operate on Azure Storage Accounts.
+	ContainerName string                    // The name of the container that contains the blob storing the remote state in JSON.
+	BlobName      string                    // The name of the blob that stores the remote state in JSON. Should be equal to workspace-name.
 	leaseID       string                    // The lease ID used as a lock/mutex to the blob.
 }
 
@@ -145,7 +145,7 @@ func (c *Client) Lock(info *state.LockInfo) (string, error) {
 		return "", fmt.Errorf("error writing lock info: %s", err)
 	}
 
-	info.Path = fmt.Sprintf("%s/%s", c.containerName, c.blobName)
+	info.Path = fmt.Sprintf("%s/%s", c.ContainerName, c.BlobName)
 	return info.ID, nil
 }
 
@@ -184,17 +184,17 @@ func (c *Client) Unlock(id string) error {
 
 // getBlobRef returns the blob reference to the client's blob.
 func (c *Client) getBlobRef() *storage.Blob {
-	return c.blobClient.GetContainerReference(c.containerName).GetBlobReference(c.blobName)
+	return c.BlobClient.GetContainerReference(c.ContainerName).GetBlobReference(c.BlobName)
 }
 
 // IsValid checks if the client's fields are set correctly before using it.
 func (c *Client) isValid() error {
 	// Check if the container that contains the blob has been set.
-	if c.containerName == "" {
+	if c.ContainerName == "" {
 		return fmt.Errorf("container name is empty")
 	}
 	// Check if the remote state blob to work on has been set.
-	if c.blobName == "" {
+	if c.BlobName == "" {
 		return fmt.Errorf("blob name is empty")
 	}
 	return nil

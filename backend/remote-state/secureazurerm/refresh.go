@@ -2,8 +2,8 @@ package secureazurerm
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/terraform/backend"
 	"github.com/hashicorp/terraform/config/module"
 	"github.com/hashicorp/terraform/terraform"
@@ -26,8 +26,10 @@ func (b *Backend) refresh(stopCtx context.Context, cancelCtx context.Context, op
 	// Set our state
 	runningOp.State = opState.State()
 	if runningOp.State.Empty() || !runningOp.State.HasResources() {
-		if b.CLI != nil {
-			b.CLI.Output(b.Colorize().Color("[reset][bold][yellow]Empty remote state.[reset][yellow]\n"))
+		if b.cli.CLI != nil {
+			b.cli.CLI.Error(b.cli.Colorize().Color("[reset][bold][yellow]Empty remote state. Did you forget to run \"terraform init\"?[reset][yellow]\n"))
+		} else {
+			fmt.Println("Empty remote state.")
 		}
 	}
 
@@ -40,6 +42,7 @@ func (b *Backend) refresh(stopCtx context.Context, cancelCtx context.Context, op
 		newState, refreshErr = tfCtx.Refresh()
 	}()
 
+	// Wait for "refresh" to be done.
 	if b.wait(doneCh, stopCtx, cancelCtx, tfCtx, opState) {
 		return
 	}
@@ -47,17 +50,17 @@ func (b *Backend) refresh(stopCtx context.Context, cancelCtx context.Context, op
 	// Write the resulting state to the running operation.
 	runningOp.State = newState
 	if refreshErr != nil {
-		runningOp.Err = errwrap.Wrapf("Error refreshing state: {{err}}", refreshErr)
+		runningOp.Err = fmt.Errorf("error refreshing state: %s", refreshErr)
 		return
 	}
 
 	// Save state to storage account.
 	if err := opState.WriteState(newState); err != nil {
-		runningOp.Err = errwrap.Wrapf("Error writing state: {{err}}", err)
+		runningOp.Err = fmt.Errorf("error writing state in-memory: %s", err)
 		return
 	}
 	if err := opState.PersistState(); err != nil {
-		runningOp.Err = errwrap.Wrapf("Error saving state: {{err}}", err)
+		runningOp.Err = fmt.Errorf("error saving state remotely: %s", err)
 		return
 	}
 }
