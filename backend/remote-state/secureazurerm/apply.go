@@ -61,8 +61,7 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 
 		dispPlan := format.NewPlan(plan)
 		emptyPlan := dispPlan.Empty()
-		hasUI := op.UIOut != nil && op.UIIn != nil
-		if hasUI && ((op.Destroy && (!op.DestroyForce && !op.AutoApprove)) || (!op.Destroy && !op.AutoApprove && !emptyPlan)) {
+		if (op.UIOut != nil && op.UIIn != nil) && ((op.Destroy && (!op.DestroyForce && !op.AutoApprove)) || (!op.Destroy && !op.AutoApprove && !emptyPlan)) {
 			var desc, query string
 			if op.Destroy {
 				query = "Do you really want to destroy all resources in workspace \"" + op.Workspace + "\"?"
