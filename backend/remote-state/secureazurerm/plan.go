@@ -8,12 +8,108 @@ import (
 
 	"github.com/hashicorp/terraform/backend"
 	"github.com/hashicorp/terraform/command/format"
+	"github.com/hashicorp/terraform/config/module"
 	"github.com/hashicorp/terraform/terraform"
 )
 
 // plan performs "terraform plan"
 func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *backend.Operation, runningOp *backend.RunningOperation) {
-	panic("todo")
+	if b.CLI != nil && op.Plan != nil {
+		b.CLI.Output(b.Colorize().Color(
+			"[reset][bold][yellow]" +
+				"The plan command received a saved plan file as input. This command\n" +
+				"will output the saved plan. This will not modify the already-existing\n" +
+				"plan. If you wish to generate a new plan, please pass in a configuration\n" +
+				"directory as an argument.\n\n"))
+	}
+
+	// A local plan requires either a plan or a module
+	if op.Plan == nil && op.Module == nil && !op.Destroy {
+		runningOp.Err = fmt.Errorf(strings.TrimSpace(planErrNoConfig))
+		return
+	}
+
+	// If we have a nil module at this point, then set it to an empty tree
+	// to avoid any potential crashes.
+	if op.Module == nil {
+		op.Module = module.NewEmptyTree()
+	}
+
+	// Setup our count hook that keeps track of resource changes
+	countHook := new(CountHook)
+	if b.ContextOpts == nil {
+		b.ContextOpts = new(terraform.ContextOpts)
+	}
+	old := b.ContextOpts.Hooks
+	defer func() { b.ContextOpts.Hooks = old }()
+	b.ContextOpts.Hooks = append(b.ContextOpts.Hooks, countHook)
+
+	// Get our context
+	tfCtx, opState, err := b.context(op)
+	if err != nil {
+		runningOp.Err = err
+		return
+	}
+
+	// Setup the state
+	runningOp.State = tfCtx.State()
+
+	// If we're refreshing before plan, perform that
+	if op.PlanRefresh {
+		if b.CLI != nil {
+			b.CLI.Output(b.Colorize().Color(strings.TrimSpace(planRefreshing) + "\n"))
+		}
+		_, err := tfCtx.Refresh()
+		if err != nil {
+			runningOp.Err = fmt.Errorf("error refreshing state: %s", err)
+			return
+		}
+		if b.CLI != nil {
+			b.CLI.Output("\n------------------------------------------------------------------------")
+		}
+	}
+
+	// Perform the plan in a goroutine so we can be interrupted
+	var plan *terraform.Plan
+	var planErr error
+	doneCh := make(chan struct{})
+	go func() {
+		defer close(doneCh)
+		plan, planErr = tfCtx.Plan()
+	}()
+
+	if b.opWait(doneCh, stopCtx, cancelCtx, tfCtx, opState) {
+		return
+	}
+
+	if planErr != nil {
+		runningOp.Err = fmt.Errorf("error running plan: %s", planErr)
+		return
+	}
+	// Record state.
+	runningOp.PlanEmpty = plan.Diff.Empty()
+
+	// Perform some output tasks if we have a CLI to output to.
+	if b.CLI != nil {
+		dispPlan := format.NewPlan(plan)
+		if dispPlan.Empty() {
+			b.CLI.Output("\n" + b.Colorize().Color(strings.TrimSpace(planNoChanges)))
+			return
+		}
+		b.render(dispPlan)
+		b.CLI.Output("\n------------------------------------------------------------------------")
+
+		if path := op.PlanOutPath; path == "" {
+			b.CLI.Output(fmt.Sprintf(
+				"\n" + strings.TrimSpace(planHeaderNoOutput) + "\n",
+			))
+		} else {
+			b.CLI.Output(fmt.Sprintf(
+				"\n"+strings.TrimSpace(planHeaderYesOutput)+"\n",
+				path, path,
+			))
+		}
+	}
 }
 
 // render renders terraform plan.
