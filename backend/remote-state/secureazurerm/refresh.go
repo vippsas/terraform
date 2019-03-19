@@ -26,10 +26,11 @@ func (b *Backend) refresh(stopCtx context.Context, cancelCtx context.Context, op
 	// Set our state
 	runningOp.State = opState.State()
 	if runningOp.State.Empty() || !runningOp.State.HasResources() {
+		msg := "Empty state (no resources exists)."
 		if b.cli.CLI != nil {
-			b.cli.CLI.Error(b.cli.Colorize().Color("[reset][bold][yellow]Empty remote state. Did you forget to run \"terraform init\"?[reset][yellow]\n"))
+			b.cli.CLI.Error(b.cli.Colorize().Color("[reset][bold][yellow]" + msg + "[reset][yellow]\n"))
 		} else {
-			fmt.Println("Empty remote state.")
+			fmt.Println(msg)
 		}
 	}
 
