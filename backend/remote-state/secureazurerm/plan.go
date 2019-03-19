@@ -36,7 +36,7 @@ Resource actions are indicated with the following symbols:
 		fmt.Fprintf(header, "%s: destroy existing resource\n", format.DiffActionSymbol(terraform.DiffDestroy))
 	}
 	if counts[terraform.DiffDestroyCreate] > 0 {
-		fmt.Fprintf(header, "%s: destroy and then create replacement resource\n", format.DiffActionSymbol(terraform.DiffDestroyCreate))
+		fmt.Fprintf(header, "%s: destroy and then create new replacement resource\n", format.DiffActionSymbol(terraform.DiffDestroyCreate))
 	}
 	if counts[terraform.DiffRefresh] > 0 {
 		fmt.Fprintf(header, "%s read data resources\n", format.DiffActionSymbol(terraform.DiffRefresh))
