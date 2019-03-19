@@ -67,19 +67,15 @@ func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *b
 		defer close(doneCh)
 		plan, planErr = tfCtx.Plan()
 	}()
-
 	if b.wait(doneCh, stopCtx, cancelCtx, tfCtx, opState) {
 		return
 	}
-
 	if planErr != nil {
 		runningOp.Err = fmt.Errorf("error running plan: %s", planErr)
 		return
 	}
-	// Record state.
 	runningOp.PlanEmpty = plan.Diff.Empty()
 
-	// Perform some output tasks if we have a CLI to output to.
 	if b.CLI != nil {
 		dispPlan := format.NewPlan(plan)
 		if dispPlan.Empty() {
