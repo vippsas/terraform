@@ -61,17 +61,17 @@ func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *b
 
 	// Perform the plan in a goroutine so we can be interrupted
 	var plan *terraform.Plan
-	var planErr error
+	var err error
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)
-		plan, planErr = tfCtx.Plan()
+		plan, err = tfCtx.Plan()
 	}()
 	if b.wait(doneCh, stopCtx, cancelCtx, tfCtx, opState) {
 		return
 	}
-	if planErr != nil {
-		runningOp.Err = fmt.Errorf("error running plan: %s", planErr)
+	if err != nil {
+		runningOp.Err = fmt.Errorf("error running plan: %s", err)
 		return
 	}
 	runningOp.PlanEmpty = plan.Diff.Empty()
