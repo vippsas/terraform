@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/terraform/state/remote"
 )
 
-// Client holds the state to communicate with Azure Resource Manager.
+// Client communicates with Azure.
 type Client struct {
 	// Client to operate on Azure Storage Account:
 	blobClient    storage.BlobStorageClient // Client to communicate with Azure Resource Manager to operate on Azure Storage Accounts.
