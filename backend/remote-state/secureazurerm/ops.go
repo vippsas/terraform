@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/terraform/command/clistate"
 )
 
-// Operation TODO!
+// Operation does the operation in a goroutine.
 func (b *Backend) Operation(ctx context.Context, op *backend.Operation) (*backend.RunningOperation, error) {
 	var f func(context.Context, context.Context, *backend.Operation, *backend.RunningOperation)
 	switch op.Type {
@@ -22,7 +22,7 @@ func (b *Backend) Operation(ctx context.Context, op *backend.Operation) (*backen
 		return nil, fmt.Errorf("unsupported operation type: %s", op.Type.String())
 	}
 
-	// Setup.
+	// Setup operation contexts.
 	b.mu.Lock()
 	runningCtx, done := context.WithCancel(context.Background())
 	runningOp := &backend.RunningOperation{Context: runningCtx}
@@ -32,7 +32,7 @@ func (b *Backend) Operation(ctx context.Context, op *backend.Operation) (*backen
 	runningOp.Cancel = cancel
 	op.StateLocker = clistate.NewLocker(stopCtx, op.StateLockTimeout, b.cli.CLI, b.cli.Colorize())
 
-	// Do it!
+	// Do the operation!
 	go func() { // Terraform wants to do the operations in a goroutine.
 		defer done()
 		defer stop()
