@@ -49,7 +49,7 @@ Resource actions are indicated with the following symbols:
 
 	// Render number of actions.
 	stats := plan.Stats()
-	b.CLI.Output(b.Colorize().Color(fmt.Sprintf("[reset] %d to add, %d to change, [bold]⚠%d to destroy (may be irreversible)⚠[reset].",
+	b.CLI.Output(b.Colorize().Color(fmt.Sprintf("[reset] %d to add, %d to change, [bold]⚠%d to destroy (irreversibly)⚠[reset].",
 		stats.ToAdd, stats.ToChange, stats.ToDestroy,
 	)))
 }
