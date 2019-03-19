@@ -20,8 +20,7 @@ func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *b
 		return
 	}
 
-	// If we have a nil module at this point, then set it to an empty tree
-	// to avoid any potential crashes.
+	// If we have a nil module at this point, then set it to an empty tree to avoid any potential crashes.
 	if op.Module == nil {
 		op.Module = module.NewEmptyTree()
 	}
@@ -69,7 +68,7 @@ func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *b
 		plan, planErr = tfCtx.Plan()
 	}()
 
-	if b.opWait(doneCh, stopCtx, cancelCtx, tfCtx, opState) {
+	if b.wait(doneCh, stopCtx, cancelCtx, tfCtx, opState) {
 		return
 	}
 
@@ -90,16 +89,11 @@ func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *b
 		b.render(dispPlan)
 		b.CLI.Output("\n------------------------------------------------------------------------")
 
-		if path := op.PlanOutPath; path == "" {
-			b.CLI.Output(fmt.Sprintf(
-				"\n" + strings.TrimSpace(planHeaderNoOutput) + "\n",
-			))
-		} else {
-			b.CLI.Output(fmt.Sprintf(
-				"\n"+strings.TrimSpace(planHeaderYesOutput)+"\n",
-				path, path,
-			))
-		}
+		const noGuaranteeMsg = `
+		Note: Terraform can't guarantee that exactly these actions will be performed if
+		"terraform apply" is subsequently run.
+		`
+		b.CLI.Output(fmt.Sprintf("\n"+strings.TrimSpace(noGuaranteeMsg)+"\n", path, path))
 	}
 }
 
