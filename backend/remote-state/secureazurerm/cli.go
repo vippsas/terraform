@@ -33,3 +33,9 @@ func (cli *CLI) Colorize() *colorstring.Colorize {
 		Disable: false, // ofc, we want color.
 	}
 }
+
+func (cli *CLI) Warn(msg string) {
+}
+
+func (cli *CLI) Error(msg string) {
+}
