@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform/backend"
 	"github.com/hashicorp/terraform/command/format"
@@ -48,7 +47,7 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 		if op.PlanRefresh {
 			_, err := tfCtx.Refresh()
 			if err != nil {
-				runningOp.Err = errwrap.Wrapf("Error refreshing state: {{err}}", err)
+				runningOp.Err = fmt.Errorf("error refreshing state: %s", err)
 				return
 			}
 		}
@@ -56,7 +55,7 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 		// Perform the plan
 		plan, err := tfCtx.Plan()
 		if err != nil {
-			runningOp.Err = errwrap.Wrapf("Error running plan: {{err}}", err)
+			runningOp.Err = fmt.Errorf("error running plan: %s", err)
 			return
 		}
 
