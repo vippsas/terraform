@@ -7,6 +7,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/storage"
 	"github.com/hashicorp/terraform/backend"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/comm"
 	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/state/remote"
 	"github.com/hashicorp/terraform/terraform"
@@ -72,10 +73,10 @@ func (b *Backend) State(name string) (state.State, error) {
 		return nil, errors.New(containerNameNotSetErrorMsg)
 	}
 
-	c := &Client{
-		blobClient:    b.blobClient,
-		containerName: b.containerName,
-		blobName:      name, // workspace name.
+	c := &comm.Client{
+		BlobClient:    b.blobClient,
+		ContainerName: b.containerName,
+		BlobName:      name, // workspace name.
 	}
 	s := &remote.State{Client: c}
 
