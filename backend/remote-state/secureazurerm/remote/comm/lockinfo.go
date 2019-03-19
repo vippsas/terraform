@@ -1,4 +1,4 @@
-package secureazurerm
+package comm
 
 import (
 	"encoding/base64"
