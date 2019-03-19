@@ -14,15 +14,6 @@ import (
 
 // plan performs "terraform plan"
 func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *backend.Operation, runningOp *backend.RunningOperation) {
-	if b.CLI != nil && op.Plan != nil {
-		b.CLI.Output(b.Colorize().Color(
-			"[reset][bold][yellow]" +
-				"The plan command received a saved plan file as input. This command\n" +
-				"will output the saved plan. This will not modify the already-existing\n" +
-				"plan. If you wish to generate a new plan, please pass in a configuration\n" +
-				"directory as an argument.\n\n"))
-	}
-
 	// A local plan requires either a plan or a module
 	if op.Plan == nil && op.Module == nil && !op.Destroy {
 		runningOp.Err = fmt.Errorf(strings.TrimSpace(planErrNoConfig))
