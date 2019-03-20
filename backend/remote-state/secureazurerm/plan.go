@@ -43,16 +43,10 @@ func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *b
 	// Setup the state
 	runningOp.State = tfCtx.State()
 
-	// If we're refreshing before plan, perform that
-	if op.PlanRefresh {
-		if b.CLI != nil {
-			b.CLI.Output(b.Colorize().Color(strings.TrimSpace(planRefreshing) + "\n"))
-		}
-		_, err := tfCtx.Refresh()
-		if err != nil {
-			runningOp.Err = fmt.Errorf("error refreshing state: %s", err)
-			return
-		}
+	// Always refresh before plan.
+	if _, err := tfCtx.Refresh(); err != nil {
+		runningOp.Err = fmt.Errorf("error refreshing state: %s", err)
+		return
 	}
 
 	// Perform the plan in a goroutine so we can be interrupted
@@ -139,12 +133,6 @@ would mark everything for destruction, which is normally not what is desired.
 If you would like to destroy everything, please run plan with the "-destroy"
 flag or create a single empty configuration file. Otherwise, please create
 a Terraform configuration file in the path being executed and try again.
-`
-
-const planRefreshing = `
-[reset][bold]Refreshing Terraform state in-memory prior to plan...[reset]
-The refreshed state will be used to calculate this plan, but will not be
-persisted to local or remote state storage.
 `
 
 const planNoChanges = `
