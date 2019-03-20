@@ -88,16 +88,16 @@ func (b *Backend) render(plan *format.Plan) {
 	fmt.Fprintf(header, "%s\n", planHeaderIntro)
 	counts := plan.ActionCounts()
 	if counts[terraform.DiffCreate] > 0 {
-		fmt.Fprintf(header, "%s: create new resource in Azure.\n", format.DiffActionSymbol(terraform.DiffCreate))
+		fmt.Fprintf(header, "%s: create a new resource in Azure.\n", format.DiffActionSymbol(terraform.DiffCreate))
 	}
 	if counts[terraform.DiffUpdate] > 0 {
-		fmt.Fprintf(header, "%s: update resource in-place in Azure.\n", format.DiffActionSymbol(terraform.DiffUpdate))
+		fmt.Fprintf(header, "%s: update a resource in-place in Azure.\n", format.DiffActionSymbol(terraform.DiffUpdate))
 	}
 	if counts[terraform.DiffDestroy] > 0 {
-		fmt.Fprintf(header, "%s: destroy existing resource in Azure.\n", format.DiffActionSymbol(terraform.DiffDestroy))
+		fmt.Fprintf(header, "%s: destroy an existing resource in Azure.\n", format.DiffActionSymbol(terraform.DiffDestroy))
 	}
 	if counts[terraform.DiffDestroyCreate] > 0 {
-		fmt.Fprintf(header, "%s: destroy and then create new replacement resource in Azure.\n", format.DiffActionSymbol(terraform.DiffDestroyCreate))
+		fmt.Fprintf(header, "%s: destroy and then create a new replacement resource in Azure.\n", format.DiffActionSymbol(terraform.DiffDestroyCreate))
 	}
 	if counts[terraform.DiffRefresh] > 0 {
 		fmt.Fprintf(header, "%s read data resources from Azure.\n", format.DiffActionSymbol(terraform.DiffRefresh))
