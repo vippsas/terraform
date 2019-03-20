@@ -64,11 +64,11 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 		if op.Destroy {
 			query = "Do you really want to destroy all resources in the workspace \"" + op.Workspace + "\"?"
 			desc = "Terraform will destroy all your managed infrastructure, as shown above.\n" +
-				"⚠There is no undo! It is irreversible!⚠\n" +
+				"[reset][bold][red]There is no undo! It may be irreversible![reset]\n\n" +
 				"Type 'yes' to confirm. Other inputs will cancel the operation."
 		} else {
 			query = "Do you want to perform these actions in the workspace \"" + op.Workspace + "\"?"
-			desc = "Terraform will perform the actions, as shown above.\n" +
+			desc = "Terraform will perform the actions, as shown above.\n\n" +
 				"Type 'yes' to confirm. Other inputs will cancel the operation."
 		}
 
