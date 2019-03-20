@@ -107,7 +107,7 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 	go func() {
 		defer close(doneCh)
 		_, applyErr = tfCtx.Apply()
-		// we always want the state, even if apply failed
+		// Fetch state, even if apply failed.
 		applyState = tfCtx.State()
 	}()
 	// Wait for it to finish.
