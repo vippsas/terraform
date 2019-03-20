@@ -54,7 +54,7 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 	// Perform the plan
 	plan, err := tfCtx.Plan()
 	if err != nil {
-		runningOp.Err = fmt.Errorf("error running plan: %s", err)
+		runningOp.Err = fmt.Errorf("error planning: %s", err)
 		return
 	}
 	dispPlan := format.NewPlan(plan)
@@ -145,12 +145,12 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 		if op.Destroy {
 			b.CLI.Output(b.Colorize().Color(fmt.Sprintf(
 				"[reset][bold][green]\n"+
-					"Destroy complete! Resources: %d destroyed.",
+					"Destroy complete! %d destroyed.",
 				countHook.Removed)))
 		} else {
 			b.CLI.Output(b.Colorize().Color(fmt.Sprintf(
 				"[reset][bold][green]\n"+
-					"Apply complete! Resources: %d added, %d changed, %d destroyed.",
+					"Apply complete! %d added, %d changed, %d destroyed.",
 				countHook.Added,
 				countHook.Changed,
 				countHook.Removed)))
