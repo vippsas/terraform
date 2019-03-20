@@ -26,13 +26,12 @@ func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *b
 	}
 
 	// Setup our count hook that keeps track of resource changes
-	countHook := new(CountHook)
 	if b.ContextOpts == nil {
 		b.ContextOpts = new(terraform.ContextOpts)
 	}
 	old := b.ContextOpts.Hooks
 	defer func() { b.ContextOpts.Hooks = old }()
-	b.ContextOpts.Hooks = append(b.ContextOpts.Hooks, countHook)
+	//b.ContextOpts.Hooks = append(b.ContextOpts.Hooks, new(CountHook))
 
 	// Get our context
 	tfCtx, opState, err := b.context(op)
@@ -54,9 +53,6 @@ func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *b
 			runningOp.Err = fmt.Errorf("error refreshing state: %s", err)
 			return
 		}
-		if b.CLI != nil {
-			b.CLI.Output("\n------------------------------------------------------------------------")
-		}
 	}
 
 	// Perform the plan in a goroutine so we can be interrupted
@@ -70,7 +66,7 @@ func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *b
 		return
 	}
 	if err != nil {
-		runningOp.Err = fmt.Errorf("error running plan: %s", err)
+		runningOp.Err = fmt.Errorf("error planning: %s", err)
 		return
 	}
 	runningOp.PlanEmpty = plan.Diff.Empty()
@@ -82,40 +78,35 @@ func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *b
 			return
 		}
 		b.render(dispPlan)
-		b.CLI.Output("\n------------------------------------------------------------------------")
-
-		const noGuaranteeMsg = `
-		Note: Terraform can't guarantee that exactly these actions will be performed if
-		"terraform apply" is subsequently run.
-		`
-		b.CLI.Output(fmt.Sprintf("\n"+strings.TrimSpace(noGuaranteeMsg)+"\n", path, path))
+		b.CLI.Output(fmt.Sprintf("\n" + strings.TrimSpace(noGuaranteeMsg) + "\n"))
 	}
 }
 
+const noGuaranteeMsg = `
+Terraform cannot guarantee that exactly these actions will be performed if
+"terraform apply" is subsequently run.
+`
+
 // render renders terraform plan.
 func (b *Backend) render(plan *format.Plan) {
-	// Render introductary header.
-	const planHeaderIntro = `
-An execution plan has been generated and is shown below.
-Resource actions are indicated with the following symbols:
-`
+	// Render intro header.
 	header := &bytes.Buffer{}
-	fmt.Fprintf(header, "\n%s\n", strings.TrimSpace(planHeaderIntro))
+	fmt.Fprintf(header, "%s\n", planHeaderIntro)
 	counts := plan.ActionCounts()
 	if counts[terraform.DiffCreate] > 0 {
-		fmt.Fprintf(header, "%s: create new resource\n", format.DiffActionSymbol(terraform.DiffCreate))
+		fmt.Fprintf(header, "%s: create new resource in Azure.\n", format.DiffActionSymbol(terraform.DiffCreate))
 	}
 	if counts[terraform.DiffUpdate] > 0 {
-		fmt.Fprintf(header, "%s: update in-place\n", format.DiffActionSymbol(terraform.DiffUpdate))
+		fmt.Fprintf(header, "%s: update resource in-place in Azure.\n", format.DiffActionSymbol(terraform.DiffUpdate))
 	}
 	if counts[terraform.DiffDestroy] > 0 {
-		fmt.Fprintf(header, "%s: destroy existing resource\n", format.DiffActionSymbol(terraform.DiffDestroy))
+		fmt.Fprintf(header, "%s: destroy existing resource in Azure.\n", format.DiffActionSymbol(terraform.DiffDestroy))
 	}
 	if counts[terraform.DiffDestroyCreate] > 0 {
-		fmt.Fprintf(header, "%s: destroy and then create new replacement resource\n", format.DiffActionSymbol(terraform.DiffDestroyCreate))
+		fmt.Fprintf(header, "%s: destroy and then create new replacement resource in Azure.\n", format.DiffActionSymbol(terraform.DiffDestroyCreate))
 	}
 	if counts[terraform.DiffRefresh] > 0 {
-		fmt.Fprintf(header, "%s read data resources\n", format.DiffActionSymbol(terraform.DiffRefresh))
+		fmt.Fprintf(header, "%s read data resources from Azure.\n", format.DiffActionSymbol(terraform.DiffRefresh))
 	}
 	b.CLI.Output(b.Colorize().Color(header.String()))
 
@@ -125,7 +116,41 @@ Resource actions are indicated with the following symbols:
 
 	// Render number of actions.
 	stats := plan.Stats()
-	b.CLI.Output(b.Colorize().Color(fmt.Sprintf("[reset] %d to add, %d to change, [bold]⚠%d to destroy (irreversibly)⚠[reset].",
-		stats.ToAdd, stats.ToChange, stats.ToDestroy,
-	)))
+	if stats.ToDestroy > 0 {
+		b.CLI.Output(b.Colorize().Color(fmt.Sprintf("[reset]%d to add, %d to change, [bold][red]⚠ %d to destroy (irreversibly) ⚠.[reset]",
+			stats.ToAdd, stats.ToChange, stats.ToDestroy,
+		)))
+	} else {
+		b.CLI.Output(b.Colorize().Color(fmt.Sprintf("[reset]%d to add, %d to change, %d to destroy.[reset]",
+			stats.ToAdd, stats.ToChange, stats.ToDestroy,
+		)))
+	}
 }
+
+const planHeaderIntro = `An execution plan has been generated and is shown below.
+Actions are indicated with the following symbols:
+`
+
+const planErrNoConfig = `
+No configuration files found!
+
+Plan requires configuration to be present. Planning without a configuration
+would mark everything for destruction, which is normally not what is desired.
+If you would like to destroy everything, please run plan with the "-destroy"
+flag or create a single empty configuration file. Otherwise, please create
+a Terraform configuration file in the path being executed and try again.
+`
+
+const planRefreshing = `
+[reset][bold]Refreshing Terraform state in-memory prior to plan...[reset]
+The refreshed state will be used to calculate this plan, but will not be
+persisted to local or remote state storage.
+`
+
+const planNoChanges = `
+[reset][bold][green]No changes. Infrastructure is up-to-date.[reset][green]
+
+This means that Terraform did not detect any differences between your
+configuration and real physical resources that exist. As a result, no
+actions need to be performed.
+`
