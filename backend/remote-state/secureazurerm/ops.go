@@ -30,7 +30,7 @@ func (b *Backend) Operation(ctx context.Context, op *backend.Operation) (*backen
 	runningOp.Stop = stop
 	cancelCtx, cancel := context.WithCancel(context.Background())
 	runningOp.Cancel = cancel
-	op.StateLocker = clistate.NewLocker(stopCtx, op.StateLockTimeout, b.cli.CLI, b.cli.Colorize())
+	op.StateLocker = clistate.NewLocker(stopCtx, op.StateLockTimeout, b.CLI, b.Colorize())
 
 	// Do the operation!
 	go func() { // Terraform wants to do the operations in a goroutine.

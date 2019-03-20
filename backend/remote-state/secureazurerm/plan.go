@@ -61,7 +61,6 @@ func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *b
 
 	// Perform the plan in a goroutine so we can be interrupted
 	var plan *terraform.Plan
-	var err error
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)

@@ -13,7 +13,7 @@ import (
 
 // Context creates a new Terraform Context for the backend.
 func (b *Backend) Context(op *backend.Operation) (*terraform.Context, state.State, error) {
-	op.StateLocker = clistate.NewLocker(context.Background(), op.StateLockTimeout, b.cli.CLI, b.cli.Colorize())
+	op.StateLocker = clistate.NewLocker(context.Background(), op.StateLockTimeout, b.CLI, b.Colorize())
 	return b.context(op)
 }
 
@@ -32,7 +32,7 @@ func (b *Backend) context(op *backend.Operation) (*terraform.Context, state.Stat
 
 	// Initialize our context options
 	var opts terraform.ContextOpts
-	if v := b.cli.ContextOpts; v != nil {
+	if v := b.ContextOpts; v != nil {
 		opts = *v
 	}
 
