@@ -88,19 +88,19 @@ func (b *Backend) render(plan *format.Plan) {
 	fmt.Fprintf(header, "%s\n", planHeaderIntro)
 	counts := plan.ActionCounts()
 	if counts[terraform.DiffCreate] > 0 {
-		fmt.Fprintf(header, "%s: create a new resource in Azure.\n", format.DiffActionSymbol(terraform.DiffCreate))
+		fmt.Fprintf(header, "%s: Create a new resource in Azure.\n", format.DiffActionSymbol(terraform.DiffCreate))
 	}
 	if counts[terraform.DiffUpdate] > 0 {
-		fmt.Fprintf(header, "%s: update a resource in-place in Azure.\n", format.DiffActionSymbol(terraform.DiffUpdate))
+		fmt.Fprintf(header, "%s: Update a resource in-place in Azure.\n", format.DiffActionSymbol(terraform.DiffUpdate))
 	}
 	if counts[terraform.DiffDestroy] > 0 {
-		fmt.Fprintf(header, "%s: destroy an existing resource in Azure.\n", format.DiffActionSymbol(terraform.DiffDestroy))
+		fmt.Fprintf(header, "%s: Destroy an existing resource in Azure.\n", format.DiffActionSymbol(terraform.DiffDestroy))
 	}
 	if counts[terraform.DiffDestroyCreate] > 0 {
-		fmt.Fprintf(header, "%s: destroy and then create a new replacement resource in Azure.\n", format.DiffActionSymbol(terraform.DiffDestroyCreate))
+		fmt.Fprintf(header, "%s: Destroy and then create a new replacement resource in Azure.\n", format.DiffActionSymbol(terraform.DiffDestroyCreate))
 	}
 	if counts[terraform.DiffRefresh] > 0 {
-		fmt.Fprintf(header, "%s read data resources from Azure.\n", format.DiffActionSymbol(terraform.DiffRefresh))
+		fmt.Fprintf(header, "%s Read data resources from Azure.\n", format.DiffActionSymbol(terraform.DiffRefresh))
 	}
 	b.CLI.Output(b.Colorize().Color(header.String()))
 
@@ -111,7 +111,7 @@ func (b *Backend) render(plan *format.Plan) {
 	// Render number of actions.
 	stats := plan.Stats()
 	if stats.ToDestroy > 0 {
-		b.CLI.Output(b.Colorize().Color(fmt.Sprintf("[reset]%d to add, %d to change, [bold][red]⚠ %d to destroy (irreversibly) ⚠.[reset]",
+		b.CLI.Output(b.Colorize().Color(fmt.Sprintf("[reset]%d to add, %d to change, [bold][red]️%d to (irreversibly) destroy.[reset]",
 			stats.ToAdd, stats.ToChange, stats.ToDestroy,
 		)))
 	} else {
