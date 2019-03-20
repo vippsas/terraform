@@ -51,7 +51,7 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 		return
 	}
 
-	// Perform the plan
+	// Generate a plan.
 	plan, err := tfCtx.Plan()
 	if err != nil {
 		runningOp.Err = fmt.Errorf("error planning: %s", err)
