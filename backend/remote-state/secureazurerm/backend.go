@@ -13,14 +13,22 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/hashicorp/terraform/backend"
 	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/hashicorp/terraform/terraform"
+	"github.com/mitchellh/cli"
+	"github.com/mitchellh/colorstring"
 )
 
 // Backend maintains the remote state in Azure.
 // TODO: Store the backend-configuration in a (separate) container instead of .terraform-dir?
 type Backend struct {
 	schema.Backend
-	CLI CLI
-	mu  sync.Mutex
+	mu sync.Mutex
+
+	// CLI
+	CLI         cli.Ui
+	CLIColor    *colorstring.Colorize
+	ContextOpts *terraform.ContextOpts
+	// never ask for input. always validate. always run in automation.
 
 	// Fields used by Storage Account:
 	blobClient    storage.BlobStorageClient
