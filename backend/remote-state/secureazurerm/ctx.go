@@ -21,11 +21,13 @@ func (b *Backend) context(op *backend.Operation) (*terraform.Context, state.Stat
 	// Get the state.
 	s, err := b.State(op.Workspace)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error loading state: %s", err)
+		return nil, nil, fmt.Errorf("error getting state: %s", err)
 	}
+	// Lock state.
 	if err := op.StateLocker.Lock(s, op.Type.String()); err != nil {
 		return nil, nil, fmt.Errorf("error locking state: %s", err)
 	}
+	// Load state from blob storage.
 	if err := s.RefreshState(); err != nil {
 		return nil, nil, fmt.Errorf("error loading state: %s", err)
 	}
