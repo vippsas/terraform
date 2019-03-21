@@ -100,7 +100,7 @@ func (b *Backend) render(plan *format.Plan) {
 		fmt.Fprintf(header, "%s: Destroy and then create a new replacement resource in Azure.\n", format.DiffActionSymbol(terraform.DiffDestroyCreate))
 	}
 	if counts[terraform.DiffRefresh] > 0 {
-		fmt.Fprintf(header, "%s Read data resources from Azure.\n", format.DiffActionSymbol(terraform.DiffRefresh))
+		fmt.Fprintf(header, "%s: Read data from a resource in Azure.\n", format.DiffActionSymbol(terraform.DiffRefresh))
 	}
 	b.CLI.Output(b.Colorize().Color(header.String()))
 
