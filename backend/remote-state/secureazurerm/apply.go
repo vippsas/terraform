@@ -99,7 +99,21 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 
 	// Setup our hook for continuous state updates.
 	stateHook.State = remoteState
-	// Begin the apply (in a goroutine so that we can be interrupted).
+	// Take a snapshot of the module diff to be used to determine the sensitive attributes.
+	type moduleDiff struct {
+		Path      []string
+		Resources map[string]map[string]*terraform.ResourceAttrDiff
+	}
+	moduleDiffs := []moduleDiff{}
+	for _, mod := range plan.Diff.Modules {
+		md := moduleDiff{Resources: make(map[string]map[string]*terraform.ResourceAttrDiff)}
+		copy(md.Path, mod.Path)
+		moduleDiffs = append(moduleDiffs, md)
+		for key, r := range mod.Resources {
+			md.Resources[key] = r.CopyAttributes()
+		}
+	}
+	// Begin the "apply" (in a goroutine so that we can be interrupted).
 	var applyState *terraform.State
 	var applyErr error
 	doneCh := make(chan struct{})
@@ -113,9 +127,18 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 	if b.wait(doneCh, stopCtx, cancelCtx, tfCtx, remoteState) {
 		return
 	}
+	// DEBUG: Print which attributes are sensitive. ~ bao.
+	for _, md := range moduleDiffs {
+		for name, r := range md.Resources {
+			fmt.Printf("%s:\n", name)
+			for attr, value := range r {
+				fmt.Printf("  %s: %t\n", attr, value.Sensitive)
+			}
+		}
+	}
 	// Store the final state.
 	runningOp.State = applyState
-	// Save it.
+	// Save the state in the remote storage account.
 	if err := remoteState.WriteState(applyState); err != nil {
 		// TODO: Output state to CLI.
 		//runningOp.Err = b.backupStateForError(applyState, err)
