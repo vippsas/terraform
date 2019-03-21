@@ -35,7 +35,7 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 	b.ContextOpts.Hooks = append(b.ContextOpts.Hooks, countHook, stateHook)
 
 	// Get our context
-	tfCtx, opState, err := b.context(op)
+	tfCtx, remoteState, err := b.context(op)
 	if err != nil {
 		runningOp.Err = err
 		return
@@ -97,9 +97,8 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 		}
 	}
 
-	// Setup our hook for continuous state updates
-	stateHook.State = opState
-
+	// Setup our hook for continuous state updates.
+	stateHook.State = remoteState
 	// Begin the apply (in a goroutine so that we can be interrupted).
 	var applyState *terraform.State
 	var applyErr error
@@ -111,24 +110,25 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 		applyState = tfCtx.State()
 	}()
 	// Wait for it to finish.
-	if b.wait(doneCh, stopCtx, cancelCtx, tfCtx, opState) {
+	if b.wait(doneCh, stopCtx, cancelCtx, tfCtx, remoteState) {
 		return
 	}
 	// Store the final state.
 	runningOp.State = applyState
 	// Save it.
-	if err := opState.WriteState(applyState); err != nil {
+	if err := remoteState.WriteState(applyState); err != nil {
 		// TODO: Output state to CLI.
 		//runningOp.Err = b.backupStateForError(applyState, err)
 		runningOp.Err = fmt.Errorf("error writing state in-memory: %s", err)
 		return
 	}
-	if err := opState.PersistState(); err != nil {
+	if err := remoteState.PersistState(); err != nil {
 		// TODO: Output state to CLI.
 		//runningOp.Err = b.backupStateForError(applyState, err)
 		runningOp.Err = fmt.Errorf("error persisting state: %s", err)
 		return
 	}
+	// Check if "apply" failed.
 	if applyErr != nil {
 		runningOp.Err = fmt.Errorf(
 			"Error applying plan: %s\n\n"+
