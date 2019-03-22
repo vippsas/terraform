@@ -1,6 +1,7 @@
 package secureazurerm
 
 import (
+	"bytes"
 	"fmt"
 	"sort"
 
@@ -41,16 +42,21 @@ func (b *Backend) DeleteState(name string) error {
 
 // State returns the state specified by name.
 func (b *Backend) State(name string) (state.State, error) {
-	s := &blob.State{Client: c}
-	blob := blob.Setup(&b.container, name, func(b *blob.Blob) error {
+	//s := &blob.State{Client: c}
+	blob, err := blob.Setup(&b.container, name, func(blob *blob.Blob) error {
 		// Create new state in-memory.
-		if err := s.WriteState(terraform.NewState()); err != nil {
-			return fmt.Errorf("error creating new state in-memory: %s", err)
+		tfState := terraform.NewState()
+		tfState.Serial++
+		// Write state to blob.
+		var buf bytes.Buffer
+		if err := terraform.WriteState(tfState, &buf); err != nil {
+			return err
 		}
-		// Write that in-memory state to remote state.
-		if err := s.PersistState(); err != nil {
-			return fmt.Errorf("error writing in-memory state to remote: %s", err)
+		if err := blob.Put(buf.Bytes()); err != nil {
+			return fmt.Errorf("error writing state buffer to blob: %s", err)
 		}
+		return nil
 	})
-	return s, nil
+	//return s, nil
+	return nil, nil
 }
