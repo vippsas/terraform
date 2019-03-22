@@ -118,7 +118,7 @@ func (b *Blob) LeasePut(data []byte) error {
 	return nil
 }
 
-// Put puts the remote stat2
+// Put puts data into the blob.
 func (b *Blob) Put(data []byte) error {
 	// Check if client's fields are set correctly.
 	if err := b.isValid(); err != nil {
@@ -151,7 +151,7 @@ func (b *Blob) Put(data []byte) error {
 	return blobRef.SetProperties(&storage.SetBlobPropertiesOptions{LeaseID: b.leaseID}) // if a blob existed previously, it will set the properties of it on the newly created blob.
 }
 
-// Delete deletes blob that contains the state.
+// Delete deletes the blob.
 func (b *Blob) Delete() error {
 	// Is fields set correctly?
 	if err := b.isValid(); err != nil {
