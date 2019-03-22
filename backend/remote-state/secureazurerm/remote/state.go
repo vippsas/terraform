@@ -2,46 +2,108 @@ package remote
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"sync"
 
-	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/comm"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
 	"github.com/hashicorp/terraform/terraform"
 )
 
 // State contains the remote state.
 type State struct {
-	mu          sync.Mutex
-	Client      *comm.Client
-	state       *terraform.State
-	maskedState map[string]interface{}
+	mu   sync.Mutex
+	blob *blob.Blob
 }
 
-// State reads the remote state.
+// secretAttr is a sensitive attribute that is located as a secret in the Azure key vault.
+type secretAttr struct {
+	Name    string // Name of the secret.
+	Version string // Version of the secret.
+}
+
+// interpAttr is a sensitive attribute interpolated from somewhere.
+type interpAttr struct {
+	Type      string `json: type`      // Type of resource.
+	ID        string `json: id`        // ID of the resource.
+	Attribute string `json: attribute` // Attribute name of resource.
+}
+
+/*
+// mask masks a sensitive attribute.
+func mask(attr string) interface{} {
+	if attr != "" {
+		return interpAttr{Attribute: attr}
+	}
+	return interpAttr{Attribute: ""}
+}
+
+// unmask unmasks a masked sensitive attribute.
+func unmask(attr interface{}) (string, error) {
+	if s, ok := attr.(string); ok {
+		return s, nil
+	}
+	if attr, ok := attr.(interpAttr); ok {
+		return "", nil
+	}
+	if attr, ok := attr.(secretAttr); ok {
+		return "", nil
+	}
+	return "", fmt.Errorf("error unmasking attributes")
+}
+*/
+
+// Read reads the state from the remote blob.
 func (s *State) Read() *terraform.State {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var remoteState []byte
-	err := json.Unmarshal(remoteState, s.maskedState)
+	// Get remote state data from blob storage.
+	payload, err := s.blob.Get()
 	if err != nil {
 		panic(err)
 	}
 
-	// TODO: Unmask remote state.
+	// Unmask remote state.
+	var m map[string]interface{}
+	if err := json.Unmarshal(payload.Data, m); err != nil {
+		panic(err)
+	}
 
-	b, err := json.Marshal(s.maskedState)
+	// Convert it back to terraform.State.
+	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
 	}
-	if err := json.Unmarshal(b, s.state); err != nil {
+	var terraState terraform.State
+	if err := json.Unmarshal(j, terraState); err != nil {
 		panic(err)
 	}
-
-	return s.state.DeepCopy()
+	return &terraState
 }
 
-// WriteState writes the remote state.
-func (s *State) Write() error {
-	return errors.New("todo")
+// Attr is a resource attribute.
+type Attr struct {
+	Value     string
+	Sensitive bool
+}
+
+type Module struct {
+	Path      []string
+	Resources map[string]map[string]Attr
+}
+
+// Write writes Terraform's state to the remote blob.
+func (s *State) Write(state *terraform.State, md *Module) error {
+	bytes, err := json.Marshal(state)
+	if err != nil {
+		return fmt.Errorf("error marshalling state: %s", err)
+	}
+	m := make(map[string]interface{})
+	json.Unmarshal(bytes, m)
+	// TODO: Turn sensitive to JSON objects.
+	bytes, err = json.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("error marshalling map: %s", err)
+	}
+	return nil
 }

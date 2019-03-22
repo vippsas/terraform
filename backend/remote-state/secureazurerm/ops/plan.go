@@ -1,4 +1,4 @@
-package secureazurerm
+package ops
 
 import (
 	"bytes"

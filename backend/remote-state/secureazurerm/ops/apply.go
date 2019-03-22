@@ -1,4 +1,4 @@
-package secureazurerm
+package ops
 
 import (
 	"context"
@@ -9,12 +9,13 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform/backend"
 	"github.com/hashicorp/terraform/backend/local"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/blob"
 	"github.com/hashicorp/terraform/command/format"
 	"github.com/hashicorp/terraform/config/module"
 	"github.com/hashicorp/terraform/terraform"
 )
 
-// terraform apply
+// apply does "terraform apply".
 func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *backend.Operation, runningOp *backend.RunningOperation) {
 	if op.Plan == nil && op.Module == nil && !op.Destroy {
 		runningOp.Err = fmt.Errorf(strings.TrimSpace(applyErrNoConfig))
@@ -100,13 +101,9 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 	// Setup our hook for continuous state updates.
 	stateHook.State = remoteState
 	// Take a snapshot of the module diff to be used to determine the sensitive attributes.
-	type moduleDiff struct {
-		Path      []string
-		Resources map[string]map[string]*terraform.ResourceAttrDiff
-	}
-	moduleDiffs := []moduleDiff{}
+	moduleDiffs := []blob.Module{}
 	for _, mod := range plan.Diff.Modules {
-		md := moduleDiff{Resources: make(map[string]map[string]*terraform.ResourceAttrDiff)}
+		md := blob.Module{Resources: make(map[string]map[string]blob.Attr)}
 		copy(md.Path, mod.Path)
 		moduleDiffs = append(moduleDiffs, md)
 		for key, r := range mod.Resources {
