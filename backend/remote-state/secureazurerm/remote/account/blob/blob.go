@@ -17,8 +17,8 @@ type Blob struct {
 	container *account.Container
 
 	// Blob info:
-	BlobName string // The name of the blob that stores the remote state in JSON. Should be equal to workspace-name.
-	leaseID  string // The lease ID used as a lock/mutex to the blob.
+	Name    string // The name of the blob that stores the remote state in JSON. Should be equal to workspace-name.
+	leaseID string // The lease ID used as a lock/mutex to the blob.
 }
 
 // Setup setups a new or existing blob.
@@ -26,7 +26,7 @@ func Setup(container *account.Container, name string, init func(*Blob) error) (B
 	// Initialize.
 	blob := Blob{
 		container: container,
-		BlobName:  name,
+		Name:      name,
 	}
 
 	// Check if blob exists.
@@ -47,7 +47,7 @@ func Setup(container *account.Container, name string, init func(*Blob) error) (B
 // Exists check if remote state blob exists already.
 func (b *Blob) Exists() (bool, error) {
 	// Check if blob exists.
-	blobExists, err := b.container.GetBlobRef(b.BlobName).Exists()
+	blobExists, err := b.container.GetBlobRef(b.Name).Exists()
 	if err != nil {
 		return false, err // failed to check if blob exists.
 	}
@@ -58,11 +58,11 @@ func (b *Blob) Exists() (bool, error) {
 func (b *Blob) Get() (*remote.Payload, error) {
 	// Check if client's fields are set correctly.
 	if err := b.isValid(); err != nil {
-		return nil, fmt.Errorf("client is invalid: %s", err)
+		return nil, fmt.Errorf("blob is invalid: %s", err)
 	}
 
 	// Get blob containing remote state.
-	blob := b.container.GetBlobRef(b.BlobName)
+	blob := b.container.GetBlobRef(b.Name)
 	options := &storage.GetBlobOptions{}
 	if b.leaseID != "" {
 		options.LeaseID = b.leaseID
@@ -100,14 +100,32 @@ func (b *Blob) Get() (*remote.Payload, error) {
 	return payload, nil
 }
 
-// Put puts the remote state data into a blob.
+// LeasePut leases the blob, puts the data into the blob, then breaks the lease.
+func (b *Blob) LeasePut(data []byte) error {
+	// Lock/Lease blob and defer unlocking/breaking lease.
+	lockInfo := state.NewLockInfo()
+	lockInfo.Operation = "Put"
+	leaseID, err := b.lock(lockInfo)
+	if err != nil {
+		return fmt.Errorf("error locking blob: %s", err)
+	}
+	defer b.unlock(leaseID)
+
+	// Put data.
+	if err := b.Put(data); err != nil {
+		return fmt.Errorf("error putting data: %s", err)
+	}
+	return nil
+}
+
+// Put puts the remote stat2
 func (b *Blob) Put(data []byte) error {
 	// Check if client's fields are set correctly.
 	if err := b.isValid(); err != nil {
-		return fmt.Errorf("client is invalid: %s", err)
+		return fmt.Errorf("blob is invalid: %s", err)
 	}
 	// Get blob reference to the remote blob in the container in the storage account.
-	blobRef := b.container.GetBlobRef(b.BlobName)
+	blobRef := b.container.GetBlobRef(b.Name)
 
 	// Check if blob exists.
 	blobExists, err := blobRef.Exists()
@@ -115,10 +133,6 @@ func (b *Blob) Put(data []byte) error {
 		return err
 	}
 	if blobExists {
-		// Check if the blob been leased.
-		if err := b.isLeased(); err != nil {
-			return err
-		}
 		// Create a new snapshot of the existing remote state blob.
 		blobRef.CreateSnapshot(&storage.SnapshotOptions{})
 		// Get the existing blob's metadata, which will be re-used in the new block blob that replaces the old one.
@@ -154,7 +168,7 @@ func (b *Blob) Delete() error {
 
 	// Call the API to delete the blob!
 	del := true
-	if err := b.container.GetBlobRef(b.BlobName).Delete(&storage.DeleteBlobOptions{LeaseID: b.leaseID, DeleteSnapshots: &del}); err != nil {
+	if err := b.container.GetBlobRef(b.Name).Delete(&storage.DeleteBlobOptions{LeaseID: b.leaseID, DeleteSnapshots: &del}); err != nil {
 		return fmt.Errorf("error deleting blob: %s", err)
 	}
 	return nil
@@ -166,7 +180,7 @@ func (b *Blob) lock(info *state.LockInfo) (string, error) {
 		return "", fmt.Errorf("blob is invalid: %s", err)
 	}
 
-	blobRef := b.container.GetBlobRef(b.BlobName)
+	blobRef := b.container.GetBlobRef(b.Name)
 	leaseID, err := blobRef.AcquireLease(-1, info.ID, &storage.LeaseOptions{})
 	if err != nil {
 		return "", fmt.Errorf("error acquiring lease: %s", err)
@@ -178,7 +192,7 @@ func (b *Blob) lock(info *state.LockInfo) (string, error) {
 		return "", fmt.Errorf("error writing lock info: %s", err)
 	}
 
-	info.Path = fmt.Sprintf("%s/%s", b.container.Name, b.BlobName)
+	info.Path = fmt.Sprintf("%s/%s", b.container.Name, b.Name)
 	return info.ID, nil
 }
 
@@ -206,7 +220,7 @@ func (b *Blob) unlock(id string) error {
 		return lockErr
 	}
 
-	blobRef := b.container.GetBlobRef(b.BlobName)
+	blobRef := b.container.GetBlobRef(b.Name)
 	if err = blobRef.ReleaseLease(id, &storage.LeaseOptions{}); err != nil {
 		lockErr.Err = err
 		return lockErr
@@ -222,7 +236,7 @@ func (b *Blob) isValid() error {
 		return fmt.Errorf("container name is empty")
 	}
 	// Check if the remote state blob to work on has been set.
-	if b.BlobName == "" {
+	if b.Name == "" {
 		return fmt.Errorf("blob name is empty")
 	}
 	return nil
