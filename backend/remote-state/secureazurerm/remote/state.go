@@ -48,7 +48,7 @@ func unmask(attr interface{}) (string, error) {
 	if attr, ok := attr.(secretAttr); ok {
 		return "", nil
 	}
-	return "", fmt.Errorf("error unmasking attributes")
+	return "", fmt.Errorf("error unmaski)ng attributes")
 }
 */
 
@@ -65,7 +65,7 @@ func (s *State) Read() *terraform.State {
 
 	// Unmask remote state.
 	var m map[string]interface{}
-	if err := json.Unmarshal(payload.Data, m); err != nil {
+	if err := json.Unmarshal(payload.Data, &m); err != nil {
 		panic(err)
 	}
 
@@ -75,7 +75,7 @@ func (s *State) Read() *terraform.State {
 		panic(err)
 	}
 	var terraState terraform.State
-	if err := json.Unmarshal(j, terraState); err != nil {
+	if err := json.Unmarshal(j, &terraState); err != nil {
 		panic(err)
 	}
 	return &terraState
@@ -99,7 +99,7 @@ func (s *State) Write(state *terraform.State, md *Module) error {
 		return fmt.Errorf("error marshalling state: %s", err)
 	}
 	m := make(map[string]interface{})
-	json.Unmarshal(bytes, m)
+	json.Unmarshal(bytes, &m)
 	// TODO: Turn sensitive to JSON objects.
 	bytes, err = json.Marshal(m)
 	if err != nil {
