@@ -1,4 +1,4 @@
-package comm
+package blob
 
 import (
 	"encoding/base64"
@@ -12,8 +12,8 @@ import (
 const lockinfo = "lockinfo" // must be lower case!
 
 // readLockInfo reads lockInfo from the blob's metadata.
-func (c *Client) readLockInfo() (*state.LockInfo, error) {
-	blobRef := c.getBlobRef()
+func (b *Blob) readLockInfo() (*state.LockInfo, error) {
+	blobRef := b.container.GetBlobRef(b.BlobName)
 
 	// Get base64-encoded lockInfo from the blob's metadata.
 	if err := blobRef.GetMetadata(&storage.GetBlobMetadataOptions{}); err != nil {
@@ -38,9 +38,9 @@ func (c *Client) readLockInfo() (*state.LockInfo, error) {
 }
 
 // writeLockInfo writes lockInfo to the blob's metadata.
-func (c *Client) writeLockInfo(info *state.LockInfo) error {
-	blobRef := c.getBlobRef()
-	if err := blobRef.GetMetadata(&storage.GetBlobMetadataOptions{LeaseID: c.leaseID}); err != nil {
+func (b *Blob) writeLockInfo(info *state.LockInfo) error {
+	blobRef := b.container.GetBlobRef(b.BlobName)
+	if err := blobRef.GetMetadata(&storage.GetBlobMetadataOptions{LeaseID: b.leaseID}); err != nil {
 		return fmt.Errorf("error getting metadata: %s", err)
 	}
 	if info == nil {
@@ -48,5 +48,5 @@ func (c *Client) writeLockInfo(info *state.LockInfo) error {
 	} else {
 		blobRef.Metadata[lockinfo] = base64.StdEncoding.EncodeToString(info.Marshal())
 	}
-	return blobRef.SetMetadata(&storage.SetBlobMetadataOptions{LeaseID: c.leaseID})
+	return blobRef.SetMetadata(&storage.SetBlobMetadataOptions{LeaseID: b.leaseID})
 }
