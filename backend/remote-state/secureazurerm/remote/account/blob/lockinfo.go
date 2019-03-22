@@ -13,7 +13,7 @@ const lockinfo = "lockinfo" // must be lower case!
 
 // readLockInfo reads lockInfo from the blob's metadata.
 func (b *Blob) readLockInfo() (*state.LockInfo, error) {
-	blobRef := b.container.GetBlobRef(b.BlobName)
+	blobRef := b.container.GetBlobRef(b.Name)
 
 	// Get base64-encoded lockInfo from the blob's metadata.
 	if err := blobRef.GetMetadata(&storage.GetBlobMetadataOptions{}); err != nil {
@@ -39,7 +39,7 @@ func (b *Blob) readLockInfo() (*state.LockInfo, error) {
 
 // writeLockInfo writes lockInfo to the blob's metadata.
 func (b *Blob) writeLockInfo(info *state.LockInfo) error {
-	blobRef := b.container.GetBlobRef(b.BlobName)
+	blobRef := b.container.GetBlobRef(b.Name)
 	if err := blobRef.GetMetadata(&storage.GetBlobMetadataOptions{LeaseID: b.leaseID}); err != nil {
 		return fmt.Errorf("error getting metadata: %s", err)
 	}
