@@ -90,7 +90,7 @@ func (s *State) RefreshState() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Get state from the blob.
+	// Get state data from the blob.
 	payload, err := s.blob.Get()
 	if err != nil {
 		return fmt.Errorf("error getting state from the blob: %s", err)
@@ -103,12 +103,14 @@ func (s *State) RefreshState() error {
 		// Indicate that the blob contains no state.
 		return nil
 	}
+	// Read the state data into memory.
 	state, err := terraform.ReadState(bytes.NewReader(payload.Data))
 	if err != nil {
 		return err
 	}
 	s.state = state
-	s.readState = s.state.DeepCopy() // to track changes.
+	// Make a copy used in comparison to track changes.
+	s.readState = s.state.DeepCopy()
 	return nil
 }
 
