@@ -160,11 +160,11 @@ func (b *Blob) Delete() error {
 	// Lock/Lease blob.
 	lockInfo := state.NewLockInfo()
 	lockInfo.Operation = "DeleteState"
-	leaseID, err := b.lock(lockInfo)
+	leaseID, err := b.Lock(lockInfo)
 	if err != nil {
 		return fmt.Errorf("error locking blob: %s", err)
 	}
-	defer b.unlock(leaseID)
+	defer b.Unlock(leaseID)
 
 	// Call the API to delete the blob!
 	del := true
@@ -175,7 +175,7 @@ func (b *Blob) Delete() error {
 }
 
 // Lock acquires the lease of the blob.
-func (b *Blob) lock(info *state.LockInfo) (string, error) {
+func (b *Blob) Lock(info *state.LockInfo) (string, error) {
 	if err := b.isValid(); err != nil {
 		return "", fmt.Errorf("blob is invalid: %s", err)
 	}
@@ -197,7 +197,7 @@ func (b *Blob) lock(info *state.LockInfo) (string, error) {
 }
 
 // Unlock breaks the lease of the blob.
-func (b *Blob) unlock(id string) error {
+func (b *Blob) Unlock(id string) error {
 	if err := b.isValid(); err != nil {
 		return fmt.Errorf("blob is invalid: %s", err)
 	}
