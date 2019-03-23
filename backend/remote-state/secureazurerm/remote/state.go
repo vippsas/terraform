@@ -3,6 +3,7 @@ package remote
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -62,14 +63,17 @@ func unmask(attr interface{}) (string, error) {
 
 // WriteState writes the new state to memory.
 func (s *State) WriteState(s *terraform.State) error {
+	// Lock, yay!
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Check if the new written state has the same lineage as the old previous one.
 	if s.readState != nil && !state.SameLineage(s.readState) {
 		// don't err here!
 		log.Printf("[WARN] incompatible state lineage: given %s but want %s", state.Lineage, s.readState.Lineage)
 	}
 
+	// Write the state to memory.
 	s.state = state.DeepCopy()
 
 	if s.readState != nil {
@@ -114,6 +118,10 @@ func (s *State) PersistState() error {
 	// Lock, harr!
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.state == nil {
+		return errors.New("state is empty")
+	}
 
 	// Check for any changes to the in-memory state.
 	if !s.state.MarshalEqual(s.readState) {
