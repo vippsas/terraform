@@ -75,9 +75,8 @@ func (s *State) WriteState(s *terraform.State) error {
 
 	// Write the state to memory.
 	s.state = state.DeepCopy()
-
 	if s.readState != nil {
-		// Set if someone wrote an incorrect serial.
+		// Fix serial if someone wrote an incorrect serial in the state.
 		s.state.Serial = s.readState.Serial
 		// Serial is *only* increased when state is persisted.
 	}
