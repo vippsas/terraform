@@ -1,18 +1,26 @@
 package remote
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
+	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/terraform"
 )
 
 // State contains the remote state.
 type State struct {
-	mu   sync.Mutex
+	state.State
+	mu sync.Mutex
+
 	blob *blob.Blob
+
+	state, // in-memory state.
+	readState *terraform.State // state read from the blob.
 }
 
 // secretAttr is a sensitive attribute that is located as a secret in the Azure key vault.
@@ -52,8 +60,94 @@ func unmask(attr interface{}) (string, error) {
 }
 */
 
-// Read reads the state from the remote blob.
-func (s *State) Read() *terraform.State {
+// WriteState writes the new state to memory.
+func (s *State) WriteState(s *terraform.State) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.readState != nil && !state.SameLineage(s.readState) {
+		// don't err here!
+		log.Printf("[WARN] incompatible state lineage: given %s but want %s", state.Lineage, s.readState.Lineage)
+	}
+
+	s.state = state.DeepCopy()
+
+	if s.readState != nil {
+		// Set if someone wrote an incorrect serial.
+		s.state.Serial = s.readState.Serial
+		// Serial is *only* increased when state is persisted.
+	}
+
+	return nil
+}
+
+// RefreshState fetches the state from the blob.
+func (s *State) RefreshState() error {
+	// Lock, milady.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Get state from the blob.
+	payload, err := s.blob.Get()
+	if err != nil {
+		return fmt.Errorf("error getting state from the blob: %s", err)
+	}
+	// Check if there is no data in the blob.
+	if payload == nil {
+		// Sync in-memory state with the empty blob.
+		s.state = nil
+		s.readState = nil
+		// Indicate that the blob contains no state.
+		return nil
+	}
+	state, err := terraform.ReadState(bytes.NewReader(payload.Data))
+	if err != nil {
+		return err
+	}
+	s.state = state
+	s.readState = s.state.DeepCopy() // to track changes.
+	return nil
+}
+
+// PersistState saves the in-memory state to the blob.
+func (s *State) PersistState() error {
+	// Lock, harr!
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Check for any changes to the in-memory state.
+	if !s.state.MarshalEqual(s.readState) {
+		s.state.Serial++
+	}
+
+	// Put the current in-memory state in blob.
+	var buf bytes.Buffer
+	if err := terraform.WriteState(s.state, &buf); err != nil {
+		return err
+	}
+	err := s.Client.Put(buf.Bytes())
+	if err != nil {
+		return err
+	}
+
+	// Set the persisted state as our new main reference state.
+	s.readState = s.state.DeepCopy()
+	return nil
+}
+
+// Lock locks the state.
+func (s *State) Lock(info *LockInfo) (string, error) {
+	return blob.Lock()
+}
+
+// Unlock unlocks the state.
+func (s *State) Unlock(id string) error {
+	return blob.Unlock(id)
+}
+
+// State reads the state from the remote blob.
+func (s *State) State() *terraform.State {
+	// Lock.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -94,6 +188,10 @@ type Module struct {
 
 // Write writes Terraform's state to the remote blob.
 func (s *State) Write(state *terraform.State, md *Module) error {
+	// Lock.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	bytes, err := json.Marshal(state)
 	if err != nil {
 		return fmt.Errorf("error marshalling state: %s", err)
