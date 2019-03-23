@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform/backend"
+	"github.com/hashicorp/terraform/backend/local"
 	"github.com/hashicorp/terraform/command/format"
 	"github.com/hashicorp/terraform/config/module"
 	"github.com/hashicorp/terraform/terraform"
@@ -25,13 +26,14 @@ func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *b
 		op.Module = module.NewEmptyTree()
 	}
 
-	// Setup our count hook that keeps track of resource changes
+	// Setup our count hook that keeps track of resource changes.
+	// bao: It still works without. It seems it is never used at this stage.
 	if b.ContextOpts == nil {
 		b.ContextOpts = new(terraform.ContextOpts)
 	}
 	old := b.ContextOpts.Hooks
 	defer func() { b.ContextOpts.Hooks = old }()
-	//b.ContextOpts.Hooks = append(b.ContextOpts.Hooks, new(CountHook))
+	b.ContextOpts.Hooks = append(b.ContextOpts.Hooks, new(local.CountHook))
 
 	// Get our context
 	tfCtx, opState, err := b.context(op)
