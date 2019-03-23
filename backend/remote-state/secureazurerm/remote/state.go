@@ -22,6 +22,14 @@ type State struct {
 
 	state, // in-memory state.
 	readState *terraform.State // state read from the blob.
+
+	module Module
+}
+
+// Module is used to report which attributes are sensitive or not.
+type Module struct {
+	Path      []string
+	Resources map[string]map[string]bool
 }
 
 // secretAttr is a sensitive attribute that is located as a secret in the Azure key vault.
@@ -66,6 +74,10 @@ func (s *State) WriteState(s *terraform.State) error {
 	// Lock, yay!
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.Module.Path == nil || s.Module.Resources == nil {
+		return errors.New("no reported sensitive attributes.")
+	}
 
 	// Check if the new written state has the same lineage as the old previous one.
 	if s.readState != nil && !state.SameLineage(s.readState) {
@@ -121,12 +133,24 @@ func (s *State) PersistState() error {
 	defer s.mu.Unlock()
 
 	if s.state == nil {
-		return errors.New("state is empty")
+		return errors.New("state is empty").
 	}
 
 	// Check for any changes to the in-memory state.
-	if !s.state.MarshalEqual(s.readState) {
+	if !s.state.MarshalEqual(s.readState) {.
 		s.state.Serial++
+	}
+
+	bytes, err := json.Marshal(s.state)
+	if err != nil {
+		return fmt.Errorf("error marshalling state: %s", err)
+	}
+	m := make(map[string]interface{})
+	json.Unmarshal(bytes, &m)
+	// TODO: Turn sensitive to JSON objects.
+	bytes, err = json.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("error marshalling map: %s", err)
 	}
 
 	// Put the current in-memory state in blob.
@@ -184,33 +208,9 @@ func (s *State) State() *terraform.State {
 	return &terraState
 }
 
-// Attr is a resource attribute.
-type Attr struct {
-	Value     string
-	Sensitive bool
-}
-
-type Module struct {
-	Path      []string
-	Resources map[string]map[string]Attr
-}
-
-// Write writes Terraform's state to the remote blob.
-func (s *State) Write(state *terraform.State, md *Module) error {
-	// Lock.
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	bytes, err := json.Marshal(state)
-	if err != nil {
-		return fmt.Errorf("error marshalling state: %s", err)
-	}
-	m := make(map[string]interface{})
-	json.Unmarshal(bytes, &m)
-	// TODO: Turn sensitive to JSON objects.
-	bytes, err = json.Marshal(m)
-	if err != nil {
-		return fmt.Errorf("error marshalling map: %s", err)
-	}
-	return nil
+// Report is used to report sensitive attributes.
+func Report(modules []*terraform.ModuleDiff) {
+	// Lock!
+	mu.Lock()
+	defer mu.Unlock()
 }
