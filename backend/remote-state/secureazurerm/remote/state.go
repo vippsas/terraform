@@ -69,6 +69,14 @@ func unmask(attr interface{}) (string, error) {
 }
 */
 
+// State reads the state from the memory.
+func (s *State) State() *terraform.State {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.state.DeepCopy()
+}
+
 // WriteState writes the new state to memory.
 func (s *State) WriteState(s *terraform.State) error {
 	// Lock, yay!
@@ -115,6 +123,23 @@ func (s *State) RefreshState() error {
 		// Indicate that the blob contains no state.
 		return nil
 	}
+
+	// Unmask remote state.
+	var m map[string]interface{}
+	if err := json.Unmarshal(payload.Data, &m); err != nil {
+		panic(err)
+	}
+
+	// Convert it back to terraform.State.
+	j, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	var terraState terraform.State
+	if err := json.Unmarshal(j, &terraState); err != nil {
+		panic(err)
+	}
+
 	// Read the state data into memory.
 	state, err := terraform.ReadState(bytes.NewReader(payload.Data))
 	if err != nil {
@@ -176,36 +201,6 @@ func (s *State) Lock(info *LockInfo) (string, error) {
 // Unlock unlocks the state.
 func (s *State) Unlock(id string) error {
 	return blob.Unlock(id)
-}
-
-// State reads the state from the remote blob.
-func (s *State) State() *terraform.State {
-	// Lock.
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Get remote state data from blob storage.
-	payload, err := s.blob.Get()
-	if err != nil {
-		panic(err)
-	}
-
-	// Unmask remote state.
-	var m map[string]interface{}
-	if err := json.Unmarshal(payload.Data, &m); err != nil {
-		panic(err)
-	}
-
-	// Convert it back to terraform.State.
-	j, err := json.Marshal(m)
-	if err != nil {
-		panic(err)
-	}
-	var terraState terraform.State
-	if err := json.Unmarshal(j, &terraState); err != nil {
-		panic(err)
-	}
-	return &terraState
 }
 
 // Report is used to report sensitive attributes.
