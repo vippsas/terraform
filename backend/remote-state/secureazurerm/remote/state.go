@@ -22,7 +22,7 @@ type State struct {
 	state, // in-memory state.
 	readState *terraform.State // state read from the blob.
 
-	module Module
+	modules []Module
 }
 
 // Module is used to report which attributes are sensitive or not.
@@ -39,9 +39,9 @@ type secretAttr struct {
 
 // interpAttr is a sensitive attribute interpolated from somewhere.
 type interpAttr struct {
-	Type      string `json: type`      // Type of resource.
-	ID        string `json: id`        // ID of the resource.
-	Attribute string `json: attribute` // Attribute name of resource.
+	Type      string `json: "type"`      // Type of resource.
+	ID        string `json: "id"`        // ID of the resource.
+	Attribute string `json: "attribute"` // Attribute name of resource.
 }
 
 /*
@@ -82,8 +82,20 @@ func (s *State) WriteState(ts *terraform.State) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.module.Path == nil || s.module.Resources == nil {
-		return errors.New("no reported sensitive attributes")
+	// Check if the upper-level hasn't forgotten to report sensitive attributes.
+	fmt.Printf("WriteState:\n%+v\n", s.modules)
+	for _, module := range s.modules {
+		if module.Path == nil || module.Resources == nil {
+			for _, md := range s.modules {
+				for name, r := range md.Resources {
+					fmt.Printf("%s:\n", name)
+					for attr, value := range r {
+						fmt.Printf("  %s: %t\n", attr, value)
+					}
+				}
+			}
+			return errors.New("no reported sensitive attributes")
+		}
 	}
 
 	// Check if the new written state has the same lineage as the old previous one.
@@ -212,24 +224,33 @@ func (s *State) Report(modules []*terraform.ModuleDiff) {
 	defer s.mu.Unlock()
 
 	// Report sensitive attributes.
-	moduleDiffs := []Module{}
-	for _, mod := range modules {
-		md := Module{Resources: make(map[string]map[string]bool)}
-		copy(md.Path, mod.Path)
-		moduleDiffs = append(moduleDiffs, md)
-		for resourceName, resourceValue := range mod.Resources {
+	if len(s.modules) != len(modules) {
+		fmt.Printf("len(modules): %d\n", len(modules))
+		s.modules = make([]Module, len(modules))
+		fmt.Printf("len(s.modules): %d\n", len(s.modules))
+	}
+	for i, module := range modules {
+		fmt.Printf("module.Path: %q\n", module.Path)
+		s.modules[i].Path = make([]string, len(module.Path))
+		copy(s.modules[i].Path, module.Path)
+		fmt.Printf("s.modules[i].Path: %q\n", s.modules[i].Path)
+		s.modules[i].Resources = make(map[string]map[string]bool)
+		for resourceName, resourceValue := range module.Resources {
+			s.modules[i].Resources[resourceName] = make(map[string]bool)
 			for attrName, attrValue := range resourceValue.Attributes {
-				md.Resources[resourceName][attrName] = attrValue.Sensitive
+				s.modules[i].Resources[resourceName][attrName] = attrValue.Sensitive
 			}
 		}
 	}
 	// DEBUG: Print which attributes are sensitive. ~ bao.
-	for _, md := range moduleDiffs {
-		for name, r := range md.Resources {
-			fmt.Printf("%s:\n", name)
-			for attr, value := range r {
-				fmt.Printf("  %s: %t\n", attr, value)
+	for i, module := range s.modules {
+		fmt.Printf("Module: %d\n", i)
+		for name, resource := range module.Resources {
+			fmt.Printf("Resource: %s:\n", name)
+			for attribute, value := range resource {
+				fmt.Printf("  %s: %t\n", attribute, value)
 			}
 		}
 	}
+	fmt.Printf("len(s.modules): %d\n", len(s.modules))
 }
