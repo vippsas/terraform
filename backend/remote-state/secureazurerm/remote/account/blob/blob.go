@@ -22,7 +22,7 @@ type Blob struct {
 }
 
 // Setup setups a new or existing blob.
-func Setup(container *account.Container, name string, init func(*Blob) error) (Blob, error) {
+func Setup(container *account.Container, name string, init func(*Blob) error) (*Blob, error) {
 	// Initialize.
 	blob := Blob{
 		container: container,
@@ -32,16 +32,16 @@ func Setup(container *account.Container, name string, init func(*Blob) error) (B
 	// Check if blob exists.
 	exists, err := blob.Exists()
 	if err != nil {
-		return blob, fmt.Errorf("error checking blob existence: %s", err)
+		return nil, fmt.Errorf("error checking blob existence: %s", err)
 	}
 	// If not exists, write empty blob.
 	if !exists {
 		if err := init(&blob); err != nil {
-			return blob, err
+			return nil, err
 		}
 	}
 
-	return blob, nil
+	return &blob, nil
 }
 
 // Exists check if remote state blob exists already.

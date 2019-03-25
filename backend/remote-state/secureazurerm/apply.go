@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform/backend"
 	"github.com/hashicorp/terraform/backend/local"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote"
 	"github.com/hashicorp/terraform/command/format"
 	"github.com/hashicorp/terraform/config/module"
 	"github.com/hashicorp/terraform/terraform"
@@ -102,7 +103,8 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 	// Setup our hook for continuous state updates.
 	stateHook.State = remoteState
 	// Take a snapshot of the module diff to be used to determine the sensitive attributes.
-	remoteState.Report()
+	blobState := remoteState.(*remote.State)
+	blobState.Report(plan.Diff.Modules)
 
 	// Begin the "apply" (in a goroutine so that we can be interrupted).
 	var applyState *terraform.State
@@ -117,15 +119,6 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 	// Wait for it to finish.
 	if b.wait(doneCh, stopCtx, cancelCtx, tfCtx, remoteState) {
 		return
-	}
-	// DEBUG: Print which attributes are sensitive. ~ bao.
-	for _, md := range moduleDiffs {
-		for name, r := range md.Resources {
-			fmt.Printf("%s:\n", name)
-			for attr, value := range r {
-				fmt.Printf("  %s: %t\n", attr, value.Sensitive)
-			}
-		}
 	}
 	// Store the final state.
 	runningOp.State = applyState
