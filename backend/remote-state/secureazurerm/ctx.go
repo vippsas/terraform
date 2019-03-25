@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform/backend"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote"
 	"github.com/hashicorp/terraform/command/clistate"
 	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/terraform"
@@ -17,7 +18,7 @@ func (b *Backend) Context(op *backend.Operation) (*terraform.Context, state.Stat
 	return b.context(op)
 }
 
-func (b *Backend) context(op *backend.Operation) (*terraform.Context, state.State, error) {
+func (b *Backend) context(op *backend.Operation) (*terraform.Context, remote.State, error) {
 	// Get the state.
 	s, err := b.State(op.Workspace)
 	if err != nil {

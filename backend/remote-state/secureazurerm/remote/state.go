@@ -15,7 +15,6 @@ import (
 
 // State contains the remote state.
 type State struct {
-	state.State
 	mu sync.Mutex
 
 	blob *blob.Blob
@@ -78,23 +77,23 @@ func (s *State) State() *terraform.State {
 }
 
 // WriteState writes the new state to memory.
-func (s *State) WriteState(s *terraform.State) error {
+func (s *State) WriteState(ts *terraform.State) error {
 	// Lock, yay!
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.Module.Path == nil || s.Module.Resources == nil {
-		return errors.New("no reported sensitive attributes.")
+	if s.module.Path == nil || s.module.Resources == nil {
+		return errors.New("no reported sensitive attributes")
 	}
 
 	// Check if the new written state has the same lineage as the old previous one.
-	if s.readState != nil && !state.SameLineage(s.readState) {
+	if s.readState != nil && !ts.SameLineage(s.readState) {
 		// don't err here!
-		log.Printf("[WARN] incompatible state lineage: given %s but want %s", state.Lineage, s.readState.Lineage)
+		log.Printf("[WARN] incompatible state lineage: given %s but want %s", ts.Lineage, s.readState.Lineage)
 	}
 
 	// Write the state to memory.
-	s.state = state.DeepCopy()
+	s.state = ts.DeepCopy()
 	if s.readState != nil {
 		// Fix serial if someone wrote an incorrect serial in the state.
 		s.state.Serial = s.readState.Serial
@@ -158,22 +157,22 @@ func (s *State) PersistState() error {
 	defer s.mu.Unlock()
 
 	if s.state == nil {
-		return errors.New("state is empty").
+		return errors.New("state is empty")
 	}
 
 	// Check for any changes to the in-memory state.
-	if !s.state.MarshalEqual(s.readState) {.
+	if !s.state.MarshalEqual(s.readState) {
 		s.state.Serial++
 	}
 
-	bytes, err := json.Marshal(s.state)
+	data, err := json.Marshal(s.state)
 	if err != nil {
 		return fmt.Errorf("error marshalling state: %s", err)
 	}
 	m := make(map[string]interface{})
-	json.Unmarshal(bytes, &m)
+	json.Unmarshal(data, &m)
 	// TODO: Turn sensitive to JSON objects.
-	bytes, err = json.Marshal(m)
+	data, err = json.Marshal(m)
 	if err != nil {
 		return fmt.Errorf("error marshalling map: %s", err)
 	}
@@ -183,7 +182,7 @@ func (s *State) PersistState() error {
 	if err := terraform.WriteState(s.state, &buf); err != nil {
 		return err
 	}
-	err := s.Client.Put(buf.Bytes())
+	err = s.blob.LeasePut(buf.Bytes())
 	if err != nil {
 		return err
 	}
@@ -194,18 +193,30 @@ func (s *State) PersistState() error {
 }
 
 // Lock locks the state.
-func (s *State) Lock(info *LockInfo) (string, error) {
-	return blob.Lock()
+func (s *State) Lock(info *state.LockInfo) (string, error) {
+	return s.blob.Lock(info)
 }
 
 // Unlock unlocks the state.
 func (s *State) Unlock(id string) error {
-	return blob.Unlock(id)
+	return s.blob.Unlock(id)
 }
 
 // Report is used to report sensitive attributes.
-func Report(modules []*terraform.ModuleDiff) {
+func (s *State) Report(modules []*terraform.ModuleDiff) {
 	// Lock!
-	mu.Lock()
-	defer mu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Report sensitive attributes.
+	moduleDiffs := []Module{}
+	for _, mod := range modules {
+		md := Module{Resources: make(map[string]map[string]bool)}
+		copy(md.Path, mod.Path)
+		moduleDiffs = append(moduleDiffs, md)
+		for key, r := range mod.Resources {
+			//md.Resources[key] = r.CopyAttributes()
+			fmt.Printf("%s\n", key, r)
+		}
+	}
 }

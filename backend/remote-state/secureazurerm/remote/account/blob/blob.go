@@ -105,11 +105,11 @@ func (b *Blob) LeasePut(data []byte) error {
 	// Lock/Lease blob and defer unlocking/breaking lease.
 	lockInfo := state.NewLockInfo()
 	lockInfo.Operation = "Put"
-	leaseID, err := b.lock(lockInfo)
+	leaseID, err := b.Lock(lockInfo)
 	if err != nil {
 		return fmt.Errorf("error locking blob: %s", err)
 	}
-	defer b.unlock(leaseID)
+	defer b.Unlock(leaseID)
 
 	// Put data.
 	if err := b.Put(data); err != nil {
