@@ -67,15 +67,13 @@ func unmask(attr interface{}) (string, error) {
 	return "", fmt.Errorf("error unmasking attributes")
 }
 */
-func iter(m map[string]interface{}, f func(string, string, *interface{})) {
+func iter(m map[string]interface{}, f func(string, map[string]interface{})) {
 	for resourceName, resource := range m["resources"].(map[string]interface{}) {
 		fmt.Printf("%s:\n", resourceName)
 		r := resource.(map[string]interface{})
 		primary := r["primary"].(map[string]interface{})
 		attrs := primary["attributes"]
-		for attrName, attrValue := range attrs.(map[string]interface{}) {
-			f(resourceName, attrName, &attrValue)
-		}
+		f(resourceName, attrs.(map[string]interface{}))
 	}
 }
 
@@ -196,6 +194,7 @@ func (s *State) PersistState() error {
 		s.state.Serial++
 	}
 
+	// TODO: Mask sensitive attributes.
 	data, err := json.Marshal(s.state)
 	if err != nil {
 		return fmt.Errorf("error marshalling state: %s", err)
@@ -205,17 +204,20 @@ func (s *State) PersistState() error {
 	for i, module := range m["modules"].([]interface{}) {
 		mod := module.(map[string]interface{})
 		if pathEqual(mod["path"].([]interface{}), s.modules[i].Path) {
-			iter(mod, func(resourceName string, attrName string, attrValue *interface{}) {
-				if s.modules[i].Resources[resourceName][attrName] {
-					fmt.Printf("  %s: %v\n", attrName, *attrValue)
+			iter(mod, func(resourceName string, attrs map[string]interface{}) {
+				for attrName, attrValue := range attrs {
+					if s.modules[i].Resources[resourceName][attrName] {
+						attrs[attrName] = secretAttr{
+							Name:    "NameTest",
+							Version: "VerTest",
+						}
+						fmt.Printf("  %s: %v\n", attrName, attrValue)
+					}
 				}
 			})
 		}
 	}
-
-	// **
-	// TODO: Turn sensitive to JSON objects.
-	// **
+	fmt.Printf("%v\n", m)
 
 	data, err = json.Marshal(m)
 	if err != nil {
