@@ -64,9 +64,20 @@ func unmask(attr interface{}) (string, error) {
 	if attr, ok := attr.(secretAttr); ok {
 		return "", nil
 	}
-	return "", fmt.Errorf("error unmaski)ng attributes")
+	return "", fmt.Errorf("error unmasking attributes")
 }
 */
+func iter(m map[string]interface{}, f func(string, string, *interface{})) {
+	for resourceName, resource := range m["resources"].(map[string]interface{}) {
+		fmt.Printf("%s:\n", resourceName)
+		r := resource.(map[string]interface{})
+		primary := r["primary"].(map[string]interface{})
+		attrs := primary["attributes"]
+		for attrName, attrValue := range attrs.(map[string]interface{}) {
+			f(resourceName, attrName, &attrValue)
+		}
+	}
+}
 
 // State reads the state from the memory.
 func (s *State) State() *terraform.State {
@@ -131,6 +142,12 @@ func (s *State) RefreshState() error {
 	if err := json.Unmarshal(payload.Data, &m); err != nil {
 		return fmt.Errorf("error unmarshalling state to map: %s", err)
 	}
+	/*
+		iter(m, func(string, name string, value *interface{}) {
+			fmt.Printf("%s: %v\n", name, *value)
+		})
+	*/
+
 	// Convert it back to terraform.State.
 	j, err := json.Marshal(m)
 	if err != nil {
@@ -150,6 +167,18 @@ func (s *State) RefreshState() error {
 	// Make a copy used to track changes.
 	s.readState = s.state.DeepCopy()
 	return nil
+}
+
+func pathEqual(a []interface{}, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, val := range a {
+		if val.(string) != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // PersistState saves the in-memory state to the blob.
@@ -173,6 +202,16 @@ func (s *State) PersistState() error {
 	}
 	m := make(map[string]interface{})
 	json.Unmarshal(data, &m)
+	for i, module := range m["modules"].([]interface{}) {
+		mod := module.(map[string]interface{})
+		if pathEqual(mod["path"].([]interface{}), s.modules[i].Path) {
+			iter(mod, func(resourceName string, attrName string, attrValue *interface{}) {
+				if s.modules[i].Resources[resourceName][attrName] {
+					fmt.Printf("  %s: %v\n", attrName, *attrValue)
+				}
+			})
+		}
+	}
 
 	// **
 	// TODO: Turn sensitive to JSON objects.
@@ -230,13 +269,15 @@ func (s *State) Report(modules []*terraform.ModuleDiff) {
 		}
 	}
 	// DEBUG: Print which attributes are sensitive. ~ bao.
-	for i, module := range s.modules {
-		fmt.Printf("Module: %d\n", i)
-		for name, resource := range module.Resources {
-			fmt.Printf("Resource: %s:\n", name)
-			for attribute, value := range resource {
-				fmt.Printf("  %s: %t\n", attribute, value)
+	/*
+		for i, module := range s.modules {
+			fmt.Printf("Module: %d\n", i)
+			for name, resource := range module.Resources {
+				fmt.Printf("Resource: %s:\n", name)
+				for attribute, value := range resource {
+					fmt.Printf("  %s: %t\n", attribute, value)
+				}
 			}
 		}
-	}
+	*/
 }
