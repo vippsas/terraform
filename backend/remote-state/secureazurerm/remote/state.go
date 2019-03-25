@@ -17,12 +17,12 @@ import (
 type State struct {
 	mu sync.Mutex
 
-	Blob *blob.Blob
+	Blob *blob.Blob // client to communicate with the blob storage.
 
 	state, // in-memory state.
 	readState *terraform.State // state read from the blob.
 
-	modules []Module
+	modules []Module // contains what attributes are sensitive.
 }
 
 // Module is used to report which attributes are sensitive or not.
