@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform/backend"
 	"github.com/hashicorp/terraform/backend/local"
-	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote"
 	"github.com/hashicorp/terraform/command/format"
 	"github.com/hashicorp/terraform/config/module"
 	"github.com/hashicorp/terraform/terraform"
@@ -103,15 +102,8 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 	// Setup our hook for continuous state updates.
 	stateHook.State = remoteState
 	// Take a snapshot of the module diff to be used to determine the sensitive attributes.
-	moduleDiffs := []remote.Module{}
-	for _, mod := range plan.Diff.Modules {
-		md := remote.Module{Resources: make(map[string]map[string]remote.Attr)}
-		copy(md.Path, mod.Path)
-		moduleDiffs = append(moduleDiffs, md)
-		for key, r := range mod.Resources {
-			md.Resources[key] = r.CopyAttributes()
-		}
-	}
+	remoteState.Report()
+
 	// Begin the "apply" (in a goroutine so that we can be interrupted).
 	var applyState *terraform.State
 	var applyErr error
