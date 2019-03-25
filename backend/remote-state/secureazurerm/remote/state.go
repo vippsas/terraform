@@ -202,7 +202,7 @@ func (s *State) Unlock(id string) error {
 	return s.Blob.Unlock(id)
 }
 
-// Report is used to report sensitive attributes.
+// Report is used to report sensitive attributes to the state.
 func (s *State) Report(modules []*terraform.ModuleDiff) {
 	// Lock!
 	s.mu.Lock()
@@ -214,9 +214,10 @@ func (s *State) Report(modules []*terraform.ModuleDiff) {
 		md := Module{Resources: make(map[string]map[string]bool)}
 		copy(md.Path, mod.Path)
 		moduleDiffs = append(moduleDiffs, md)
-		for key, r := range mod.Resources {
-			//md.Resources[key] = r.CopyAttributes()
-			fmt.Printf("%s\n", key, r)
+		for resourceName, resourceValue := range mod.Resources {
+			for attrName, attrValue := range resourceValue.Attributes {
+				md.Resources[resourceName][attrName] = attrValue.Sensitive
+			}
 		}
 	}
 	// DEBUG: Print which attributes are sensitive. ~ bao.
