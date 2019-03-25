@@ -64,9 +64,6 @@ func (b *Blob) Get() (*remote.Payload, error) {
 	// Get blob containing remote state.
 	blob := b.container.GetBlobRef(b.Name)
 	options := &storage.GetBlobOptions{}
-	if b.leaseID != "" {
-		options.LeaseID = b.leaseID
-	}
 
 	// Check if blob exists.
 	blobExists, err := blob.Exists()
@@ -100,29 +97,14 @@ func (b *Blob) Get() (*remote.Payload, error) {
 	return payload, nil
 }
 
-// LeasePut leases the blob, puts the data into the blob, then breaks the lease.
-func (b *Blob) LeasePut(data []byte) error {
-	// Lock/Lease blob and defer unlocking/breaking lease.
-	lockInfo := state.NewLockInfo()
-	lockInfo.Operation = "Put"
-	leaseID, err := b.Lock(lockInfo)
-	if err != nil {
-		return fmt.Errorf("error locking blob: %s", err)
-	}
-	defer b.Unlock(leaseID)
-
-	// Put data.
-	if err := b.Put(data); err != nil {
-		return fmt.Errorf("error putting data: %s", err)
-	}
-	return nil
-}
-
 // Put puts data into the blob.
 func (b *Blob) Put(data []byte) error {
 	// Check if client's fields are set correctly.
 	if err := b.isValid(); err != nil {
 		return fmt.Errorf("blob is invalid: %s", err)
+	}
+	if err := b.isLeased(); err != nil {
+		return fmt.Errorf("no lease on blob: %s", err)
 	}
 	// Get blob reference to the remote blob in the container in the storage account.
 	blobRef := b.container.GetBlobRef(b.Name)
