@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"runtime/debug"
 	"sync"
 
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
@@ -84,21 +83,11 @@ func (s *State) WriteState(ts *terraform.State) error {
 	defer s.mu.Unlock()
 
 	// Check if the upper-level hasn't forgotten to report sensitive attributes.
-	fmt.Printf("WriteState:\n%+v\n", s.modules)
 	for _, module := range s.modules {
 		if module.Path == nil || module.Resources == nil {
-			for _, md := range s.modules {
-				for name, r := range md.Resources {
-					fmt.Printf("%s:\n", name)
-					for attr, value := range r {
-						fmt.Printf("  %s: %t\n", attr, value)
-					}
-				}
-			}
 			return errors.New("no reported sensitive attributes")
 		}
 	}
-	debug.PrintStack()
 
 	// Check if the new written state has the same lineage as the old previous one.
 	if s.readState != nil && !ts.SameLineage(s.readState) {
@@ -227,15 +216,11 @@ func (s *State) Report(modules []*terraform.ModuleDiff) {
 
 	// Report sensitive attributes.
 	if len(s.modules) != len(modules) {
-		fmt.Printf("len(modules): %d\n", len(modules))
 		s.modules = make([]Module, len(modules))
-		fmt.Printf("len(s.modules): %d\n", len(s.modules))
 	}
 	for i, module := range modules {
-		fmt.Printf("module.Path: %q\n", module.Path)
 		s.modules[i].Path = make([]string, len(module.Path))
 		copy(s.modules[i].Path, module.Path)
-		fmt.Printf("s.modules[i].Path: %q\n", s.modules[i].Path)
 		s.modules[i].Resources = make(map[string]map[string]bool)
 		for resourceName, resourceValue := range module.Resources {
 			s.modules[i].Resources[resourceName] = make(map[string]bool)
@@ -254,5 +239,4 @@ func (s *State) Report(modules []*terraform.ModuleDiff) {
 			}
 		}
 	}
-	fmt.Printf("len(s.modules): %d\n", len(s.modules))
 }
