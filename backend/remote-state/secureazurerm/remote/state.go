@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"runtime/debug"
 	"sync"
 
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
@@ -97,6 +98,7 @@ func (s *State) WriteState(ts *terraform.State) error {
 			return errors.New("no reported sensitive attributes")
 		}
 	}
+	debug.PrintStack()
 
 	// Check if the new written state has the same lineage as the old previous one.
 	if s.readState != nil && !ts.SameLineage(s.readState) {
@@ -197,9 +199,9 @@ func (s *State) PersistState() error {
 	if err := terraform.WriteState(s.state, &buf); err != nil {
 		return err
 	}
-	err = s.Blob.LeasePut(buf.Bytes())
+	err = s.Blob.Put(buf.Bytes())
 	if err != nil {
-		return err
+		return fmt.Errorf("error leasing and putting buffer: %s", err)
 	}
 
 	// Set the persisted state as our new main reference state.
