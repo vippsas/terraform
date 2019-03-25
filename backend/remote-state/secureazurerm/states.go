@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
 	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/terraform"
@@ -42,7 +43,6 @@ func (b *Backend) DeleteState(name string) error {
 
 // State returns the state specified by name.
 func (b *Backend) State(name string) (state.State, error) {
-	//s := &blob.State{Client: c}
 	blob, err := blob.Setup(&b.container, name, func(blob *blob.Blob) error {
 		// Create new state in-memory.
 		tfState := terraform.NewState()
@@ -57,6 +57,8 @@ func (b *Backend) State(name string) (state.State, error) {
 		}
 		return nil
 	})
-	//return s, nil
-	return nil, nil
+	if err != nil {
+		return nil, fmt.Errorf("blob setup error: %s", err)
+	}
+	return &remote.State{Blob: blob}, nil
 }

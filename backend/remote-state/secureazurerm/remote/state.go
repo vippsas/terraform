@@ -17,7 +17,7 @@ import (
 type State struct {
 	mu sync.Mutex
 
-	blob *blob.Blob
+	Blob *blob.Blob
 
 	state, // in-memory state.
 	readState *terraform.State // state read from the blob.
@@ -110,7 +110,7 @@ func (s *State) RefreshState() error {
 	defer s.mu.Unlock()
 
 	// Get state data from the blob.
-	payload, err := s.blob.Get()
+	payload, err := s.Blob.Get()
 	if err != nil {
 		return fmt.Errorf("error getting state from the blob: %s", err)
 	}
@@ -182,7 +182,7 @@ func (s *State) PersistState() error {
 	if err := terraform.WriteState(s.state, &buf); err != nil {
 		return err
 	}
-	err = s.blob.LeasePut(buf.Bytes())
+	err = s.Blob.LeasePut(buf.Bytes())
 	if err != nil {
 		return err
 	}
@@ -194,12 +194,12 @@ func (s *State) PersistState() error {
 
 // Lock locks the state.
 func (s *State) Lock(info *state.LockInfo) (string, error) {
-	return s.blob.Lock(info)
+	return s.Blob.Lock(info)
 }
 
 // Unlock unlocks the state.
 func (s *State) Unlock(id string) error {
-	return s.blob.Unlock(id)
+	return s.Blob.Unlock(id)
 }
 
 // Report is used to report sensitive attributes.
@@ -217,6 +217,15 @@ func (s *State) Report(modules []*terraform.ModuleDiff) {
 		for key, r := range mod.Resources {
 			//md.Resources[key] = r.CopyAttributes()
 			fmt.Printf("%s\n", key, r)
+		}
+	}
+	// DEBUG: Print which attributes are sensitive. ~ bao.
+	for _, md := range moduleDiffs {
+		for name, r := range md.Resources {
+			fmt.Printf("%s:\n", name)
+			for attr, value := range r {
+				fmt.Printf("  %s: %t\n", attr, value)
+			}
 		}
 	}
 }
