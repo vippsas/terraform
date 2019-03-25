@@ -126,17 +126,16 @@ func (s *State) RefreshState() error {
 	// Unmask remote state.
 	var m map[string]interface{}
 	if err := json.Unmarshal(payload.Data, &m); err != nil {
-		panic(err)
+		return fmt.Errorf("error unmarshalling state to map: %s", err)
 	}
-
 	// Convert it back to terraform.State.
 	j, err := json.Marshal(m)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("error marshalling map to JSON: %s", err)
 	}
 	var terraState terraform.State
 	if err := json.Unmarshal(j, &terraState); err != nil {
-		panic(err)
+		return fmt.Errorf("error unmarshalling JSON to terraform.State: %s", err)
 	}
 
 	// Read the state data into memory.
@@ -145,7 +144,7 @@ func (s *State) RefreshState() error {
 		return err
 	}
 	s.state = state
-	// Make a copy used in comparison to track changes.
+	// Make a copy used to track changes.
 	s.readState = s.state.DeepCopy()
 	return nil
 }
@@ -171,7 +170,11 @@ func (s *State) PersistState() error {
 	}
 	m := make(map[string]interface{})
 	json.Unmarshal(data, &m)
+
+	// **
 	// TODO: Turn sensitive to JSON objects.
+	// **
+
 	data, err = json.Marshal(m)
 	if err != nil {
 		return fmt.Errorf("error marshalling map: %s", err)
