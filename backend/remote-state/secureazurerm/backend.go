@@ -114,7 +114,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		}
 	*/
 
-	version, err := b.keyVault.InsertSecret(ctx, "bao", "ååøøø")
+	version, err := b.keyVault.InsertSecret(ctx, "bao2", "ååøøø")
 	if err != nil {
 		return err
 	}

@@ -6,13 +6,14 @@ import (
 	"os/exec"
 
 	"github.com/Azure/go-autorest/autorest"
+	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 )
 
-// NewMgmt creates a new authorizer using resource: https://management.azure.com/.
+// NewMgmt creates a new authorizer using resource mgmt endpoint.
 func NewMgmt() (authorizer autorest.Authorizer, subscriptionID string, err error) {
 	// Try authorizing using Azure CLI, which will use the resource: https://management.azure.com/.
-	authorizer, err = auth.NewAuthorizerFromCLI()
+	authorizer, err = auth.NewAuthorizerFromCLIWithResource(azure.PublicCloud.ResourceManagerEndpoint)
 	if err != nil {
 		// Fetch subscriptionID from environment variable AZURE_SUBSCRIPTION_ID.
 		settings, err := auth.GetSettingsFromEnvironment()
@@ -42,7 +43,7 @@ func NewMgmt() (authorizer autorest.Authorizer, subscriptionID string, err error
 	return
 }
 
-// NewVault creates a new authorizer using resource: https://vault.azure.net/.
+// NewVault creates a new authorizer using keyvault endpoint (don't use the constant, because it is formatted incorrectly).
 func NewVault() (authorizer autorest.Authorizer, err error) {
 	authorizer, err = auth.NewAuthorizerFromCLIWithResource("https://vault.azure.net")
 	if err != nil {
