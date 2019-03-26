@@ -31,8 +31,8 @@ type Module struct {
 	Resources map[string]map[string]bool
 }
 
-// secretAttr is a sensitive attribute that is located as a secret in the Azure key vault.
-type secretAttr struct {
+// secretAttribute is a sensitive attribute that is located as a secret in the Azure key vault.
+type secretAttribute struct {
 	Name    string // Name of the secret.
 	Version string // Version of the secret.
 }
@@ -67,15 +67,6 @@ func unmask(attr interface{}) (string, error) {
 	return "", fmt.Errorf("error unmasking attributes")
 }
 */
-func iter(m map[string]interface{}, f func(string, map[string]interface{})) {
-	for resourceName, resource := range m["resources"].(map[string]interface{}) {
-		fmt.Printf("%s:\n", resourceName)
-		r := resource.(map[string]interface{})
-		primary := r["primary"].(map[string]interface{})
-		attrs := primary["attributes"]
-		f(resourceName, attrs.(map[string]interface{}))
-	}
-}
 
 // State reads the state from the memory.
 func (s *State) State() *terraform.State {
@@ -167,6 +158,7 @@ func (s *State) RefreshState() error {
 	return nil
 }
 
+// pathEqual compares if the path of two modules are equal.
 func pathEqual(a []interface{}, b []string) bool {
 	if len(a) != len(b) {
 		return false
@@ -177,6 +169,29 @@ func pathEqual(a []interface{}, b []string) bool {
 		}
 	}
 	return true
+}
+
+// maskModule masks all sensitive attributes in a module.
+func (s *State) maskModule(moduleIndex int, module map[string]interface{}) {
+	for resourceName, resource := range module["resources"].(map[string]interface{}) {
+		fmt.Printf("%s:\n", resourceName)
+		r := resource.(map[string]interface{})
+		primary := r["primary"].(map[string]interface{})
+		s.maskResource(resourceName, moduleIndex, primary["attributes"].(map[string]interface{}))
+	}
+}
+
+// maskResource masks all sensitive attributes in a resource.
+func (s *State) maskResource(resourceName string, moduleIndex int, attributes map[string]interface{}) {
+	for name, value := range attributes {
+		if s.modules[moduleIndex].Resources[resourceName][name] {
+			attributes[name] = secretAttribute{
+				Name:    "NameTest",
+				Version: "VerTest",
+			}
+			fmt.Printf("  %s: %v\n", name, value)
+		}
+	}
 }
 
 // PersistState saves the in-memory state to the blob.
@@ -204,17 +219,7 @@ func (s *State) PersistState() error {
 	for i, module := range m["modules"].([]interface{}) {
 		mod := module.(map[string]interface{})
 		if pathEqual(mod["path"].([]interface{}), s.modules[i].Path) {
-			iter(mod, func(resourceName string, attrs map[string]interface{}) {
-				for attrName, attrValue := range attrs {
-					if s.modules[i].Resources[resourceName][attrName] {
-						attrs[attrName] = secretAttr{
-							Name:    "NameTest",
-							Version: "VerTest",
-						}
-						fmt.Printf("  %s: %v\n", attrName, attrValue)
-					}
-				}
-			})
+			s.maskModule(i, mod)
 		}
 	}
 	fmt.Printf("%v\n", m)
