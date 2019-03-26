@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/terraform/backend"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
@@ -25,8 +26,8 @@ type Backend struct {
 	ContextOpts *terraform.ContextOpts
 	// never ask for input. always validate. always run in automation.
 
-	// Fields used by Storage Account:
 	container account.Container
+	keyVault  remote.KeyVault
 }
 
 // New creates a new backend for remote state stored in Azure storage account and key vault.
@@ -70,32 +71,36 @@ func New() backend.Backend {
 // configure bootstraps the Azure resources needed to use this backend.
 func (b *Backend) configure(ctx context.Context) error {
 	// Get the data attributes from the "backend"-block.
-	attrs := schema.FromContextBackendConfig(ctx)
+	backendAttributes := schema.FromContextBackendConfig(ctx)
 
 	// Resource Group:
-	resourceGroupName := attrs.Get("resource_group_name").(string)
+	resourceGroupName := backendAttributes.Get("resource_group_name").(string)
 	fmt.Printf("TODO: Provision resource group: %s\n", resourceGroupName)
 	// 1. Check if the given resource group exists.
 	//   - If not, create it!
 	// (idempotent)
 
 	// Azure Key Vault:
-	keyVaultName := attrs.Get("key_vault_name").(string)
+	keyVaultName := backendAttributes.Get("key_vault_name").(string)
 	fmt.Printf("TODO: Provision key vault: %s\n", keyVaultName)
 	// 2. Check if the key vault has been made in the resource group.
 	//   - If not, create it!
 	// (idempotent)
 
 	// Azure Storage Account:
-	storageAccountName := attrs.Get("storage_account_name").(string)
+	storageAccountName := backendAttributes.Get("storage_account_name").(string)
 	// 2. Check if the storage account has been made in the resource group.
 	//   - If not, create it!
 	// (idempotent)
-	containerName := attrs.Get("container_name").(string)
+	containerName := backendAttributes.Get("container_name").(string)
 
-	var err error
-	if b.container, err = account.New(ctx, resourceGroupName, storageAccountName, containerName); err != nil {
+	// Setup the Azure key vault.
+
+	// Setup a container in the Azure storage account.
+	container, err := account.New(ctx, resourceGroupName, storageAccountName, containerName)
+	if err != nil {
 		return fmt.Errorf("error creating container: %s", err)
 	}
+	b.container = container
 	return nil
 }

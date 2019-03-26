@@ -111,6 +111,7 @@ func (s *State) maskModule(moduleIndex int, module map[string]interface{}) {
 func (s *State) maskResource(moduleIndex int, resourceName string, attributes map[string]interface{}) {
 	for name, value := range attributes {
 		if s.modules[moduleIndex].Resources[resourceName][name] {
+			// TODO: Insert value to keyvault here.
 			attributes[name] = secretAttribute{
 				Name:    "NameTest",
 				Version: "VerTest",
