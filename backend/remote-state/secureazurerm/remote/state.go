@@ -135,17 +135,17 @@ func (s *State) PersistState() error {
 	if err != nil {
 		return fmt.Errorf("error marshalling state: %s", err)
 	}
-	m := make(map[string]interface{})
-	json.Unmarshal(data, &m)
-	for i, module := range m["modules"].([]interface{}) {
+	stateMap := make(map[string]interface{})
+	json.Unmarshal(data, &stateMap)
+	for i, module := range stateMap["modules"].([]interface{}) {
 		mod := module.(map[string]interface{})
 		if pathEqual(mod["path"].([]interface{}), s.modules[i].Path) {
 			s.maskModule(i, mod)
 		}
 	}
-	fmt.Printf("%v\n", m)
+	fmt.Printf("%v\n", stateMap)
 
-	data, err = json.Marshal(m)
+	data, err = json.Marshal(stateMap)
 	if err != nil {
 		return fmt.Errorf("error marshalling map: %s", err)
 	}
