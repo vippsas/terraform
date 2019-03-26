@@ -2,14 +2,13 @@ package account
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os/exec"
+
+	"github.com/Azure/go-autorest/autorest"
 
 	armStorage "github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2018-07-01/storage"
 	"github.com/Azure/azure-sdk-for-go/storage"
-	"github.com/Azure/go-autorest/autorest/azure/auth"
 )
 
 // Container communicates to the container in the storage account in Azure.
@@ -19,38 +18,9 @@ type Container struct {
 }
 
 // New creates a new remote client to the storage account.
-func New(ctx context.Context, resourceGroupName string, storageAccountName string, containerName string) (Container, error) {
+func New(ctx context.Context, authorizer autorest.Authorizer, subscriptionID string, resourceGroupName string, storageAccountName string, containerName string) (Container, error) {
 	var c Container
-	var subscriptionID string
 
-	// Try authorizing using Azure CLI.
-	authorizer, err := auth.NewAuthorizerFromCLI()
-	if err != nil {
-		// Fetch subscriptionID from environment variable AZURE_SUBSCRIPTION_ID.
-		settings, err := auth.GetSettingsFromEnvironment()
-		if err != nil {
-			return c, fmt.Errorf("error getting settings from environment: %s", err)
-		}
-		subscriptionID = settings.GetSubscriptionID()
-		if subscriptionID == "" {
-			return c, fmt.Errorf("environment variable %s is not set", auth.SubscriptionID)
-		}
-		// Authorize using MSI.
-		var innerErr error
-		authorizer, innerErr = settings.GetMSI().Authorizer()
-		if innerErr != nil {
-			return c, fmt.Errorf("error creating authorizer from CLI: %s: error creating authorizer from environment: %s", err, innerErr)
-		}
-	} else {
-		// Fetch subscriptionID from Azure CLI.
-		out, err := exec.Command("az", "account", "show", "--output", "json", "--query", "id").Output()
-		if err != nil {
-			return c, fmt.Errorf("error fetching subscription id using Azure CLI: %s", err)
-		}
-		if err = json.Unmarshal(out, &subscriptionID); err != nil {
-			return c, fmt.Errorf("error unmarshalling JSON output from Azure CLI: %s", err)
-		}
-	}
 	accountsClient := armStorage.NewAccountsClient(subscriptionID)
 	accountsClient.Authorizer = authorizer
 
