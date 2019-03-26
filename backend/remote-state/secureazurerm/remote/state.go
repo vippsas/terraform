@@ -177,12 +177,12 @@ func (s *State) maskModule(moduleIndex int, module map[string]interface{}) {
 		fmt.Printf("%s:\n", resourceName)
 		r := resource.(map[string]interface{})
 		primary := r["primary"].(map[string]interface{})
-		s.maskResource(resourceName, moduleIndex, primary["attributes"].(map[string]interface{}))
+		s.maskResource(moduleIndex, resourceName, primary["attributes"].(map[string]interface{}))
 	}
 }
 
 // maskResource masks all sensitive attributes in a resource.
-func (s *State) maskResource(resourceName string, moduleIndex int, attributes map[string]interface{}) {
+func (s *State) maskResource(moduleIndex int, resourceName string, attributes map[string]interface{}) {
 	for name, value := range attributes {
 		if s.modules[moduleIndex].Resources[resourceName][name] {
 			attributes[name] = secretAttribute{
