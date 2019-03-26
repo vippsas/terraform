@@ -101,10 +101,24 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	// Setup the Azure key vault.
-	b.keyVault, err = keyvault.New(authorizer)
+	b.keyVault, err = keyvault.New(resourceGroupName, keyVaultName, subscriptionID, authorizer)
 	if err != nil {
 		return fmt.Errorf("error creating key vault: %s", err)
 	}
+	//var version string
+	secret, err := b.keyVault.GetSecret(ctx, "test1")
+	if err != nil {
+		return err
+	}
+	fmt.Println(secret)
+
+	/*
+		version, err = b.keyVault.InsertSecret(ctx, "test", "test")
+		if err != nil {
+			return err
+		}
+		fmt.Printf("version: %s", version)
+	*/
 
 	// Setup a container in the Azure storage account.
 	if b.container, err = account.New(ctx, authorizer, subscriptionID, resourceGroupName, storageAccountName, containerName); err != nil {
