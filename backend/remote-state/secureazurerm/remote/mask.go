@@ -63,10 +63,10 @@ func (s *State) Report(modules []*terraform.ModuleDiff) {
 		s.modules[i].Path = make([]string, len(module.Path))
 		copy(s.modules[i].Path, module.Path)
 		s.modules[i].Resources = make(map[string]map[string]bool)
-		for resourceName, resourceValue := range module.Resources {
-			s.modules[i].Resources[resourceName] = make(map[string]bool)
-			for attrName, attrValue := range resourceValue.Attributes {
-				s.modules[i].Resources[resourceName][attrName] = attrValue.Sensitive
+		for rName, resource := range module.Resources {
+			s.modules[i].Resources[rName] = make(map[string]bool)
+			for attrName, value := range resource.Attributes {
+				s.modules[i].Resources[rName][attrName] = value.Sensitive
 			}
 		}
 	}
@@ -98,21 +98,21 @@ func pathEqual(a []interface{}, b []string) bool {
 }
 
 // maskModule masks all sensitive attributes in a module.
-func (s *State) maskModule(moduleIndex int, module map[string]interface{}) {
+func (s *State) maskModule(i int, module map[string]interface{}) {
 	for resourceName, resource := range module["resources"].(map[string]interface{}) {
 		fmt.Printf("%s:\n", resourceName)
 		r := resource.(map[string]interface{})
 		primary := r["primary"].(map[string]interface{})
-		s.maskResource(moduleIndex, resourceName, primary["attributes"].(map[string]interface{}))
+		s.maskResource(i, resourceName, primary["attributes"].(map[string]interface{}))
 	}
 }
 
 // maskResource masks all sensitive attributes in a resource.
-func (s *State) maskResource(moduleIndex int, resourceName string, attributes map[string]interface{}) {
-	for name, value := range attributes {
-		if s.modules[moduleIndex].Resources[resourceName][name] {
+func (s *State) maskResource(i int, rName string, attrs map[string]interface{}) {
+	for name, value := range attrs {
+		if s.modules[i].Resources[rName][name] {
 			// TODO: Insert value to keyvault here.
-			attributes[name] = secretAttribute{
+			attrs[name] = secretAttribute{
 				Name:    "NameTest",
 				Version: "VerTest",
 			}
