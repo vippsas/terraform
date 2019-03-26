@@ -97,10 +97,9 @@ func (b *Backend) configure(ctx context.Context) error {
 	// Setup the Azure key vault.
 
 	// Setup a container in the Azure storage account.
-	container, err := account.New(ctx, resourceGroupName, storageAccountName, containerName)
-	if err != nil {
+	var err error
+	if b.container, err = account.New(ctx, resourceGroupName, storageAccountName, containerName); err != nil {
 		return fmt.Errorf("error creating container: %s", err)
 	}
-	b.container = container
 	return nil
 }
