@@ -9,9 +9,9 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 )
 
-// New creates a new authorizer.
-func New() (authorizer autorest.Authorizer, subscriptionID string, err error) {
-	// Try authorizing using Azure CLI.
+// NewMgmt creates a new authorizer using resource: https://management.azure.com/.
+func NewMgmt() (authorizer autorest.Authorizer, subscriptionID string, err error) {
+	// Try authorizing using Azure CLI, which will use the resource: https://management.azure.com/.
 	authorizer, err = auth.NewAuthorizerFromCLI()
 	if err != nil {
 		// Fetch subscriptionID from environment variable AZURE_SUBSCRIPTION_ID.
@@ -38,6 +38,15 @@ func New() (authorizer autorest.Authorizer, subscriptionID string, err error) {
 		if err = json.Unmarshal(out, &subscriptionID); err != nil {
 			return authorizer, "", fmt.Errorf("error unmarshalling JSON output from Azure CLI: %s", err)
 		}
+	}
+	return
+}
+
+// NewVault creates a new authorizer using resource: https://vault.azure.net/.
+func NewVault() (authorizer autorest.Authorizer, err error) {
+	authorizer, err = auth.NewAuthorizerFromCLIWithResource("https://vault.azure.net")
+	if err != nil {
+		return
 	}
 	return
 }
