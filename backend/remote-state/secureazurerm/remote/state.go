@@ -130,33 +130,31 @@ func (s *State) PersistState() error {
 		s.state.Serial++
 	}
 
-	// TODO: Mask sensitive attributes.
-	data, err := json.Marshal(s.state)
-	if err != nil {
-		return fmt.Errorf("error marshalling state: %s", err)
-	}
-	stateMap := make(map[string]interface{})
-	json.Unmarshal(data, &stateMap)
-	for i, module := range stateMap["modules"].([]interface{}) {
-		mod := module.(map[string]interface{})
-		if pathEqual(mod["path"].([]interface{}), s.modules[i].Path) {
-			s.maskModule(i, mod)
-		}
-	}
-	fmt.Printf("%v\n", stateMap)
-
-	data, err = json.Marshal(stateMap)
-	if err != nil {
-		return fmt.Errorf("error marshalling map: %s", err)
-	}
-
 	// Put the current in-memory state in blob.
 	var buf bytes.Buffer
 	if err := terraform.WriteState(s.state, &buf); err != nil {
-		return err
+		return fmt.Errorf("error writing state to buffer: %s", err)
 	}
-	err = s.Blob.Put(buf.Bytes())
+
+	// Mask sensitive attributes.
+	stateMap := make(map[string]interface{})
+	json.Unmarshal(buf.Bytes(), &stateMap)
+	/*
+		for i, module := range stateMap["modules"].([]interface{}) {
+			mod := module.(map[string]interface{})
+			if pathEqual(mod["path"].([]interface{}), s.modules[i].Path) {
+				s.maskModule(i, mod)
+			}
+		}
+	*/
+	data, err := json.Marshal(stateMap)
 	if err != nil {
+		return fmt.Errorf("error marshalling map: %s", err)
+	}
+	fmt.Printf("%v\n", stateMap)
+
+	// Put it into the blob.
+	if err := s.Blob.Put(data); err != nil {
 		return fmt.Errorf("error leasing and putting buffer: %s", err)
 	}
 
