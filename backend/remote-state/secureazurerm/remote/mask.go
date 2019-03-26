@@ -122,7 +122,7 @@ func (s *State) maskResource(i int, name string, attrs map[string]interface{}) {
 		if s.modules[i].Resources[name][key] {
 			// TODO: Insert value to keyvault here.
 			attrs[key] = secretAttr{
-				Name:    "NameTest",
+				ID:      "NameTest",
 				Version: "VerTest",
 			}
 			fmt.Printf("  %s: %v\n", key, value)
