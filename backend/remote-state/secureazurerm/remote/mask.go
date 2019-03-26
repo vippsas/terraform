@@ -12,8 +12,8 @@ type Module struct {
 	Resources map[string]map[string]bool
 }
 
-// secretAttribute is a sensitive attribute that is located as a secret in the Azure key vault.
-type secretAttribute struct {
+// secretAttr is a sensitive attribute that is located as a secret in the Azure key vault.
+type secretAttr struct {
 	Name    string // Name of the secret.
 	Version string // Version of the secret.
 }
@@ -49,12 +49,16 @@ func unmask(attr interface{}) (string, error) {
 }
 */
 
-// Report is used to report sensitive attributes to the state.
-func (s *State) Report(modules []*terraform.ModuleDiff) {
-	// Lock!
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (s *State) copyResources(i int, resources map[string]*terraform.InstanceDiff) {
+	for name, resource := range resources {
+		s.modules[i].Resources[name] = make(map[string]bool)
+		for key, value := range resource.Attributes {
+			s.modules[i].Resources[name][key] = value.Sensitive
+		}
+	}
+}
 
+func (s *State) copyModules(modules []*terraform.ModuleDiff) {
 	// Report sensitive attributes.
 	if len(s.modules) != len(modules) {
 		s.modules = make([]Module, len(modules))
@@ -63,12 +67,7 @@ func (s *State) Report(modules []*terraform.ModuleDiff) {
 		s.modules[i].Path = make([]string, len(module.Path))
 		copy(s.modules[i].Path, module.Path)
 		s.modules[i].Resources = make(map[string]map[string]bool)
-		for rName, resource := range module.Resources {
-			s.modules[i].Resources[rName] = make(map[string]bool)
-			for attrName, value := range resource.Attributes {
-				s.modules[i].Resources[rName][attrName] = value.Sensitive
-			}
-		}
+		s.copyResources(i, module.Resources)
 	}
 	// DEBUG: Print which attributes are sensitive. ~ bao.
 	/*
@@ -82,6 +81,15 @@ func (s *State) Report(modules []*terraform.ModuleDiff) {
 			}
 		}
 	*/
+}
+
+// Report is used to report sensitive attributes to the state.
+func (s *State) Report(modules []*terraform.ModuleDiff) {
+	// Lock!
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.copyModules(modules)
 }
 
 // pathEqual compares if the path of two modules are equal.
@@ -108,15 +116,15 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 }
 
 // maskResource masks all sensitive attributes in a resource.
-func (s *State) maskResource(i int, rName string, attrs map[string]interface{}) {
-	for name, value := range attrs {
-		if s.modules[i].Resources[rName][name] {
+func (s *State) maskResource(i int, name string, attrs map[string]interface{}) {
+	for key, value := range attrs {
+		if s.modules[i].Resources[name][key] {
 			// TODO: Insert value to keyvault here.
-			attrs[name] = secretAttribute{
+			attrs[key] = secretAttr{
 				Name:    "NameTest",
 				Version: "VerTest",
 			}
-			fmt.Printf("  %s: %v\n", name, value)
+			fmt.Printf("  %s: %v\n", key, value)
 		}
 	}
 }
