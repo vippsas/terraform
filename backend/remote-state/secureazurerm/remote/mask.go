@@ -49,6 +49,7 @@ func unmask(attr interface{}) (string, error) {
 }
 */
 
+// copyResources copies the resources from a module i.
 func (s *State) copyResources(i int, resources map[string]*terraform.InstanceDiff) {
 	for name, resource := range resources {
 		s.modules[i].Resources[name] = make(map[string]bool)
@@ -58,8 +59,8 @@ func (s *State) copyResources(i int, resources map[string]*terraform.InstanceDif
 	}
 }
 
+// copyModules copies the relevant data from modules.
 func (s *State) copyModules(modules []*terraform.ModuleDiff) {
-	// Report sensitive attributes.
 	if len(s.modules) != len(modules) {
 		s.modules = make([]Module, len(modules))
 	}
