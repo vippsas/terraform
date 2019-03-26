@@ -18,7 +18,7 @@ func (b *Backend) States() ([]string, error) {
 	// Get the blobs of the container.
 	blobs, err := b.container.List()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error listing blobs: %s", err)
 	}
 	// List workspaces (which is equivalent to blobs) in the container.
 	workspaces := []string{}
@@ -33,7 +33,7 @@ func (b *Backend) States() ([]string, error) {
 func (b *Backend) DeleteState(name string) error {
 	blob, err := blob.Setup(&b.container, name, nil) // blob name = workspace name.
 	if err != nil {
-		return err
+		return fmt.Errorf("error blob setup: %s", err)
 	}
 	if err := blob.Delete(); err != nil {
 		return fmt.Errorf("error deleting state %s: %s", name, err)
@@ -50,10 +50,10 @@ func (b *Backend) State(name string) (state.State, error) {
 		// Write state to blob.
 		var buf bytes.Buffer
 		if err := terraform.WriteState(tfState, &buf); err != nil {
-			return err
+			return fmt.Errorf("error writing state to buffer: %s", err)
 		}
 		if err := blob.Put(buf.Bytes()); err != nil {
-			return fmt.Errorf("error writing state buffer to blob: %s", err)
+			return fmt.Errorf("error writing buffer to blob: %s", err)
 		}
 		return nil
 	})
