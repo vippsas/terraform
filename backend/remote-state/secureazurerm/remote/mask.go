@@ -14,8 +14,8 @@ type Module struct {
 
 // secretAttr is a sensitive attribute that is located as a secret in the Azure key vault.
 type secretAttr struct {
-	Name    string // Name of the secret.
-	Version string // Version of the secret.
+	ID      string `json: "id"`      // ID of the secret.
+	Version string `json: "version"` // Version of the secret.
 }
 
 // interpAttr is a sensitive attribute interpolated from somewhere.
