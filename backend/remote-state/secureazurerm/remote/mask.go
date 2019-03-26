@@ -59,7 +59,7 @@ func (s *State) copyResources(i int, resources map[string]*terraform.InstanceDif
 	}
 }
 
-// copyModules copies the relevant data from modules.
+// copyModules copies the modules (only the relevant data).
 func (s *State) copyModules(modules []*terraform.ModuleDiff) {
 	if len(s.modules) != len(modules) {
 		s.modules = make([]Module, len(modules))
