@@ -6,8 +6,9 @@ import (
 	"sync"
 
 	"github.com/hashicorp/terraform/backend"
-	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/auth"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
 	"github.com/mitchellh/cli"
@@ -27,7 +28,7 @@ type Backend struct {
 	// never ask for input. always validate. always run in automation.
 
 	container account.Container
-	keyVault  remote.KeyVault
+	keyVault  keyvault.KeyVault
 }
 
 // New creates a new backend for remote state stored in Azure storage account and key vault.
@@ -94,11 +95,19 @@ func (b *Backend) configure(ctx context.Context) error {
 	// (idempotent)
 	containerName := backendAttributes.Get("container_name").(string)
 
+	authorizer, subscriptionID, err := auth.New()
+	if err != nil {
+		return fmt.Errorf("error creating new authorizer: %s", err)
+	}
+
 	// Setup the Azure key vault.
+	b.keyVault, err = keyvault.New(authorizer)
+	if err != nil {
+		return fmt.Errorf("error creating key vault: %s", err)
+	}
 
 	// Setup a container in the Azure storage account.
-	var err error
-	if b.container, err = account.New(ctx, resourceGroupName, storageAccountName, containerName); err != nil {
+	if b.container, err = account.New(ctx, authorizer, subscriptionID, resourceGroupName, storageAccountName, containerName); err != nil {
 		return fmt.Errorf("error creating container: %s", err)
 	}
 	return nil

@@ -1,10 +1,4 @@
-package remote
-
-import "github.com/Azure/azure-sdk-for-go/services/keyvault/v7.0/keyvault"
-
-type KeyVault struct {
-	client keyvault.BaseClient
-}
+package keyvault
 
 // getSecretVersion gets the secret version from ID.
 func getSecretVersion(ID string) string {
@@ -13,10 +7,6 @@ func getSecretVersion(ID string) string {
 		i--
 	}
 	return ID[i+1 : len(ID)]
-}
-
-func New() KeyVault {
-	return KeyVault{}
 }
 
 // Insert inserts a secret into the key vault. Returns the version.
