@@ -95,33 +95,33 @@ func (b *Backend) configure(ctx context.Context) error {
 	// (idempotent)
 	containerName := backendAttributes.Get("container_name").(string)
 
-	authorizer, subscriptionID, err := auth.New()
+	mgmtAuthorizer, subscriptionID, err := auth.NewMgmt()
 	if err != nil {
-		return fmt.Errorf("error creating new authorizer: %s", err)
+		return fmt.Errorf("error creating new mgmt authorizer: %s", err)
 	}
 
 	// Setup the Azure key vault.
-	b.keyVault, err = keyvault.New(resourceGroupName, keyVaultName, subscriptionID, authorizer)
+	b.keyVault, err = keyvault.New(resourceGroupName, keyVaultName, subscriptionID, mgmtAuthorizer)
 	if err != nil {
 		return fmt.Errorf("error creating key vault: %s", err)
 	}
-	//var version string
-	secret, err := b.keyVault.GetSecret(ctx, "test1")
-	if err != nil {
-		return err
-	}
-	fmt.Println(secret)
 
 	/*
-		version, err = b.keyVault.InsertSecret(ctx, "test", "test")
+		//var version string
+		secret, err := b.keyVault.GetSecret(ctx, "test1")
 		if err != nil {
 			return err
 		}
-		fmt.Printf("version: %s", version)
 	*/
 
+	version, err := b.keyVault.InsertSecret(ctx, "bao", "ååøøø")
+	if err != nil {
+		return err
+	}
+	fmt.Printf("version: %s", version)
+
 	// Setup a container in the Azure storage account.
-	if b.container, err = account.New(ctx, authorizer, subscriptionID, resourceGroupName, storageAccountName, containerName); err != nil {
+	if b.container, err = account.New(ctx, mgmtAuthorizer, subscriptionID, resourceGroupName, storageAccountName, containerName); err != nil {
 		return fmt.Errorf("error creating container: %s", err)
 	}
 	return nil
