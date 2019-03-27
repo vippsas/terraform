@@ -1,6 +1,9 @@
 package keyvault
 
 import (
+	"context"
+	"fmt"
+
 	KV "github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/mgmt/2016-10-01/keyvault"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/auth"
@@ -11,24 +14,28 @@ import (
 // KeyVault represents an Azure Key Vault.
 type KeyVault struct {
 	resourceGroupName string
-	vaultName         string
+	vaultBaseURI      string
 	vaultClient       keyvault.VaultsClient
 	keyClient         KV.BaseClient
 }
 
 // New creates a new Azure Key Vault.
-func New(resourceGroupName string, vaultName string, subscriptionID string, mgmtAuthorizer autorest.Authorizer) (KeyVault, error) {
-	kv := KeyVault{
+func New(ctx context.Context, resourceGroupName string, vaultName string, subscriptionID string, mgmtAuthorizer autorest.Authorizer) (KeyVault, error) {
+	k := KeyVault{
 		resourceGroupName: resourceGroupName,
-		vaultName:         vaultName,
 		vaultClient:       keyvault.NewVaultsClient(subscriptionID),
 		keyClient:         KV.New(),
 	}
-	kv.vaultClient.Authorizer = mgmtAuthorizer
-	var err error
-	kv.keyClient.Authorizer, err = auth.NewVault()
+	k.vaultClient.Authorizer = mgmtAuthorizer
+	vault, err := k.vaultClient.Get(ctx, resourceGroupName, vaultName)
 	if err != nil {
-		return kv, err
+		return k, fmt.Errorf("error getting key vault: %s", err)
 	}
-	return kv, nil
+	k.vaultBaseURI = *vault.Properties.VaultURI
+
+	k.keyClient.Authorizer, err = auth.NewVault()
+	if err != nil {
+		return k, err
+	}
+	return k, nil
 }
