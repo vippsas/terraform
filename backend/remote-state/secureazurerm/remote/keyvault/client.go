@@ -14,7 +14,7 @@ import (
 // KeyVault represents an Azure Key Vault.
 type KeyVault struct {
 	resourceGroupName string
-	vaultBaseURI      string
+	vaultURI          string
 	vaultClient       keyvault.VaultsClient
 	keyClient         KV.BaseClient
 }
@@ -31,7 +31,7 @@ func New(ctx context.Context, resourceGroupName string, vaultName string, subscr
 	if err != nil {
 		return k, fmt.Errorf("error getting key vault: %s", err)
 	}
-	k.vaultBaseURI = *vault.Properties.VaultURI
+	k.vaultURI = *vault.Properties.VaultURI
 
 	k.keyClient.Authorizer, err = auth.NewVault()
 	if err != nil {
