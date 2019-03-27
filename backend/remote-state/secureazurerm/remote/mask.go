@@ -150,12 +150,8 @@ func (s *State) unmaskModule(i int, module map[string]interface{}) {
 
 func (s *State) unmaskResource(i int, name string, attrs map[string]interface{}) {
 	for key, value := range attrs {
-		if sa, ok := value.(secretAttr); ok {
-			attrName, err := rawStdEncoding.DecodeString(sa.ID)
-			if err != nil {
-				panic(fmt.Sprintf("error decoding base32: %s", err))
-			}
-			secret, err := s.KeyVault.GetSecret(context.Background(), string(attrName), sa.Version)
+		if sa, ok := value.(map[string]interface{}); ok {
+			secret, err := s.KeyVault.GetSecret(context.Background(), sa["ID"].(string), sa["Version"].(string))
 			if err != nil {
 				panic(fmt.Sprintf("error getting secret from key vault: %s", err))
 			}
