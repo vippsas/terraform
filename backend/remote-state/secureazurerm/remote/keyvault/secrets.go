@@ -19,7 +19,7 @@ func getSecretVersion(ID string) string {
 // InsertSecret inserts a secret into the key vault. Returns the version.
 func (k *KeyVault) InsertSecret(ctx context.Context, name string, value string) (string, error) {
 	contentType := "text/plain;charset=UTF-8"
-	bundle, err := k.keyClient.SetSecret(ctx, k.vaultBaseURI, name, KV.SecretSetParameters{Value: &value, ContentType: &contentType})
+	bundle, err := k.keyClient.SetSecret(ctx, k.vaultURI, name, KV.SecretSetParameters{Value: &value, ContentType: &contentType})
 	if err != nil {
 		return "", fmt.Errorf("error inserting secret: %s", err)
 	}
@@ -28,7 +28,7 @@ func (k *KeyVault) InsertSecret(ctx context.Context, name string, value string) 
 
 // GetSecret gets the secret named name from the key vault.
 func (k *KeyVault) GetSecret(ctx context.Context, name string, version string) (string, error) {
-	bundle, err := k.keyClient.GetSecret(ctx, k.vaultBaseURI, name, version)
+	bundle, err := k.keyClient.GetSecret(ctx, k.vaultURI, name, version)
 	if err != nil {
 		return "", fmt.Errorf("error getting secret: %s", err)
 	}
