@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
 	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/terraform"
 )
@@ -17,7 +18,8 @@ import (
 type State struct {
 	mu sync.Mutex
 
-	Blob *blob.Blob // client to communicate with the blob storage.
+	Blob     *blob.Blob // client to communicate with the blob storage.
+	KeyVault *keyvault.KeyVault
 
 	state, // in-memory state.
 	readState *terraform.State // state read from the blob.
@@ -88,28 +90,22 @@ func (s *State) RefreshState() error {
 	if err := json.Unmarshal(payload.Data, &m); err != nil {
 		return fmt.Errorf("error unmarshalling state to map: %s", err)
 	}
-	/*
-		iter(m, func(string, name string, value *interface{}) {
-			fmt.Printf("%s: %v\n", name, *value)
-		})
-	*/
+	for i, module := range m["modules"].([]interface{}) {
+		mod := module.(map[string]interface{})
+		s.unmaskModule(i, mod)
+	}
 
 	// Convert it back to terraform.State.
 	j, err := json.Marshal(m)
 	if err != nil {
 		return fmt.Errorf("error marshalling map to JSON: %s", err)
 	}
-	var terraState terraform.State
-	if err := json.Unmarshal(j, &terraState); err != nil {
+	var state terraform.State
+	if err := json.Unmarshal(j, &state); err != nil {
 		return fmt.Errorf("error unmarshalling JSON to terraform.State: %s", err)
 	}
+	s.state = &state
 
-	// Read the state data into memory.
-	state, err := terraform.ReadState(bytes.NewReader(payload.Data))
-	if err != nil {
-		return err
-	}
-	s.state = state
 	// Make a copy used to track changes.
 	s.readState = s.state.DeepCopy()
 	return nil
@@ -139,14 +135,12 @@ func (s *State) PersistState() error {
 	// Mask sensitive attributes.
 	stateMap := make(map[string]interface{})
 	json.Unmarshal(buf.Bytes(), &stateMap)
-	/*
-		for i, module := range stateMap["modules"].([]interface{}) {
-			mod := module.(map[string]interface{})
-			if pathEqual(mod["path"].([]interface{}), s.modules[i].Path) {
-				s.maskModule(i, mod)
-			}
+	for i, module := range stateMap["modules"].([]interface{}) {
+		mod := module.(map[string]interface{})
+		if pathEqual(mod["path"].([]interface{}), s.modules[i].Path) {
+			s.maskModule(i, mod)
 		}
-	*/
+	}
 	data, err := json.MarshalIndent(stateMap, "", "    ")
 	if err != nil {
 		return fmt.Errorf("error marshalling map: %s", err)
