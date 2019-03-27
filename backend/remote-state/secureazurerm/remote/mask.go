@@ -14,10 +14,10 @@ type Module struct {
 	Resources map[string]map[string]bool
 }
 
-// secretAttr is a sensitive attribute that is located as a secret in the Azure key vault.
+// SecretAttr is a sensitive attribute that is located as a secret in the Azure key vault.
 type secretAttr struct {
-	ID      string // ID of the secret.
-	Version string // Version of the secret.
+	ID      string `json:"id"`      // ID of the secret.
+	Version string `json:"version"` // Version of the secret.
 }
 
 /*
@@ -26,30 +26,6 @@ type interpAttr struct {
 	Type      string // Type of resource.
 	ID        string // ID of the resource.
 	Attribute string // Attribute name of resource.
-}
-*/
-
-/*
-// mask masks a sensitive attribute.
-func mask(attr string) interface{} {
-	if attr != "" {
-		return interpAttr{Attribute: attr}
-	}
-	return interpAttr{Attribute: ""}
-}
-
-// unmask unmasks a masked sensitive attribute.
-func unmask(attr interface{}) (string, error) {
-	if s, ok := attr.(string); ok {
-		return s, nil
-	}
-	if attr, ok := attr.(interpAttr); ok {
-		return "", nil
-	}
-	if attr, ok := attr.(secretAttr); ok {
-		return "", nil
-	}
-	return "", fmt.Errorf("error unmasking attributes")
 }
 */
 
@@ -151,7 +127,7 @@ func (s *State) unmaskModule(i int, module map[string]interface{}) {
 func (s *State) unmaskResource(i int, name string, attrs map[string]interface{}) {
 	for key, value := range attrs {
 		if sa, ok := value.(map[string]interface{}); ok {
-			secret, err := s.KeyVault.GetSecret(context.Background(), sa["ID"].(string), sa["Version"].(string))
+			secret, err := s.KeyVault.GetSecret(context.Background(), sa["id"].(string), sa["version"].(string))
 			if err != nil {
 				panic(fmt.Sprintf("error getting secret from key vault: %s", err))
 			}
