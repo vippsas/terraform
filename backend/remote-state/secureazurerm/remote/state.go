@@ -147,11 +147,11 @@ func (s *State) PersistState() error {
 			}
 		}
 	*/
-	data, err := json.Marshal(stateMap)
+	data, err := json.MarshalIndent(stateMap, "", "    ")
 	if err != nil {
 		return fmt.Errorf("error marshalling map: %s", err)
 	}
-	fmt.Printf("%v\n", stateMap)
+	data = append(data, '\n')
 
 	// Put it into the blob.
 	if err := s.Blob.Put(data); err != nil {
