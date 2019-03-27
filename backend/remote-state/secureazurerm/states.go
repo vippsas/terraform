@@ -43,7 +43,7 @@ func (b *Backend) DeleteState(name string) error {
 
 // State returns the state specified by name.
 func (b *Backend) State(name string) (state.State, error) {
-	blob, err := blob.Setup(&b.container, name, func(blob *blob.Blob) error {
+	blob, err := blob.Setup(&b.container, name, func(blob *blob.Blob) error { // TODO: Move this into blob.go.
 		// Create new state in-memory.
 		tfState := terraform.NewState()
 		tfState.Serial++
@@ -60,5 +60,5 @@ func (b *Backend) State(name string) (state.State, error) {
 	if err != nil {
 		return nil, fmt.Errorf("blob setup error: %s", err)
 	}
-	return &remote.State{Blob: blob}, nil
+	return &remote.State{Blob: blob, KeyVault: &b.keyVault}, nil
 }
