@@ -103,9 +103,6 @@ func (b *Blob) Put(data []byte) error {
 	if err := b.isValid(); err != nil {
 		return fmt.Errorf("blob is invalid: %s", err)
 	}
-	if err := b.isLeased(); err != nil {
-		return fmt.Errorf("no lease on blob: %s", err)
-	}
 	// Get blob reference to the remote blob in the container in the storage account.
 	blobRef := b.container.GetBlobRef(b.Name)
 
@@ -115,6 +112,9 @@ func (b *Blob) Put(data []byte) error {
 		return err
 	}
 	if blobExists {
+		if err := b.isLeased(); err != nil {
+			return fmt.Errorf("no lease on blob: %s", err)
+		}
 		// Create a new snapshot of the existing remote state blob.
 		blobRef.CreateSnapshot(&storage.SnapshotOptions{})
 		// Get the existing blob's metadata, which will be re-used in the new block blob that replaces the old one.
