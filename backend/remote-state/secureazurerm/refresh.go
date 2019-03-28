@@ -40,7 +40,7 @@ func (b *Backend) refresh(stopCtx context.Context, cancelCtx context.Context, op
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)
-		newState, refreshErr = tfCtx.Refresh()
+		newState, refreshErr = b.informBeforeRefresh(tfCtx)
 	}()
 
 	// Wait for "refresh" to be done.
@@ -64,4 +64,12 @@ func (b *Backend) refresh(stopCtx context.Context, cancelCtx context.Context, op
 		runningOp.Err = fmt.Errorf("error saving state remotely: %s", err)
 		return
 	}
+}
+
+// informBeforeRefresh informs the user before refreshing the in-memory state.
+func (b *Backend) informBeforeRefresh(tfCtx *terraform.Context) (*terraform.State, error) {
+	if b.CLI != nil {
+		b.CLI.Output(b.Colorize().Color("[reset][bold]Refreshing in-memory state...[reset]\n"))
+	}
+	return tfCtx.Refresh()
 }
