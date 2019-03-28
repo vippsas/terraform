@@ -11,35 +11,46 @@ import (
 )
 
 // NewMgmt creates a new authorizer using resource mgmt endpoint.
-func NewMgmt() (authorizer autorest.Authorizer, subscriptionID string, err error) {
+func NewMgmt() (authorizer autorest.Authorizer, subscriptionID, tenantID string, err error) {
 	// Try authorizing using Azure CLI, which will use the resource: https://management.azure.com/.
 	authorizer, err = auth.NewAuthorizerFromCLIWithResource(azure.PublicCloud.ResourceManagerEndpoint)
 	if err != nil {
 		// Fetch subscriptionID from environment variable AZURE_SUBSCRIPTION_ID.
-		settings, err := auth.GetSettingsFromEnvironment()
+		var settings auth.EnvironmentSettings
+		settings, err = auth.GetSettingsFromEnvironment()
 		if err != nil {
-			return authorizer, "", fmt.Errorf("error getting settings from environment: %s", err)
+			err = fmt.Errorf("error getting settings from environment: %s", err)
+			return
 		}
 		subscriptionID = settings.GetSubscriptionID()
 		if subscriptionID == "" {
-			return authorizer, "", fmt.Errorf("environment variable %s is not set", auth.SubscriptionID)
+			err = fmt.Errorf("environment variable %s is not set", auth.SubscriptionID)
+			return
 		}
 		// Authorize using MSI.
 		var innerErr error
 		authorizer, innerErr = settings.GetMSI().Authorizer()
 		if innerErr != nil {
-			return authorizer, "", fmt.Errorf("error creating authorizer from CLI: %s: error creating authorizer from environment: %s", err, innerErr)
+			err = fmt.Errorf("error creating authorizer from CLI: %s: error creating authorizer from environment: %s", err, innerErr)
+			return
 		}
 	} else {
 		// Fetch subscriptionID from Azure CLI.
-		out, err := exec.Command("az", "account", "show", "--output", "json", "--query", "id").Output()
+		var out []byte
+		out, err = exec.Command("az", "account", "show", "--output", "json").Output()
 		if err != nil {
-			return authorizer, "", fmt.Errorf("error fetching subscription id using Azure CLI: %s", err)
+			err = fmt.Errorf("error fetching subscription id using Azure CLI: %s", err)
+			return
 		}
-		if err = json.Unmarshal(out, &subscriptionID); err != nil {
-			return authorizer, "", fmt.Errorf("error unmarshalling JSON output from Azure CLI: %s", err)
+		var m map[string]interface{}
+		if err = json.Unmarshal(out, &m); err != nil {
+			err = fmt.Errorf("error unmarshalling JSON output from Azure CLI: %s", err)
+			return
 		}
+		subscriptionID = m["id"].(string)
+		tenantID = m["tenantId"].(string)
 	}
+	err = nil
 	return
 }
 

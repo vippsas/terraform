@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/Azure/go-autorest/autorest"
 	"github.com/hashicorp/terraform/backend"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/auth"
-	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
 	"github.com/mitchellh/cli"
@@ -28,7 +28,13 @@ type Backend struct {
 	// never ask for input. always validate. always run in automation.
 
 	container account.Container
-	keyVault  keyvault.KeyVault
+
+	resourceGroupName,
+	keyVaultPrefix,
+	subscriptionID,
+	tenantID string
+
+	mgmtAuthorizer autorest.Authorizer
 }
 
 // New creates a new backend for remote state stored in Azure storage account and key vault.
@@ -45,10 +51,10 @@ func New() backend.Backend {
 				},
 
 				// Key Vault:
-				"key_vault_name": {
+				"key_vault_prefix": {
 					Type:        schema.TypeString,
 					Required:    true,
-					Description: "The key vault name.",
+					Description: "The key vault prefix.",
 				},
 
 				// Storage Account:
@@ -72,43 +78,38 @@ func New() backend.Backend {
 // configure bootstraps the Azure resources needed to use this backend.
 func (b *Backend) configure(ctx context.Context) error {
 	// Get the data attributes from the "backend"-block.
-	backendAttributes := schema.FromContextBackendConfig(ctx)
+	attrs := schema.FromContextBackendConfig(ctx)
 
 	// Resource Group:
-	resourceGroupName := backendAttributes.Get("resource_group_name").(string)
-	fmt.Printf("TODO: Provision resource group: %s\n", resourceGroupName)
+	b.resourceGroupName = attrs.Get("resource_group_name").(string)
+	fmt.Printf("TODO: Provision resource group: %s\n", b.resourceGroupName)
 	// 1. Check if the given resource group exists.
 	//   - If not, create it!
 	// (idempotent)
 
 	// Azure Key Vault:
-	keyVaultName := backendAttributes.Get("key_vault_name").(string)
-	fmt.Printf("TODO: Provision key vault: %s\n", keyVaultName)
+	b.keyVaultPrefix = attrs.Get("key_vault_prefix").(string)
 	// 2. Check if the key vault has been made in the resource group.
 	//   - If not, create it!
 	// (idempotent)
 
 	// Azure Storage Account:
-	storageAccountName := backendAttributes.Get("storage_account_name").(string)
+	storageAccountName := attrs.Get("storage_account_name").(string)
 	// 2. Check if the storage account has been made in the resource group.
 	//   - If not, create it!
 	// (idempotent)
-	containerName := backendAttributes.Get("container_name").(string)
+	containerName := attrs.Get("container_name").(string)
 
-	mgmtAuthorizer, subscriptionID, err := auth.NewMgmt()
+	var err error
+	b.mgmtAuthorizer, b.subscriptionID, b.tenantID, err = auth.NewMgmt()
 	if err != nil {
 		return fmt.Errorf("error creating new mgmt authorizer: %s", err)
 	}
 
-	// Setup the Azure key vault.
-	b.keyVault, err = keyvault.New(ctx, resourceGroupName, keyVaultName, subscriptionID, mgmtAuthorizer)
-	if err != nil {
-		return fmt.Errorf("error creating key vault: %s", err)
-	}
-
 	// Setup a container in the Azure storage account.
-	if b.container, err = account.New(ctx, mgmtAuthorizer, subscriptionID, resourceGroupName, storageAccountName, containerName); err != nil {
+	if b.container, err = account.New(ctx, b.mgmtAuthorizer, b.subscriptionID, b.resourceGroupName, storageAccountName, containerName); err != nil {
 		return fmt.Errorf("error creating container: %s", err)
 	}
+
 	return nil
 }
