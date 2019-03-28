@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"sort"
 
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
@@ -27,7 +26,6 @@ func (b *Backend) States() ([]string, error) {
 	for _, blob := range blobs {
 		workspaces = append(workspaces, blob.Name)
 	}
-	sort.Strings(workspaces[1:]) // default is placed first in the returned list.
 	return workspaces, nil
 }
 
