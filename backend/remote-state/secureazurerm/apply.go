@@ -46,7 +46,7 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 	runningOp.State = tfCtx.State()
 
 	// Always refresh before plan.
-	_, err = tfCtx.Refresh()
+	_, err = b.informBeforeRefresh(tfCtx)
 	if err != nil {
 		runningOp.Err = fmt.Errorf("error refreshing state: %s", err)
 		return

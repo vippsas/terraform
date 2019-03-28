@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform/backend"
-	"github.com/hashicorp/terraform/backend/local"
 	"github.com/hashicorp/terraform/command/format"
 	"github.com/hashicorp/terraform/config/module"
 	"github.com/hashicorp/terraform/terraform"
@@ -26,15 +25,6 @@ func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *b
 		op.Module = module.NewEmptyTree()
 	}
 
-	// Setup our count hook that keeps track of resource changes.
-	// bao: It still works without. It seems it is never used at this stage.
-	if b.ContextOpts == nil {
-		b.ContextOpts = new(terraform.ContextOpts)
-	}
-	old := b.ContextOpts.Hooks
-	defer func() { b.ContextOpts.Hooks = old }()
-	b.ContextOpts.Hooks = append(b.ContextOpts.Hooks, new(local.CountHook))
-
 	// Get our context
 	tfCtx, opState, err := b.context(op)
 	if err != nil {
@@ -46,7 +36,7 @@ func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *b
 	runningOp.State = tfCtx.State()
 
 	// Always refresh before plan.
-	if _, err := tfCtx.Refresh(); err != nil {
+	if _, err := b.informBeforeRefresh(tfCtx); err != nil {
 		runningOp.Err = fmt.Errorf("error refreshing state: %s", err)
 		return
 	}
