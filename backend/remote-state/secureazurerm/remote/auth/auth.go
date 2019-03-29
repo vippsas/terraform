@@ -11,7 +11,7 @@ import (
 )
 
 // NewMgmt creates a new authorizer using resource mgmt endpoint.
-func NewMgmt() (authorizer autorest.Authorizer, subscriptionID, tenantID string, err error) {
+func NewMgmt() (authorizer autorest.Authorizer, subscriptionID, tenantID, objectID string, err error) {
 	// Try authorizing using Azure CLI, which will use the resource: https://management.azure.com/.
 	authorizer, err = auth.NewAuthorizerFromCLIWithResource(azure.PublicCloud.ResourceManagerEndpoint)
 	if err != nil {
@@ -49,6 +49,11 @@ func NewMgmt() (authorizer autorest.Authorizer, subscriptionID, tenantID string,
 		}
 		subscriptionID = m["id"].(string)
 		tenantID = m["tenantId"].(string)
+		out, err = exec.Command("az", "ad", "signed-in-user", "show", "--query", "objectId").Output()
+		if err = json.Unmarshal(out, &objectID); err != nil {
+			err = fmt.Errorf("error unmarshalling JSON output from Azure CLI: %s", err)
+			return
+		}
 	}
 	err = nil
 	return

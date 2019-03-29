@@ -23,7 +23,7 @@ type KeyVault struct {
 }
 
 // Setup creates a new Azure Key Vault.
-func Setup(ctx context.Context, resourceGroupName, vaultName, subscriptionID, tenantID string, mgmtAuthorizer autorest.Authorizer) (KeyVault, error) {
+func Setup(ctx context.Context, resourceGroupName, vaultName, subscriptionID, tenantID, objectID string, mgmtAuthorizer autorest.Authorizer) (KeyVault, error) {
 	k := KeyVault{
 		resourceGroupName: resourceGroupName,
 		vaultName:         vaultName,
@@ -46,7 +46,18 @@ func Setup(ctx context.Context, resourceGroupName, vaultName, subscriptionID, te
 					Family: to.StringPtr("A"),
 					Name:   keyvault.Standard,
 				},
-				AccessPolicies: &[]keyvault.AccessPolicyEntry{},
+				AccessPolicies: &[]keyvault.AccessPolicyEntry{
+					keyvault.AccessPolicyEntry{
+						TenantID: &tenantID,
+						ObjectID: &objectID,
+						Permissions: &keyvault.Permissions{
+							Secrets: &[]keyvault.SecretPermissions{
+								keyvault.SecretPermissionsGet,
+								keyvault.SecretPermissionsSet,
+							},
+						},
+					},
+				},
 			},
 		})
 		if err != nil {
