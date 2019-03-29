@@ -32,7 +32,8 @@ type Backend struct {
 	resourceGroupName,
 	keyVaultPrefix,
 	subscriptionID,
-	tenantID string
+	tenantID,
+	objectID string
 
 	mgmtAuthorizer autorest.Authorizer
 }
@@ -101,7 +102,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	containerName := attrs.Get("container_name").(string)
 
 	var err error
-	b.mgmtAuthorizer, b.subscriptionID, b.tenantID, err = auth.NewMgmt()
+	b.mgmtAuthorizer, b.subscriptionID, b.tenantID, b.objectID, err = auth.NewMgmt()
 	if err != nil {
 		return fmt.Errorf("error creating new mgmt authorizer: %s", err)
 	}
