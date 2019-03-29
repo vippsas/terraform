@@ -17,12 +17,17 @@ type Container struct {
 	Name        string                    // The name of the container that contains the blob storing the remote state in JSON.
 }
 
-// New creates a new remote client to the storage account.
-func New(ctx context.Context, authorizer autorest.Authorizer, subscriptionID string, resourceGroupName string, storageAccountName string, containerName string) (Container, error) {
+// Setup creates a new remote client to the storage account.
+func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID string, resourceGroupName string, storageAccountName string, containerName string) (Container, error) {
 	var c Container
 
 	accountsClient := armStorage.NewAccountsClient(subscriptionID)
 	accountsClient.Authorizer = authorizer
+	/* List to check, then if not exist, create it.
+	accountsClient.Create(ctx, resourceGroupName, storageAccountName, armStorage.AccountCreateParameters{
+		Kind: armStorage.BlobStorage,
+	})
+	*/
 
 	// Fetch access key for storage account.
 	keys, err := accountsClient.ListKeys(ctx, resourceGroupName, storageAccountName)

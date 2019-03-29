@@ -108,7 +108,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	// Setup a container in the Azure storage account.
-	if b.container, err = account.New(ctx, b.mgmtAuthorizer, b.subscriptionID, b.resourceGroupName, storageAccountName, containerName); err != nil {
+	if b.container, err = account.Setup(ctx, b.mgmtAuthorizer, b.subscriptionID, b.resourceGroupName, storageAccountName, containerName); err != nil {
 		return fmt.Errorf("error creating container: %s", err)
 	}
 
