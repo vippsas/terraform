@@ -82,9 +82,12 @@ func (b *Backend) configure(ctx context.Context) error {
 	// 1. Check if the given resource group exists.
 	//   - If not, create it!
 	// (idempotent)
+	// Tags: <workspace>: <kvname>
 
 	// Azure Key Vault:
 	b.keyVaultPrefix = attrs.Get("key_vault_prefix").(string)
+	// TODO: 1 random lowercase character (cannot start with a number) and 23 random lowercase alphanumeric characters.
+
 	// 2. Check if the key vault has been made in the resource group.
 	//   - If not, create it!
 	// (idempotent)
