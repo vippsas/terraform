@@ -64,11 +64,6 @@ func New() backend.Backend {
 					Required:    true,
 					Description: "The storage account name.",
 				},
-				"container_name": {
-					Type:        schema.TypeString,
-					Required:    true,
-					Description: "The container name.",
-				},
 			},
 		},
 	}
@@ -99,7 +94,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	// 2. Check if the storage account has been made in the resource group.
 	//   - If not, create it!
 	// (idempotent)
-	containerName := attrs.Get("container_name").(string)
+	containerName := "tfstate"
 
 	var err error
 	b.mgmtAuthorizer, b.subscriptionID, b.tenantID, b.objectID, err = auth.NewMgmt()
