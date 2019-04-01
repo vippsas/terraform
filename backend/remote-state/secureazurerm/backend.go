@@ -97,7 +97,6 @@ func (b *Backend) configure(ctx context.Context) error {
 	// 2. Check if the storage account has been made in the resource group.
 	//   - If not, create it!
 	// (idempotent)
-	containerName := "tfstate"
 
 	var err error
 	b.mgmtAuthorizer, b.subscriptionID, b.tenantID, b.objectID, err = auth.NewMgmt()
@@ -106,7 +105,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	// Setup a container in the Azure storage account.
-	if b.container, err = account.Setup(ctx, b.mgmtAuthorizer, b.subscriptionID, b.resourceGroupName, storageAccountName, containerName); err != nil {
+	if b.container, err = account.Setup(ctx, b.mgmtAuthorizer, b.subscriptionID, b.resourceGroupName, storageAccountName, "tfstate"); err != nil {
 		return fmt.Errorf("error creating container: %s", err)
 	}
 
