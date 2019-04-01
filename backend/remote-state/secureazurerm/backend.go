@@ -32,6 +32,7 @@ type Backend struct {
 	container account.Container
 
 	resourceGroupName,
+	location,
 	keyVaultPrefix,
 	subscriptionID,
 	tenantID,
@@ -51,6 +52,11 @@ func New() backend.Backend {
 					Type:        schema.TypeString,
 					Required:    true,
 					Description: "The resource group name.",
+				},
+				"location": {
+					Type:        schema.TypeString,
+					Required:    true,
+					Description: "The location where the state is stored.",
 				},
 
 				// Key Vault:
@@ -80,11 +86,12 @@ func (b *Backend) configure(ctx context.Context) error {
 
 	// Resource Group:
 	b.resourceGroupName = attrs.Get("resource_group_name").(string)
-	fmt.Printf("TODO: Provision resource group: %s\n", b.resourceGroupName)
 	// 1. Check if the given resource group exists.
 	//   - If not, create it!
 	// (idempotent)
 	// Tags: <workspace>: <kvname>
+	b.location = attrs.Get("location").(string)
+
 	// Azure Key Vault:
 	b.keyVaultPrefix = attrs.Get("key_vault_prefix").(string)
 	// TODO: 1 random lowercase character (cannot start with a number) and 23 random lowercase alphanumeric characters.
@@ -115,7 +122,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		_, err = groupsClient.CreateOrUpdate(
 			b.resourceGroupName,
 			resources.Group{
-				Location: to.StringPtr("westeurope"),
+				Location: to.StringPtr(b.location),
 			},
 		)
 		if err != nil {
@@ -124,7 +131,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	// Setup a container in the Azure storage account.
-	if b.container, err = account.Setup(ctx, b.mgmtAuthorizer, b.subscriptionID, b.resourceGroupName, storageAccountName, "tfstate"); err != nil {
+	if b.container, err = account.Setup(ctx, b.mgmtAuthorizer, b.subscriptionID, b.resourceGroupName, b.location, storageAccountName, "tfstate"); err != nil {
 		return fmt.Errorf("error creating container: %s", err)
 	}
 
