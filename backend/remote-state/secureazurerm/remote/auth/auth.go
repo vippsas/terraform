@@ -44,14 +44,14 @@ func NewMgmt() (authorizer autorest.Authorizer, subscriptionID, tenantID, object
 		}
 		var m map[string]interface{}
 		if err = json.Unmarshal(out, &m); err != nil {
-			err = fmt.Errorf("error unmarshalling JSON output from Azure CLI: %s", err)
+			err = fmt.Errorf("error unmarshalling subscription ID and tenant ID from JSON output from Azure CLI: %s", err)
 			return
 		}
 		subscriptionID = m["id"].(string)
 		tenantID = m["tenantId"].(string)
-		out, err = exec.Command("az", "ad", "signed-in-user", "show", "--query", "objectId").Output()
+		out, err = exec.Command("az", "ad", "signed-in-user", "show", "--output", "json", "--query", "objectId").Output()
 		if err = json.Unmarshal(out, &objectID); err != nil {
-			err = fmt.Errorf("error unmarshalling JSON output from Azure CLI: %s", err)
+			err = fmt.Errorf("error unmarshalling object ID from JSON output from Azure CLI: %s", err)
 			return
 		}
 	}

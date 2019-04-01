@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 
 	"github.com/Azure/go-autorest/autorest"
+	"github.com/Azure/go-autorest/autorest/to"
 
 	armStorage "github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2018-07-01/storage"
 	"github.com/Azure/azure-sdk-for-go/storage"
+	"github.com/Azure/azure-storage-blob-go/azblob"
 )
 
 // Container communicates to the container in the storage account in Azure.
@@ -23,13 +26,63 @@ func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID s
 
 	accountsClient := armStorage.NewAccountsClient(subscriptionID)
 	accountsClient.Authorizer = authorizer
-	/* List to check, then if not exist, create it.
-	accountsClient.Create(ctx, resourceGroupName, storageAccountName, armStorage.AccountCreateParameters{
-		Kind: armStorage.BlobStorage,
-	})
-	*/
 
-	// Fetch access key for storage account.
+	// List to check for existing storage accounts.
+	result, err := accountsClient.ListByResourceGroup(ctx, resourceGroupName)
+	if err != nil {
+		return c, fmt.Errorf("error listing storage accounts by resource group %s: %s", resourceGroupName, err)
+	}
+	// Check if none exists. If none, create one.
+	if len(*result.Value) == 0 {
+		// Check if storage account name is available:
+		result, err := accountsClient.CheckNameAvailability(
+			ctx,
+			armStorage.AccountCheckNameAvailabilityParameters{
+				Name: to.StringPtr(storageAccountName),
+				Type: to.StringPtr("Microsoft.Storage/storageAccounts"),
+			})
+		if err != nil {
+			return c, fmt.Errorf("error checking available storage account names: %v", err)
+		}
+		if *result.NameAvailable != true {
+			return c, fmt.Errorf("storage account name %s not available: %v", storageAccountName, err)
+		}
+
+		// Create a new storage account, since we have none.
+		future, err := accountsClient.Create(
+			ctx,
+			resourceGroupName,
+			storageAccountName,
+			armStorage.AccountCreateParameters{
+				Sku: &armStorage.Sku{
+					Name: armStorage.StandardLRS,
+				},
+				Kind:     armStorage.BlobStorage,
+				Location: to.StringPtr("westeurope"),
+				AccountPropertiesCreateParameters: &armStorage.AccountPropertiesCreateParameters{
+					AccessTier: armStorage.Hot,
+				},
+			})
+
+		if err != nil {
+			return c, fmt.Errorf("failed to start creating storage account: %v", err)
+		}
+
+		err = future.WaitForCompletionRef(ctx, accountsClient.Client)
+		if err != nil {
+			return c, fmt.Errorf("failed to finish creating storage account: %v", err)
+		}
+
+		// Wait for creation completion.
+		_, err = future.Result(accountsClient)
+		if err != nil {
+			return c, fmt.Errorf("error waiting for storage account creation: %v", err)
+		}
+	} else if len(*result.Value) != 1 {
+		return c, fmt.Errorf("only 1 storage account is allowed in the resource group %s", resourceGroupName)
+	}
+
+	// Fetch an access key for storage account.
 	keys, err := accountsClient.ListKeys(ctx, resourceGroupName, storageAccountName)
 	if err != nil {
 		return c, fmt.Errorf("error listing the access keys in the storage account %q: %s", storageAccountName, err)
@@ -56,13 +109,28 @@ func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID s
 		return c, fmt.Errorf("error listing containers: %s", err)
 	}
 	for _, container := range resp.Containers {
+		// Did we find the container?
 		if container.Name == c.Name {
 			c.BlobService = blobService
 			return c, nil // success!
 		}
 	}
-	// TODO: Create container if it does not exists.
-	return c, fmt.Errorf("cannot find container: %s", c.Name)
+
+	skc, _ := azblob.NewSharedKeyCredential(storageAccountName, accessKey1)
+	p := azblob.NewPipeline(skc, azblob.PipelineOptions{})
+	u, _ := url.Parse(fmt.Sprintf("https://%s.blob.core.windows.net", storageAccountName))
+	service := azblob.NewServiceURL(*u, p)
+	containerURL := service.NewContainerURL(containerName)
+	_, err = containerURL.Create(
+		ctx,
+		azblob.Metadata{},
+		azblob.PublicAccessNone,
+	)
+	if err != nil {
+		return c, fmt.Errorf("error creating container %s: %s", containerName, err)
+	}
+	c.BlobService = blobService
+	return c, nil
 }
 
 // List lists blobs in the container.
