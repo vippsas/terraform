@@ -29,7 +29,7 @@ type Backend struct {
 	ContextOpts *terraform.ContextOpts
 	// never ask for input. always validate. always run in automation.
 
-	container account.Container
+	container *account.Container
 
 	resourceGroupName,
 	location,
@@ -65,13 +65,6 @@ func New() backend.Backend {
 					Required:    true,
 					Description: "The key vault prefix.",
 				},
-
-				// Storage Account:
-				"storage_account_name": {
-					Type:        schema.TypeString,
-					Required:    true,
-					Description: "The storage account name.",
-				},
 			},
 		},
 	}
@@ -96,12 +89,22 @@ func (b *Backend) configure(ctx context.Context) error {
 	b.keyVaultPrefix = attrs.Get("key_vault_prefix").(string)
 	// TODO: 1 random lowercase character (cannot start with a number) and 23 random lowercase alphanumeric characters.
 
+	/*
+		var a, b string
+		a, err = rand.GenLowerAlphas(1)
+		if err != nil {
+			panic(err)
+		}
+		b, err = rand.GenLowerAlphanums(23)
+		if err != nil {
+			panic(err)
+		}
+	*/
+
 	// 2. Check if the key vault has been made in the resource group.
 	//   - If not, create it!
 	// (idempotent)
 
-	// Azure Storage Account:
-	storageAccountName := attrs.Get("storage_account_name").(string)
 	// 2. Check if the storage account has been made in the resource group.
 	//   - If not, create it!
 	// (idempotent)
@@ -131,7 +134,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	// Setup a container in the Azure storage account.
-	if b.container, err = account.Setup(ctx, b.mgmtAuthorizer, b.subscriptionID, b.resourceGroupName, b.location, storageAccountName, "tfstate"); err != nil {
+	if b.container, err = account.Setup(ctx, b.mgmtAuthorizer, b.subscriptionID, b.resourceGroupName, b.location, "tfstate"); err != nil {
 		return fmt.Errorf("error creating container: %s", err)
 	}
 
