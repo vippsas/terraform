@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/Azure/azure-sdk-for-go/arm/resources/resources"
 	"github.com/Azure/go-autorest/autorest"
+	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/hashicorp/terraform/backend"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/auth"
@@ -83,7 +85,6 @@ func (b *Backend) configure(ctx context.Context) error {
 	//   - If not, create it!
 	// (idempotent)
 	// Tags: <workspace>: <kvname>
-
 	// Azure Key Vault:
 	b.keyVaultPrefix = attrs.Get("key_vault_prefix").(string)
 	// TODO: 1 random lowercase character (cannot start with a number) and 23 random lowercase alphanumeric characters.
@@ -102,6 +103,24 @@ func (b *Backend) configure(ctx context.Context) error {
 	b.mgmtAuthorizer, b.subscriptionID, b.tenantID, b.objectID, err = auth.NewMgmt()
 	if err != nil {
 		return fmt.Errorf("error creating new mgmt authorizer: %s", err)
+	}
+
+	// Setup the resource group for terraform.State.
+	groupsClient := resources.NewGroupsClient(b.subscriptionID)
+	groupsClient.Authorizer = b.mgmtAuthorizer
+	// Check if the resource group already exists.
+	_, err = groupsClient.Get(b.resourceGroupName)
+	if err != nil { // does not exist.
+		// Create the resource group.
+		_, err = groupsClient.CreateOrUpdate(
+			b.resourceGroupName,
+			resources.Group{
+				Location: to.StringPtr("westeurope"),
+			},
+		)
+		if err != nil {
+			return fmt.Errorf("error creating a resource group %s: %s", b.resourceGroupName, err)
+		}
 	}
 
 	// Setup a container in the Azure storage account.
