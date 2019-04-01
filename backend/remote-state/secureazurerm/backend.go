@@ -39,6 +39,7 @@ type Backend struct {
 	objectID string
 
 	mgmtAuthorizer autorest.Authorizer
+	groupsClient   resources.GroupsClient
 }
 
 // New creates a new backend for remote state stored in Azure storage account and key vault.
@@ -89,18 +90,6 @@ func (b *Backend) configure(ctx context.Context) error {
 	b.keyVaultPrefix = attrs.Get("key_vault_prefix").(string)
 	// TODO: 1 random lowercase character (cannot start with a number) and 23 random lowercase alphanumeric characters.
 
-	/*
-		var a, b string
-		a, err = rand.GenLowerAlphas(1)
-		if err != nil {
-			panic(err)
-		}
-		b, err = rand.GenLowerAlphanums(23)
-		if err != nil {
-			panic(err)
-		}
-	*/
-
 	// 2. Check if the key vault has been made in the resource group.
 	//   - If not, create it!
 	// (idempotent)
@@ -116,13 +105,13 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	// Setup the resource group for terraform.State.
-	groupsClient := resources.NewGroupsClient(b.subscriptionID)
-	groupsClient.Authorizer = b.mgmtAuthorizer
+	b.groupsClient = resources.NewGroupsClient(b.subscriptionID)
+	b.groupsClient.Authorizer = b.mgmtAuthorizer
 	// Check if the resource group already exists.
-	_, err = groupsClient.Get(b.resourceGroupName)
+	_, err = b.groupsClient.Get(b.resourceGroupName)
 	if err != nil { // does not exist.
 		// Create the resource group.
-		_, err = groupsClient.CreateOrUpdate(
+		_, err = b.groupsClient.CreateOrUpdate(
 			b.resourceGroupName,
 			resources.Group{
 				Location: to.StringPtr(b.location),

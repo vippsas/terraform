@@ -82,7 +82,7 @@ func (b *Backend) State(name string) (state.State, error) {
 
 // setupKeyVault setups the state key vault.
 func (b *Backend) setupKeyVault(name string) (*keyvault.KeyVault, error) {
-	keyVault, err := keyvault.Setup(context.Background(), b.resourceGroupName, b.location, fmt.Sprintf("%s%s", b.keyVaultPrefix, name), b.subscriptionID, b.tenantID, b.objectID, b.mgmtAuthorizer)
+	keyVault, err := keyvault.Setup(context.Background(), b.resourceGroupName, b.location, name, b.subscriptionID, b.tenantID, b.objectID, b.mgmtAuthorizer, b.groupsClient)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up key vault: %s", err)
 	}
