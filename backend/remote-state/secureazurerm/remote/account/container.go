@@ -21,7 +21,7 @@ type Container struct {
 }
 
 // Setup creates a new remote client to the storage account.
-func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID string, resourceGroupName string, storageAccountName string, containerName string) (Container, error) {
+func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID, resourceGroupName, location, storageAccountName, containerName string) (Container, error) {
 	var c Container
 
 	accountsClient := armStorage.NewAccountsClient(subscriptionID)
@@ -49,6 +49,7 @@ func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID s
 		}
 
 		// Create a new storage account, since we have none.
+		httpsTrafficOnly := true
 		future, err := accountsClient.Create(
 			ctx,
 			resourceGroupName,
@@ -58,9 +59,10 @@ func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID s
 					Name: armStorage.StandardLRS,
 				},
 				Kind:     armStorage.BlobStorage,
-				Location: to.StringPtr("westeurope"),
+				Location: to.StringPtr(location),
 				AccountPropertiesCreateParameters: &armStorage.AccountPropertiesCreateParameters{
-					AccessTier: armStorage.Hot,
+					AccessTier:             armStorage.Hot,
+					EnableHTTPSTrafficOnly: &httpsTrafficOnly,
 				},
 			})
 

@@ -23,7 +23,7 @@ type KeyVault struct {
 }
 
 // Setup creates a new Azure Key Vault.
-func Setup(ctx context.Context, resourceGroupName, vaultName, subscriptionID, tenantID, objectID string, mgmtAuthorizer autorest.Authorizer) (KeyVault, error) {
+func Setup(ctx context.Context, resourceGroupName, location, vaultName, subscriptionID, tenantID, objectID string, mgmtAuthorizer autorest.Authorizer) (KeyVault, error) {
 	k := KeyVault{
 		resourceGroupName: resourceGroupName,
 		vaultName:         vaultName,
@@ -39,7 +39,7 @@ func Setup(ctx context.Context, resourceGroupName, vaultName, subscriptionID, te
 			return k, fmt.Errorf("error converting tenant ID-string to UUID: %s", err)
 		}
 		vault, err = k.vaultClient.CreateOrUpdate(ctx, resourceGroupName, vaultName, keyvault.VaultCreateOrUpdateParameters{
-			Location: to.StringPtr("westeurope"),
+			Location: to.StringPtr(location),
 			Properties: &keyvault.VaultProperties{
 				TenantID: &tenantID,
 				Sku: &keyvault.Sku{
