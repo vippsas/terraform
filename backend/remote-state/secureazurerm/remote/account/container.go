@@ -8,6 +8,7 @@ import (
 
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/to"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/rand"
 
 	armStorage "github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2018-07-01/storage"
 	"github.com/Azure/azure-sdk-for-go/storage"
@@ -21,7 +22,7 @@ type Container struct {
 }
 
 // Setup creates a new remote client to the storage account.
-func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID, resourceGroupName, location, storageAccountName, containerName string) (Container, error) {
+func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID, resourceGroupName, location, containerName string) (*Container, error) {
 	var c Container
 
 	accountsClient := armStorage.NewAccountsClient(subscriptionID)
@@ -30,10 +31,18 @@ func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID, 
 	// List to check for existing storage accounts.
 	result, err := accountsClient.ListByResourceGroup(ctx, resourceGroupName)
 	if err != nil {
-		return c, fmt.Errorf("error listing storage accounts by resource group %s: %s", resourceGroupName, err)
+		return nil, fmt.Errorf("error listing storage accounts by resource group %s: %s", resourceGroupName, err)
 	}
+
+	var storageAccountName string
 	// Check if none exists. If none, create one.
 	if len(*result.Value) == 0 {
+		// Generate a 24 lowercase alphanumeric characters.
+		storageAccountName, err = rand.GenLowerAlphanums(24)
+		if err != nil {
+			return nil, fmt.Errorf("error generating a storage account name: %s", err)
+		}
+
 		// Check if storage account name is available:
 		result, err := accountsClient.CheckNameAvailability(
 			ctx,
@@ -42,10 +51,10 @@ func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID, 
 				Type: to.StringPtr("Microsoft.Storage/storageAccounts"),
 			})
 		if err != nil {
-			return c, fmt.Errorf("error checking available storage account names: %v", err)
+			return nil, fmt.Errorf("error checking available storage account names: %v", err)
 		}
 		if *result.NameAvailable != true {
-			return c, fmt.Errorf("storage account name %s not available: %v", storageAccountName, err)
+			return nil, fmt.Errorf("storage account name %s not available: %v", storageAccountName, err)
 		}
 
 		// Create a new storage account, since we have none.
@@ -67,40 +76,42 @@ func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID, 
 			})
 
 		if err != nil {
-			return c, fmt.Errorf("failed to start creating storage account: %v", err)
+			return nil, fmt.Errorf("failed to start creating storage account: %v", err)
 		}
 
 		err = future.WaitForCompletionRef(ctx, accountsClient.Client)
 		if err != nil {
-			return c, fmt.Errorf("failed to finish creating storage account: %v", err)
+			return nil, fmt.Errorf("failed to finish creating storage account: %v", err)
 		}
 
 		// Wait for creation completion.
 		_, err = future.Result(accountsClient)
 		if err != nil {
-			return c, fmt.Errorf("error waiting for storage account creation: %v", err)
+			return nil, fmt.Errorf("error waiting for storage account creation: %v", err)
 		}
 	} else if len(*result.Value) != 1 {
-		return c, fmt.Errorf("only 1 storage account is allowed in the resource group %s", resourceGroupName)
+		return nil, fmt.Errorf("only 1 storage account is allowed in the resource group %s", resourceGroupName)
+	} else {
+		storageAccountName = *(*result.Value)[0].Name
 	}
 
 	// Fetch an access key for storage account.
 	keys, err := accountsClient.ListKeys(ctx, resourceGroupName, storageAccountName)
 	if err != nil {
-		return c, fmt.Errorf("error listing the access keys in the storage account %q: %s", storageAccountName, err)
+		return nil, fmt.Errorf("error listing the access keys in the storage account %q: %s", storageAccountName, err)
 	}
 	if keys.Keys == nil {
-		return c, fmt.Errorf("no keys returned from storage account %q", storageAccountName)
+		return nil, fmt.Errorf("no keys returned from storage account %q", storageAccountName)
 	}
 	accessKey1 := *(*keys.Keys)[0].Value
 	if accessKey1 == "" {
-		return c, errors.New("missing access key")
+		return nil, errors.New("missing access key")
 	}
 
 	// Create new storage account client using fetched access key.
 	storageClient, err := storage.NewBasicClient(storageAccountName, accessKey1)
 	if err != nil {
-		return c, fmt.Errorf("error creating client for storage account %q: %s", storageAccountName, err)
+		return nil, fmt.Errorf("error creating client for storage account %q: %s", storageAccountName, err)
 	}
 
 	// Check if the given container exists.
@@ -108,13 +119,13 @@ func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID, 
 	c.Name = containerName
 	resp, err := blobService.ListContainers(storage.ListContainersParameters{Prefix: c.Name, MaxResults: 1})
 	if err != nil {
-		return c, fmt.Errorf("error listing containers: %s", err)
+		return nil, fmt.Errorf("error listing containers: %s", err)
 	}
 	for _, container := range resp.Containers {
 		// Did we find the container?
 		if container.Name == c.Name {
 			c.BlobService = blobService
-			return c, nil // success!
+			return &c, nil // success!
 		}
 	}
 
@@ -130,10 +141,10 @@ func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID, 
 		azblob.PublicAccessNone,
 	)
 	if err != nil {
-		return c, fmt.Errorf("error creating container %s: %s", containerName, err)
+		return nil, fmt.Errorf("error creating container %s: %s", containerName, err)
 	}
 	c.BlobService = blobService
-	return c, nil
+	return &c, nil
 }
 
 // List lists blobs in the container.
