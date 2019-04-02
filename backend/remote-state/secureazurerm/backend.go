@@ -59,13 +59,6 @@ func New() backend.Backend {
 					Required:    true,
 					Description: "The location where the state is stored.",
 				},
-
-				// Key Vault:
-				"key_vault_prefix": {
-					Type:        schema.TypeString,
-					Required:    true,
-					Description: "The key vault prefix.",
-				},
 			},
 		},
 	}
@@ -80,23 +73,9 @@ func (b *Backend) configure(ctx context.Context) error {
 
 	// Resource Group:
 	b.resourceGroupName = attrs.Get("resource_group_name").(string)
-	// 1. Check if the given resource group exists.
-	//   - If not, create it!
-	// (idempotent)
 	// Tags: <workspace>: <kvname>
+
 	b.location = attrs.Get("location").(string)
-
-	// Azure Key Vault:
-	b.keyVaultPrefix = attrs.Get("key_vault_prefix").(string)
-	// TODO: 1 random lowercase character (cannot start with a number) and 23 random lowercase alphanumeric characters.
-
-	// 2. Check if the key vault has been made in the resource group.
-	//   - If not, create it!
-	// (idempotent)
-
-	// 2. Check if the storage account has been made in the resource group.
-	//   - If not, create it!
-	// (idempotent)
 
 	var err error
 	b.mgmtAuthorizer, b.subscriptionID, b.tenantID, b.objectID, err = auth.NewMgmt()
