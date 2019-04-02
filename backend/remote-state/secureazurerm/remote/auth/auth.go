@@ -18,12 +18,12 @@ func NewMgmt() (authorizer autorest.Authorizer, subscriptionID, tenantID, object
 		// Fetch subscriptionID from environment variable AZURE_SUBSCRIPTION_ID.
 		settings, innerErr := auth.GetSettingsFromEnvironment()
 		if err != nil {
-			err = fmt.Errorf("error creating new authorizer from CLI: %s: error getting settings from environment: %s", innerErr, err)
+			err = fmt.Errorf("error creating new authorizer from CLI: %s: error getting settings from environment: %s", err, innerErr)
 			return
 		}
 		subscriptionID = settings.GetSubscriptionID()
 		if subscriptionID == "" {
-			err = fmt.Errorf("error creating new authorizer from CLI: %s: environment variable %s is not set", innerErr, auth.SubscriptionID)
+			err = fmt.Errorf("error creating new authorizer from CLI: %s: environment variable %s is not set", err, auth.SubscriptionID)
 			return
 		}
 		// Authorize using MSI.
