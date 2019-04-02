@@ -16,22 +16,20 @@ func NewMgmt() (authorizer autorest.Authorizer, subscriptionID, tenantID, object
 	authorizer, err = auth.NewAuthorizerFromCLIWithResource(azure.PublicCloud.ResourceManagerEndpoint)
 	if err != nil {
 		// Fetch subscriptionID from environment variable AZURE_SUBSCRIPTION_ID.
-		var settings auth.EnvironmentSettings
-		settings, err = auth.GetSettingsFromEnvironment()
+		settings, innerErr := auth.GetSettingsFromEnvironment()
 		if err != nil {
-			err = fmt.Errorf("error getting settings from environment: %s", err)
+			err = fmt.Errorf("error creating new authorizer from CLI: %s: error getting settings from environment: %s", innerErr, err)
 			return
 		}
 		subscriptionID = settings.GetSubscriptionID()
 		if subscriptionID == "" {
-			err = fmt.Errorf("environment variable %s is not set", auth.SubscriptionID)
+			err = fmt.Errorf("error creating new authorizer from CLI: %s: environment variable %s is not set", innerErr, auth.SubscriptionID)
 			return
 		}
 		// Authorize using MSI.
-		var innerErr error
 		authorizer, innerErr = settings.GetMSI().Authorizer()
 		if innerErr != nil {
-			err = fmt.Errorf("error creating authorizer from CLI: %s: error creating authorizer from environment: %s", err, innerErr)
+			err = fmt.Errorf("error creating new authorizer from CLI: %s: error creating authorizer from environment: %s", err, innerErr)
 			return
 		}
 	} else {
