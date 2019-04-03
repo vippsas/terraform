@@ -13,13 +13,13 @@ const lockinfo = "lockinfo" // must be lower case!
 
 // readLockInfo reads lockInfo from the blob's metadata.
 func (b *Blob) readLockInfo() (*state.LockInfo, error) {
-	blobRef := b.container.GetBlobRef(b.Name)
+	blob := b.container.GetBlob(b.Name)
 
 	// Get base64-encoded lockInfo from the blob's metadata.
-	if err := blobRef.GetMetadata(&storage.GetBlobMetadataOptions{}); err != nil {
+	if err := blob.GetMetadata(&storage.GetBlobMetadataOptions{}); err != nil {
 		return nil, fmt.Errorf("error getting blob metadata: %s", err)
 	}
-	lockInfoInBase64 := blobRef.Metadata[lockinfo]
+	lockInfoInBase64 := blob.Metadata[lockinfo]
 	if lockInfoInBase64 == "" {
 		return nil, fmt.Errorf("blob metadata %q was empty", lockinfo)
 	}
@@ -39,14 +39,14 @@ func (b *Blob) readLockInfo() (*state.LockInfo, error) {
 
 // writeLockInfo writes lockInfo to the blob's metadata.
 func (b *Blob) writeLockInfo(info *state.LockInfo) error {
-	blobRef := b.container.GetBlobRef(b.Name)
-	if err := blobRef.GetMetadata(&storage.GetBlobMetadataOptions{LeaseID: b.leaseID}); err != nil {
+	blob := b.container.GetBlob(b.Name)
+	if err := blob.GetMetadata(&storage.GetBlobMetadataOptions{LeaseID: b.leaseID}); err != nil {
 		return fmt.Errorf("error getting metadata: %s", err)
 	}
 	if info == nil {
-		delete(blobRef.Metadata, lockinfo)
+		delete(blob.Metadata, lockinfo)
 	} else {
-		blobRef.Metadata[lockinfo] = base64.StdEncoding.EncodeToString(info.Marshal())
+		blob.Metadata[lockinfo] = base64.StdEncoding.EncodeToString(info.Marshal())
 	}
-	return blobRef.SetMetadata(&storage.SetBlobMetadataOptions{LeaseID: b.leaseID})
+	return blob.SetMetadata(&storage.SetBlobMetadataOptions{LeaseID: b.leaseID})
 }
