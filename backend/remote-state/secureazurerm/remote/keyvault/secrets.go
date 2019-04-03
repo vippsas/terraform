@@ -7,8 +7,8 @@ import (
 	KV "github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
 )
 
-// getSecretVersion gets the secret version from ID.
-func getSecretVersion(ID string) string {
+// getID gets the ID without the base URI from the key vault's ID.
+func getID(ID string) string {
 	i := len(ID) - 1
 	for ID[i] != '/' {
 		i--
@@ -23,7 +23,7 @@ func (k *KeyVault) InsertSecret(ctx context.Context, name string, value string) 
 	if err != nil {
 		return "", fmt.Errorf("error inserting secret: %s", err)
 	}
-	return getSecretVersion(*bundle.ID), nil
+	return getID(*bundle.ID), nil
 }
 
 // DeleteSecret deletes the secret named after the given name-parameter.
@@ -47,16 +47,21 @@ func (k *KeyVault) ListSecrets(ctx context.Context) (map[string]struct{}, error)
 	if err != nil {
 		return nil, fmt.Errorf("error getting secrets from key vault: %s", err)
 	}
+	fmt.Printf("secrets: %#v\n", secrets)
 
 	m := make(map[string]struct{})
-	for err := secrets.NextWithContext(ctx); err == nil; err = secrets.NextWithContext(ctx) {
+	for {
 		values := secrets.Values()
 		if values == nil {
 			break
 		}
 		for _, value := range values {
-			m[*value.ID] = struct{}{}
+			m[getID(*value.ID)] = struct{}{}
+		}
+		if err := secrets.NextWithContext(ctx); err != nil {
+			break
 		}
 	}
+	fmt.Printf("m: %#v\n", m)
 	return m, nil
 }
