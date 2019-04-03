@@ -59,7 +59,7 @@ func (s *State) WriteState(ts *terraform.State) error {
 	if s.readState != nil {
 		// Fix serial if someone wrote an incorrect serial in the state.
 		s.state.Serial = s.readState.Serial
-		// Serial is *only* increased when state is persisted.
+		// Serial is *only* increased when the state is persisted.
 	}
 
 	return nil
