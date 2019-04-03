@@ -122,13 +122,14 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 	}
 	// Store the final state.
 	runningOp.State = applyState
-	// Save the state in the remote storage account.
+	// Write the state to memory.
 	if err := remoteState.WriteState(applyState); err != nil {
 		// TODO: Output state to CLI.
 		//runningOp.Err = b.backupStateForError(applyState, err)
 		runningOp.Err = fmt.Errorf("error writing state in-memory: %s", err)
 		return
 	}
+	// Save the state to remote.
 	if err := remoteState.PersistState(); err != nil {
 		// TODO: Output state to CLI.
 		//runningOp.Err = b.backupStateForError(applyState, err)
