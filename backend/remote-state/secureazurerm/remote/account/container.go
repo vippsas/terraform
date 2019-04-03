@@ -58,6 +58,7 @@ func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID, 
 		}
 
 		// Create a new storage account, since we have none.
+		// TODO: Setup soft delete.
 		httpsTrafficOnly := true
 		future, err := accountsClient.Create(
 			ctx,
