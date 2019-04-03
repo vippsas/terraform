@@ -34,3 +34,19 @@ func (k *KeyVault) GetSecret(ctx context.Context, name string, version string) (
 	}
 	return *bundle.Value, nil
 }
+
+// ListSecrets returns the names of the secrets.
+func (k *KeyVault) ListSecrets(ctx context.Context) ([]string, error) {
+	secrets, err := k.keyClient.GetSecrets(ctx, k.vaultURI, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error getting secrets from key vault: %s", err)
+	}
+
+	var s []string
+	for err := secrets.NextWithContext(ctx); err == nil; {
+		for _, value := range secrets.Values() {
+			s = append(s, *value.ID)
+		}
+	}
+	return s, nil
+}
