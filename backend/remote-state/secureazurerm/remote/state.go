@@ -126,7 +126,7 @@ func (s *State) PersistState() error {
 		s.state.Serial++
 	}
 
-	// Put the current in-memory state in blob.
+	// Put the current in-memory state in a byte buffer.
 	var buf bytes.Buffer
 	if err := terraform.WriteState(s.state, &buf); err != nil {
 		return fmt.Errorf("error writing state to buffer: %s", err)
