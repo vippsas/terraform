@@ -2,7 +2,6 @@ package remote
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -126,14 +125,6 @@ func (s *State) PersistState() error {
 	if !s.state.MarshalEqual(s.readState) {
 		s.state.Serial++
 	}
-
-	// List all the secrets from the keyvault.
-	secretIDs, err := s.KeyVault.ListSecrets(context.Background())
-	if err != nil {
-		return fmt.Errorf("error listing secrets: %s", err)
-	}
-
-	// TODO: Delete those that does not exist anymore.
 
 	// Put the current in-memory state in a byte buffer.
 	var buf bytes.Buffer

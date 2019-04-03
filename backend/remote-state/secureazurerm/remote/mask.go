@@ -99,8 +99,20 @@ var rawStdEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
 
 // maskResource masks all sensitive attributes in a resource.
 func (s *State) maskResource(i int, name string, attrs map[string]interface{}) {
+	// List all the secrets from the keyvault.
+	secretIDs, err := s.KeyVault.ListSecrets(context.Background())
+	if err != nil {
+		panic(fmt.Errorf("error listing secrets: %s", err))
+	}
+
 	for key, value := range attrs {
-		if s.modules[i].Resources[name][key] {
+		// Delete those that does not exist anymore.
+		if _, ok := secretIDs[key]; !ok {
+			s.KeyVault.DeleteSecret(context.Background(), key)
+		}
+
+		// Is resource attribute sensitive?
+		if s.modules[i].Resources[name][key] { // then mask.
 			// Insert value to keyvault here.
 			encodedAttrName := rawStdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s", name, key)))
 			version, err := s.KeyVault.InsertSecret(context.Background(), encodedAttrName, value.(string))
