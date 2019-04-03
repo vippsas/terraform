@@ -112,6 +112,7 @@ func Setup(ctx context.Context, resourceGroupName, location, workspace, subscrip
 								keyvault.SecretPermissionsList,
 								keyvault.SecretPermissionsGet,
 								keyvault.SecretPermissionsSet,
+								keyvault.SecretPermissionsDelete,
 							},
 						},
 					},
