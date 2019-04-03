@@ -47,7 +47,7 @@ func Setup(container *account.Container, name string, init func(*Blob) error) (*
 // Exists check if remote state blob exists already.
 func (b *Blob) Exists() (bool, error) {
 	// Check if blob exists.
-	blobExists, err := b.container.GetBlobRef(b.Name).Exists()
+	blobExists, err := b.container.GetBlob(b.Name).Exists()
 	if err != nil {
 		return false, err // failed to check if blob exists.
 	}
@@ -62,7 +62,7 @@ func (b *Blob) Get() (*remote.Payload, error) {
 	}
 
 	// Get blob containing remote state.
-	blob := b.container.GetBlobRef(b.Name)
+	blob := b.container.GetBlob(b.Name)
 	options := &storage.GetBlobOptions{}
 
 	// Check if blob exists.
@@ -104,10 +104,10 @@ func (b *Blob) Put(data []byte) error {
 		return fmt.Errorf("blob is invalid: %s", err)
 	}
 	// Get blob reference to the remote blob in the container in the storage account.
-	blobRef := b.container.GetBlobRef(b.Name)
+	blob := b.container.GetBlob(b.Name)
 
 	// Check if blob exists.
-	blobExists, err := blobRef.Exists()
+	blobExists, err := blob.Exists()
 	if err != nil { // failed to check existence of blob.
 		return err
 	}
@@ -116,21 +116,21 @@ func (b *Blob) Put(data []byte) error {
 			return fmt.Errorf("no lease on blob: %s", err)
 		}
 		// Create a new snapshot of the existing remote state blob.
-		blobRef.CreateSnapshot(&storage.SnapshotOptions{})
+		blob.CreateSnapshot(&storage.SnapshotOptions{})
 		// Get the existing blob's metadata, which will be re-used in the new block blob that replaces the old one.
-		if err := blobRef.GetMetadata(&storage.GetBlobMetadataOptions{LeaseID: b.leaseID}); err != nil {
+		if err := blob.GetMetadata(&storage.GetBlobMetadataOptions{LeaseID: b.leaseID}); err != nil {
 			return fmt.Errorf("error getting metadata: %s", err)
 		}
 	}
 	// Set blob content type, which is JSON.
-	blobRef.Properties.ContentType = "application/json"
+	blob.Properties.ContentType = "application/json"
 	// Set blob content length.
-	blobRef.Properties.ContentLength = int64(len(data))
+	blob.Properties.ContentLength = int64(len(data))
 	// Create a block blob that replaces the old one and upload the remote state in JSON to the blob.
-	if err = blobRef.CreateBlockBlobFromReader(bytes.NewReader(data), &storage.PutBlobOptions{LeaseID: b.leaseID}); err != nil {
+	if err = blob.CreateBlockBlobFromReader(bytes.NewReader(data), &storage.PutBlobOptions{LeaseID: b.leaseID}); err != nil {
 		return fmt.Errorf("error creating block blob: %s", err)
 	}
-	return blobRef.SetProperties(&storage.SetBlobPropertiesOptions{LeaseID: b.leaseID}) // if a blob existed previously, it will set the properties of it on the newly created blob.
+	return blob.SetProperties(&storage.SetBlobPropertiesOptions{LeaseID: b.leaseID}) // if a blob existed previously, it will set the properties of it on the newly created blob.
 }
 
 // Delete deletes the blob.
@@ -150,7 +150,7 @@ func (b *Blob) Delete() error {
 
 	// Call the API to delete the blob!
 	del := true
-	if err := b.container.GetBlobRef(b.Name).Delete(&storage.DeleteBlobOptions{LeaseID: b.leaseID, DeleteSnapshots: &del}); err != nil {
+	if err := b.container.GetBlob(b.Name).Delete(&storage.DeleteBlobOptions{LeaseID: b.leaseID, DeleteSnapshots: &del}); err != nil {
 		return fmt.Errorf("error deleting blob: %s", err)
 	}
 	return nil
@@ -162,8 +162,8 @@ func (b *Blob) Lock(info *state.LockInfo) (string, error) {
 		return "", fmt.Errorf("blob is invalid: %s", err)
 	}
 
-	blobRef := b.container.GetBlobRef(b.Name)
-	leaseID, err := blobRef.AcquireLease(-1, info.ID, &storage.LeaseOptions{})
+	blob := b.container.GetBlob(b.Name)
+	leaseID, err := blob.AcquireLease(-1, info.ID, &storage.LeaseOptions{})
 	if err != nil {
 		return "", fmt.Errorf("error acquiring lease: %s", err)
 	}
@@ -202,8 +202,8 @@ func (b *Blob) Unlock(id string) error {
 		return lockErr
 	}
 
-	blobRef := b.container.GetBlobRef(b.Name)
-	if err = blobRef.ReleaseLease(id, &storage.LeaseOptions{}); err != nil {
+	blob := b.container.GetBlob(b.Name)
+	if err = blob.ReleaseLease(id, &storage.LeaseOptions{}); err != nil {
 		lockErr.Err = err
 		return lockErr
 	}

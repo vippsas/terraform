@@ -157,7 +157,7 @@ func (c *Container) List() ([]storage.Blob, error) {
 	return r.Blobs, nil
 }
 
-// GetBlobRef returns the blob reference to the client's blob.
-func (c *Container) GetBlobRef(blobName string) *storage.Blob {
+// GetBlob returns the blob reference to the client's blob.
+func (c *Container) GetBlob(blobName string) *storage.Blob {
 	return c.BlobService.GetContainerReference(c.Name).GetBlobReference(blobName)
 }
