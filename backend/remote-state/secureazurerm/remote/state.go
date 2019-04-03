@@ -126,6 +126,10 @@ func (s *State) PersistState() error {
 		s.state.Serial++
 	}
 
+	// TODO: List all the secrets from the keyvault.
+
+	// TODO: Delete those that does not exist anymore.
+
 	// Put the current in-memory state in a byte buffer.
 	var buf bytes.Buffer
 	if err := terraform.WriteState(s.state, &buf); err != nil {
