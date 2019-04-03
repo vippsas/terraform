@@ -48,7 +48,6 @@ func New() backend.Backend {
 		Backend: schema.Backend{
 			// Fields in backend {}. Ensure that all values are stored only in the configuration files.
 			Schema: map[string]*schema.Schema{
-				// Resource group:
 				"resource_group_name": {
 					Type:        schema.TypeString,
 					Required:    true,
