@@ -26,6 +26,12 @@ func (k *KeyVault) InsertSecret(ctx context.Context, name string, value string) 
 	return getSecretVersion(*bundle.ID), nil
 }
 
+// DeleteSecret deletes the secret named after the given name-parameter.
+func (k *KeyVault) DeleteSecret(ctx context.Context, name string) error {
+	_, err := k.keyClient.DeleteSecret(ctx, k.vaultURI, name)
+	return err
+}
+
 // GetSecret gets the secret named name from the key vault.
 func (k *KeyVault) GetSecret(ctx context.Context, name string, version string) (string, error) {
 	bundle, err := k.keyClient.GetSecret(ctx, k.vaultURI, name, version)
