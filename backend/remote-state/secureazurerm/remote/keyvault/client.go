@@ -109,6 +109,7 @@ func Setup(ctx context.Context, resourceGroupName, location, workspace, subscrip
 						ObjectID: &objectID,
 						Permissions: &keyvault.Permissions{
 							Secrets: &[]keyvault.SecretPermissions{
+								keyvault.SecretPermissionsList,
 								keyvault.SecretPermissionsGet,
 								keyvault.SecretPermissionsSet,
 							},
