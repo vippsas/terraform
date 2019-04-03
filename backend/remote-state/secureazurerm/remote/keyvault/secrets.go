@@ -49,8 +49,12 @@ func (k *KeyVault) ListSecrets(ctx context.Context) (map[string]struct{}, error)
 	}
 
 	m := make(map[string]struct{})
-	for err := secrets.NextWithContext(ctx); err == nil; {
-		for _, value := range secrets.Values() {
+	for err := secrets.NextWithContext(ctx); err == nil; err = secrets.NextWithContext(ctx) {
+		values := secrets.Values()
+		if values == nil {
+			break
+		}
+		for _, value := range values {
 			m[*value.ID] = struct{}{}
 		}
 	}
