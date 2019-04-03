@@ -141,6 +141,8 @@ func (s *State) PersistState() error {
 			s.maskModule(i, mod)
 		}
 	}
+
+	// Marshal state map to JSON.
 	data, err := json.MarshalIndent(stateMap, "", "    ")
 	if err != nil {
 		return fmt.Errorf("error marshalling map: %s", err)
