@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/terraform/command/format"
 	"github.com/hashicorp/terraform/config/module"
 	"github.com/hashicorp/terraform/terraform"
-	"github.com/kr/pretty"
 )
 
 func getResourceProviders(c *terraform.Context) []terraform.ResourceProvider {
@@ -57,15 +56,10 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 		runningOp.Err = err
 		return
 	}
-	providers := getResourceProviders(tfCtx)
-	rp := providers[0]
-	schema, err := rp.GetSchema(&terraform.ProviderSchemaRequest{
-		ResourceTypes: []string{"azurerm_cosmosdb_account"},
-	})
-	if err != nil {
-		panic(err)
-	}
-	pretty.Printf("%# v\n", schema.ResourceTypes["azurerm_cosmosdb_account"])
+
+	// Set resource providers for masking sensitive attributes in remote state.
+	blobState := remoteState.(*remote.State)
+	blobState.SetResourceProviders(getResourceProviders(tfCtx))
 
 	// Setup the state
 	runningOp.State = tfCtx.State()
@@ -85,8 +79,6 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 	}
 	dispPlan := format.NewPlan(plan)
 	emptyPlan := dispPlan.Empty()
-
-	pretty.Printf("%# v\n", plan.Diff.Modules)
 
 	// Ask user to confirm performing the actions in the plan.
 	if (op.UIOut != nil && op.UIIn != nil) && ((op.Destroy && (!op.DestroyForce && !op.AutoApprove)) || (!op.Destroy && !op.AutoApprove && !emptyPlan)) {
@@ -129,8 +121,8 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 
 	// Setup our hook for continuous state updates.
 	stateHook.State = remoteState
-	// Take a snapshot of the module diff to be used to determine the sensitive attributes.
-	blobState := remoteState.(*remote.State)
+
+	// DEPRECATED: Take a snapshot of the module diff to be used to determine the sensitive attributes.
 	blobState.Report(plan.Diff.Modules)
 
 	// Begin the "apply" (in a goroutine so that we can be interrupted).

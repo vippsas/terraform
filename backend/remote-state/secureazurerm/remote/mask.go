@@ -75,6 +75,11 @@ func (s *State) Report(modules []*terraform.ModuleDiff) {
 	s.copyModules(modules)
 }
 
+// SetResourceProviders sets resource providers.
+func (s *State) SetResourceProviders(p []terraform.ResourceProvider) {
+	s.resourceProviders = p
+}
+
 // pathEqual compares if the path of two modules are equal.
 func pathEqual(a []interface{}, b []string) bool {
 	if len(a) != len(b) {
@@ -90,6 +95,24 @@ func pathEqual(a []interface{}, b []string) bool {
 
 // maskModule masks all sensitive attributes in a module.
 func (s *State) maskModule(i int, module map[string]interface{}) {
+	resources := module["resources"].(map[string]interface{})
+
+	resourceList := []string{}
+	for name := range resources {
+		resourceList = append(resourceList, strings.Split(name, ".")[0])
+	}
+	pretty.Printf("resourceList: %# v\n", resourceList)
+
+	for _, rp := range s.resourceProviders {
+		schema, err := rp.GetSchema(&terraform.ProviderSchemaRequest{
+			ResourceTypes: resourceList,
+		})
+		if err != nil {
+			panic(err)
+		}
+		pretty.Printf("schema: %# v\n", schema)
+	}
+
 	for resourceName, resource := range module["resources"].(map[string]interface{}) {
 		r := resource.(map[string]interface{})
 		primary := r["primary"].(map[string]interface{})
@@ -108,10 +131,9 @@ func (s *State) maskResource(i int, name string, attrs map[string]interface{}) {
 	if err != nil {
 		panic(fmt.Errorf("error listing secrets: %s", err))
 	}
-	pretty.Printf("secretIDs:\n%# v\n", secretIDs)
 
-	for key := range secretIDs {
-		bs, err := rawStdEncoding.DecodeString(key)
+	for id := range secretIDs {
+		bs, err := rawStdEncoding.DecodeString(id)
 		if err != nil {
 			panic(err)
 		}
@@ -119,12 +141,13 @@ func (s *State) maskResource(i int, name string, attrs map[string]interface{}) {
 
 		// Delete those that does not exist anymore.
 		keyVaultIDs := strings.Split(string(bs), ".")
-		if keyVaultIDs[len(keyVaultIDs)-1] != name {
+		r := strings.Join(keyVaultIDs[len(keyVaultIDs)-3:len(keyVaultIDs)-1], ".")
+		if r != name {
 			continue
 		}
-		if _, ok := attrs[keyVaultIDs[len(keyVaultIDs)-2]]; !ok {
-			fmt.Printf("Deleting secret: %s\n", key)
-			if err := s.KeyVault.DeleteSecret(context.Background(), key); err != nil {
+		if _, ok := attrs[keyVaultIDs[len(keyVaultIDs)-1]]; !ok {
+			pretty.Printf("Deleting secret: %s\n", id)
+			if err := s.KeyVault.DeleteSecret(context.Background(), id); err != nil {
 				panic(err)
 			}
 		}

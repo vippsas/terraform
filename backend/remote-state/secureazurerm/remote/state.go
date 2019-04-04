@@ -24,7 +24,8 @@ type State struct {
 	state, // in-memory state.
 	readState *terraform.State // state read from the blob.
 
-	modules []Module // contains what attributes are sensitive.
+	modules           []Module // contains what attributes are sensitive.
+	resourceProviders []terraform.ResourceProvider
 }
 
 // State reads the state from the memory.
@@ -132,9 +133,11 @@ func (s *State) PersistState() error {
 		return fmt.Errorf("error writing state to buffer: %s", err)
 	}
 
-	// Mask sensitive attributes.
+	// Unmarshall to state to map.
 	stateMap := make(map[string]interface{})
 	json.Unmarshal(buf.Bytes(), &stateMap)
+
+	// Mask sensitive attributes.
 	for i, module := range stateMap["modules"].([]interface{}) {
 		mod := module.(map[string]interface{})
 		if pathEqual(mod["path"].([]interface{}), s.modules[i].Path) {
@@ -158,7 +161,7 @@ func (s *State) PersistState() error {
 	s.readState = s.state.DeepCopy()
 
 	// Print it.
-	fmt.Printf("\nWritten current state in remote:\n%s", data)
+	fmt.Printf("\nCurrent persisted state:\n%s", data)
 
 	return nil
 }
