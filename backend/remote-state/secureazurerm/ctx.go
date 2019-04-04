@@ -17,6 +17,7 @@ func (b *Backend) Context(op *backend.Operation) (*terraform.Context, state.Stat
 	return b.context(op)
 }
 
+// context is the actual method that creates a new Terraform Context for the backend.
 func (b *Backend) context(op *backend.Operation) (*terraform.Context, state.State, error) {
 	// Get the state.
 	s, err := b.State(op.Workspace)
