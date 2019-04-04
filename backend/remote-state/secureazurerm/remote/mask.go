@@ -101,28 +101,28 @@ var rawStdEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
 
 // maskResource masks all sensitive attributes in a resource.
 func (s *State) maskResource(i int, name string, attrs map[string]interface{}) {
-	pretty.Printf("attrs: %# v\n", attrs)
+	pretty.Printf("attrs:\n%# v\n", attrs)
 
 	// List all the secrets from the keyvault.
 	secretIDs, err := s.KeyVault.ListSecrets(context.Background())
 	if err != nil {
 		panic(fmt.Errorf("error listing secrets: %s", err))
 	}
-	pretty.Printf("secretIDs: %# v\n", secretIDs)
+	pretty.Printf("secretIDs:\n%# v\n", secretIDs)
 
 	for key := range secretIDs {
 		bs, err := rawStdEncoding.DecodeString(key)
 		if err != nil {
 			panic(err)
 		}
+		pretty.Printf("bs:\n%v\n", string(bs))
 
-		pretty.Printf("bs: %v\n", string(bs))
 		// Delete those that does not exist anymore.
-		keyVaultID := strings.Split(string(bs), ".")
-		if keyVaultID[0] != name {
+		keyVaultIDs := strings.Split(string(bs), ".")
+		if keyVaultIDs[len(keyVaultIDs)-1] != name {
 			continue
 		}
-		if _, ok := attrs[keyVaultID[1]]; !ok {
+		if _, ok := attrs[keyVaultIDs[len(keyVaultIDs)-2]]; !ok {
 			fmt.Printf("Deleting secret: %s\n", key)
 			if err := s.KeyVault.DeleteSecret(context.Background(), key); err != nil {
 				panic(err)
