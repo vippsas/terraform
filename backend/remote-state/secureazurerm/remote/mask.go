@@ -22,15 +22,6 @@ type secretAttr struct {
 	Version string `json:"version"` // Version of the secret.
 }
 
-/*
-// interpAttr is a sensitive attribute interpolated from somewhere.
-type interpAttr struct {
-	Type      string // Type of resource.
-	ID        string // ID of the resource.
-	Attribute string // Attribute name of resource.
-}
-*/
-
 // copyResources copies the resources from a module i.
 func (s *State) copyResources(i int, resources map[string]*terraform.InstanceDiff) {
 	for name, resource := range resources {
