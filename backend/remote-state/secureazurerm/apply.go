@@ -86,6 +86,8 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 	dispPlan := format.NewPlan(plan)
 	emptyPlan := dispPlan.Empty()
 
+	pretty.Printf("%# v\n", plan.Diff.Modules)
+
 	// Ask user to confirm performing the actions in the plan.
 	if (op.UIOut != nil && op.UIIn != nil) && ((op.Destroy && (!op.DestroyForce && !op.AutoApprove)) || (!op.Destroy && !op.AutoApprove && !emptyPlan)) {
 		var desc, query string
