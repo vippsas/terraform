@@ -16,7 +16,7 @@ type Module struct {
 	Resources map[string]map[string]bool
 }
 
-// SecretAttr is a sensitive attribute that is located as a secret in the Azure key vault.
+// secretAttr is a sensitive attribute that is located as a secret in the Azure key vault.
 type secretAttr struct {
 	ID      string `json:"id"`      // ID of the secret.
 	Version string `json:"version"` // Version of the secret.
@@ -71,8 +71,8 @@ func (s *State) SetResourceProviders(p []terraform.ResourceProvider) {
 	s.resourceProviders = p
 }
 
-// pathEqual compares if the path of two modules are equal.
-func pathEqual(a []interface{}, b []string) bool {
+// isModulePathEqual compares if the path of two modules are equal.
+func isModulePathEqual(a []interface{}, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
