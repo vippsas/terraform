@@ -132,6 +132,7 @@ func (s *State) maskResource(i int, name string, attrs map[string]interface{}) {
 		panic(fmt.Errorf("error listing secrets: %s", err))
 	}
 
+	// Delete the resource's attributes that does not exists anymore in the key vault.
 	for id := range secretIDs {
 		bs, err := rawStdEncoding.DecodeString(id)
 		if err != nil {
@@ -153,6 +154,7 @@ func (s *State) maskResource(i int, name string, attrs map[string]interface{}) {
 		}
 	}
 
+	// Insert the resource's attributes in the key vault.
 	for key, value := range attrs {
 		encodedAttrName := rawStdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s.%s", strings.Join(s.modules[i].Path, "."), name, key)))
 
