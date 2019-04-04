@@ -140,7 +140,7 @@ func (s *State) PersistState() error {
 	// Mask sensitive attributes.
 	for i, module := range stateMap["modules"].([]interface{}) {
 		mod := module.(map[string]interface{})
-		if pathEqual(mod["path"].([]interface{}), s.modules[i].Path) {
+		if isModulePathEqual(mod["path"].([]interface{}), s.modules[i].Path) {
 			s.maskModule(i, mod)
 		}
 	}
