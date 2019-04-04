@@ -140,12 +140,12 @@ func (s *State) maskResource(i int, name string, attrs map[string]interface{}) {
 		pretty.Printf("bs:\n%v\n", string(bs))
 
 		// Delete those that does not exist anymore.
-		keyVaultIDs := strings.Split(string(bs), ".")
-		r := strings.Join(keyVaultIDs[len(keyVaultIDs)-3:len(keyVaultIDs)-1], ".")
+		ids := strings.Split(string(bs), ".")
+		r := strings.Join(ids[len(ids)-3:len(ids)-1], ".")
 		if r != name {
 			continue
 		}
-		if _, ok := attrs[keyVaultIDs[len(keyVaultIDs)-1]]; !ok {
+		if _, ok := attrs[ids[len(ids)-1]]; !ok {
 			pretty.Printf("Deleting secret: %s\n", id)
 			if err := s.KeyVault.DeleteSecret(context.Background(), id); err != nil {
 				panic(err)
