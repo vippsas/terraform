@@ -13,7 +13,23 @@ import (
 	"github.com/hashicorp/terraform/command/format"
 	"github.com/hashicorp/terraform/config/module"
 	"github.com/hashicorp/terraform/terraform"
+	"github.com/kr/pretty"
 )
+
+func getResourceProviders(c *terraform.Context) []terraform.ResourceProvider {
+	var providers []terraform.ResourceProvider
+	components := c.GetComponents()
+
+	for _, id := range components.ResourceProviders() {
+		p, err := components.ResourceProvider(id, "")
+		if err != nil {
+			continue
+		}
+		providers = append(providers, p)
+	}
+
+	return providers
+}
 
 // apply does "terraform apply".
 func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *backend.Operation, runningOp *backend.RunningOperation) {
@@ -41,6 +57,15 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 		runningOp.Err = err
 		return
 	}
+	providers := getResourceProviders(tfCtx)
+	rp := providers[0]
+	schema, err := rp.GetSchema(&terraform.ProviderSchemaRequest{
+		ResourceTypes: []string{"azurerm_cosmosdb_account"},
+	})
+	if err != nil {
+		panic("bullshit!")
+	}
+	pretty.Printf("%# v\n", schema.ResourceTypes["azurerm_cosmosdb_account"])
 
 	// Setup the state
 	runningOp.State = tfCtx.State()
