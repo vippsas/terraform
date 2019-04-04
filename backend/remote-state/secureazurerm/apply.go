@@ -63,7 +63,7 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 		ResourceTypes: []string{"azurerm_cosmosdb_account"},
 	})
 	if err != nil {
-		panic("bullshit!")
+		panic(err)
 	}
 	pretty.Printf("%# v\n", schema.ResourceTypes["azurerm_cosmosdb_account"])
 
