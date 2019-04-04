@@ -158,7 +158,7 @@ func (s *State) PersistState() error {
 	s.readState = s.state.DeepCopy()
 
 	// Print it.
-	fmt.Printf("\nCurrent state:\n%s", data)
+	fmt.Printf("\nWritten current state in remote:\n%s", data)
 
 	return nil
 }
