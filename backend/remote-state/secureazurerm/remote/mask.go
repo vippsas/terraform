@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform/terraform"
+	"github.com/kr/pretty"
 )
 
 // Module is used to report which attributes are sensitive or not.
@@ -100,14 +101,14 @@ var rawStdEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
 
 // maskResource masks all sensitive attributes in a resource.
 func (s *State) maskResource(i int, name string, attrs map[string]interface{}) {
-	fmt.Printf("attrs: %#v\n", attrs)
+	pretty.Printf("attrs: %# v\n", attrs)
 
 	// List all the secrets from the keyvault.
 	secretIDs, err := s.KeyVault.ListSecrets(context.Background())
 	if err != nil {
 		panic(fmt.Errorf("error listing secrets: %s", err))
 	}
-	fmt.Printf("secretIDs: %#v\n", secretIDs)
+	pretty.Printf("secretIDs: %# v\n", secretIDs)
 
 	for key := range secretIDs {
 		bs, err := rawStdEncoding.DecodeString(key)
@@ -115,9 +116,13 @@ func (s *State) maskResource(i int, name string, attrs map[string]interface{}) {
 			panic(err)
 		}
 
-		fmt.Printf("bs: %v\n", string(bs))
+		pretty.Printf("bs: %v\n", string(bs))
 		// Delete those that does not exist anymore.
-		if _, ok := attrs[strings.Split(string(bs), ".")[1]]; !ok {
+		keyVaultID := strings.Split(string(bs), ".")
+		if keyVaultID[0] != name {
+			continue
+		}
+		if _, ok := attrs[keyVaultID[1]]; !ok {
 			fmt.Printf("Deleting secret: %s\n", key)
 			if err := s.KeyVault.DeleteSecret(context.Background(), key); err != nil {
 				panic(err)
@@ -126,7 +131,7 @@ func (s *State) maskResource(i int, name string, attrs map[string]interface{}) {
 	}
 
 	for key, value := range attrs {
-		encodedAttrName := rawStdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s", name, key)))
+		encodedAttrName := rawStdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s.%s", strings.Join(s.modules[i].Path, "."), name, key)))
 
 		// Is resource attribute sensitive?
 		if s.modules[i].Resources[name][key] { // then mask.
