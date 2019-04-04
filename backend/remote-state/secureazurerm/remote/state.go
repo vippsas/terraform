@@ -6,12 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
 	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/terraform"
+	"github.com/kr/pretty"
 )
 
 // State contains the remote state.
@@ -112,6 +114,18 @@ func (s *State) RefreshState() error {
 	return nil
 }
 
+func (s *State) getAllResourceAttrAddresses() []string {
+	var resourceAttrAddr []string
+	for _, module := range s.state.Modules {
+		for resourceName, resource := range module.Resources {
+			for attributeName := range resource.Primary.Attributes {
+				resourceAttrAddr = append(resourceAttrAddr, fmt.Sprintf("%s.%s.%s", strings.Join(module.Path, "."), resourceName, attributeName))
+			}
+		}
+	}
+	return resourceAttrAddr
+}
+
 // PersistState saves the in-memory state to the blob.
 func (s *State) PersistState() error {
 	// Lock, harr!
@@ -126,6 +140,8 @@ func (s *State) PersistState() error {
 	if !s.state.MarshalEqual(s.readState) {
 		s.state.Serial++
 	}
+
+	pretty.Printf("%# v\n", s.getAllResourceAttrAddresses())
 
 	// Put the current in-memory state in a byte buffer.
 	var buf bytes.Buffer

@@ -94,15 +94,17 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 	}
 	pretty.Printf("resourceList: %# v\n", resourceList)
 
-	for _, rp := range s.resourceProviders {
-		schema, err := rp.GetSchema(&terraform.ProviderSchemaRequest{
-			ResourceTypes: resourceList,
-		})
-		if err != nil {
-			panic(err)
+	/*
+		for _, rp := range s.resourceProviders {
+				schema, err := rp.GetSchema(&terraform.ProviderSchemaRequest{
+					ResourceTypes: resourceList,
+				})
+				if err != nil {
+					panic(err)
+				}
+				pretty.Printf("schema: %# v\n", schema)
 		}
-		pretty.Printf("schema: %# v\n", schema)
-	}
+	*/
 
 	for resourceName, resource := range module["resources"].(map[string]interface{}) {
 		r := resource.(map[string]interface{})
