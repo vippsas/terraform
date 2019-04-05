@@ -113,6 +113,18 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 	}
 }
 
+func (s *State) getAllResourceAttrAddresses() map[string]struct{} {
+	resourceAttrAddr := make(map[string]struct{})
+	for _, module := range s.state.Modules {
+		for resourceName, resource := range module.Resources {
+			for attributeName := range resource.Primary.Attributes {
+				resourceAttrAddr[fmt.Sprintf("%s.%s.%s", strings.Join(module.Path, "."), resourceName, attributeName)] = struct{}{}
+			}
+		}
+	}
+	return resourceAttrAddr
+}
+
 var rawStdEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
 
 // maskResource masks all sensitive attributes in a resource.
@@ -126,20 +138,16 @@ func (s *State) maskResource(i int, name string, attrs map[string]interface{}) {
 	}
 
 	// Delete the resource's attributes that does not exists anymore in the key vault.
+	resourceAddresses := s.getAllResourceAttrAddresses()
 	for id := range secretIDs {
 		bs, err := rawStdEncoding.DecodeString(id)
 		if err != nil {
 			panic(err)
 		}
-		pretty.Printf("bs:\n%v\n", string(bs))
+		pretty.Printf("bs: %# v\n", string(bs))
 
 		// Delete those that does not exist anymore.
-		ids := strings.Split(string(bs), ".")
-		r := strings.Join(ids[len(ids)-3:len(ids)-1], ".")
-		if r != name {
-			continue
-		}
-		if _, ok := attrs[ids[len(ids)-1]]; !ok {
+		if _, ok := resourceAddresses[string(bs)]; !ok {
 			pretty.Printf("Deleting secret: %s\n", id)
 			if err := s.KeyVault.DeleteSecret(context.Background(), id); err != nil {
 				panic(err)
