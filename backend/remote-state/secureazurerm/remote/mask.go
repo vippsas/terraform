@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/terraform/config/configschema"
 	"github.com/hashicorp/terraform/terraform"
 	"github.com/kr/pretty"
 )
@@ -106,7 +107,10 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 		}
 		schemas = append(schemas, schema)
 	}
-	resourceSchemas := schemas[0].ResourceTypes
+	var resourceSchemas []map[string]*configschema.Block
+	for _, schema := range schemas {
+		resourceSchemas = append(resourceSchemas, schema.ResourceTypes)
+	}
 	pretty.Printf("resourceSchemas: %# v\n", resourceSchemas)
 
 	for resourceName, resource := range module["resources"].(map[string]interface{}) {
@@ -137,32 +141,39 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 			}
 		}
 
-		resourceSchema := resourceSchemas[r["type"].(string)]
-		attrs := primary["attributes"].(map[string]interface{})
-		pretty.Printf("%# v\n", attrs)
+		for _, value := range resourceSchemas {
+			resourceSchema := value[r["type"].(string)]
+			if resourceSchema == nil {
+				continue
+			}
+			pretty.Printf("resourceSchema: %# v\n", resourceSchema)
 
-		// Insert the resource's attributes in the key vault.
-		for key, value := range attrs {
-			encodedAttrName := rawStdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s.%s", strings.Join(s.modules[i].Path, "."), resourceName, key)))
+			attrs := primary["attributes"].(map[string]interface{})
+			pretty.Printf("attrs: %# v\n", attrs)
 
-			// Check if attribute exist in the schema.
-			if block, ok := resourceSchema.Attributes[strings.Split(key, ".")[0]]; ok {
-				// Is resource attribute sensitive?
-				if block.Sensitive { // then mask.
-					// Insert value to keyvault here.
-					version, err := s.KeyVault.InsertSecret(context.Background(), encodedAttrName, value.(string))
-					if err != nil {
-						panic(fmt.Sprintf("error inserting secret to key vault: %s", err))
-					}
-					attrs[key] = secretAttr{
-						ID:      encodedAttrName,
-						Version: version,
+			// Insert the resource's attributes in the key vault.
+			for key, value := range attrs {
+				encodedAttrName := rawStdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s.%s", strings.Join(s.modules[i].Path, "."), resourceName, key)))
+
+				// Check if attribute exist in the schema.
+				if block, ok := resourceSchema.Attributes[strings.Split(key, ".")[0]]; ok {
+					// Is resource attribute sensitive?
+					if block.Sensitive { // then mask.
+						// Insert value to keyvault here.
+						version, err := s.KeyVault.InsertSecret(context.Background(), encodedAttrName, value.(string))
+						if err != nil {
+							panic(fmt.Sprintf("error inserting secret to key vault: %s", err))
+						}
+						attrs[key] = secretAttr{
+							ID:      encodedAttrName,
+							Version: version,
+						}
+					} else {
+						pretty.Printf("not sensitive: %# v\n", key)
 					}
 				} else {
-					pretty.Printf("not sensitive: %# v\n", key)
+					pretty.Printf("not ok: %# v\n", key)
 				}
-			} else {
-				pretty.Printf("not ok: %# v\n", key)
 			}
 		}
 	}
