@@ -89,7 +89,7 @@ func (b *Backend) render(plan *format.Plan) {
 		fmt.Fprintf(header, "%s: Destroy an existing resource in Azure.\n", format.DiffActionSymbol(terraform.DiffDestroy))
 	}
 	if counts[terraform.DiffDestroyCreate] > 0 {
-		fmt.Fprintf(header, "%s: Destroy and then create a new replacement resource in Azure.\n", format.DiffActionSymbol(terraform.DiffDestroyCreate))
+		fmt.Fprintf(header, "%s: Destroy, and then create a new replacement resource in Azure.\n", format.DiffActionSymbol(terraform.DiffDestroyCreate))
 	}
 	if counts[terraform.DiffRefresh] > 0 {
 		fmt.Fprintf(header, "%s: Read data from a resource in Azure.\n", format.DiffActionSymbol(terraform.DiffRefresh))
