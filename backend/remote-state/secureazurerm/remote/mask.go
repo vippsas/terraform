@@ -145,11 +145,10 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 		for key, value := range attrs {
 			encodedAttrName := rawStdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s.%s", strings.Join(s.modules[i].Path, "."), resourceName, key)))
 
-			// Is resource attribute sensitive?
-			//pretty.Printf("%# v\n", resourceSchema)
-			//pretty.Printf("%# v\n", key)
-			if block, ok := resourceSchema.Attributes[strings.Split(key, ".")[0]]; ok { // then mask.
-				if block.Sensitive {
+			// Check if attribute exist in the schema.
+			if block, ok := resourceSchema.Attributes[strings.Split(key, ".")[0]]; ok {
+				// Is resource attribute sensitive?
+				if block.Sensitive { // then mask.
 					// Insert value to keyvault here.
 					version, err := s.KeyVault.InsertSecret(context.Background(), encodedAttrName, value.(string))
 					if err != nil {
