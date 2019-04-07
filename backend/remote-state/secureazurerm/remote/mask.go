@@ -84,6 +84,8 @@ func isModulePathEqual(a []interface{}, b []string) bool {
 	return true
 }
 
+var rawStdEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
+
 // maskModule masks all sensitive attributes in a module.
 func (s *State) maskModule(i int, module map[string]interface{}) {
 	resources := module["resources"].(map[string]interface{})
@@ -94,22 +96,76 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 	}
 	pretty.Printf("resourceList: %# v\n", resourceList)
 
-	/*
-		for _, rp := range s.resourceProviders {
-				schema, err := rp.GetSchema(&terraform.ProviderSchemaRequest{
-					ResourceTypes: resourceList,
-				})
-				if err != nil {
-					panic(err)
-				}
-				pretty.Printf("schema: %# v\n", schema)
+	var schemas []*terraform.ProviderSchema
+	for _, rp := range s.resourceProviders {
+		schema, err := rp.GetSchema(&terraform.ProviderSchemaRequest{
+			ResourceTypes: resourceList,
+		})
+		if err != nil {
+			panic(err)
 		}
-	*/
+		schemas = append(schemas, schema)
+	}
+	resourceSchemas := schemas[0].ResourceTypes
+	pretty.Printf("resourceSchemas: %# v\n", resourceSchemas)
 
 	for resourceName, resource := range module["resources"].(map[string]interface{}) {
 		r := resource.(map[string]interface{})
 		primary := r["primary"].(map[string]interface{})
-		s.maskResource(i, resourceName, primary["attributes"].(map[string]interface{}))
+
+		// List all the secrets from the keyvault.
+		secretIDs, err := s.KeyVault.ListSecrets(context.Background())
+		if err != nil {
+			panic(fmt.Errorf("error listing secrets: %s", err))
+		}
+
+		// Delete the resource's attributes that does not exists anymore in the key vault.
+		resourceAddresses := s.getAllResourceAttrAddresses()
+		for id := range secretIDs {
+			bs, err := rawStdEncoding.DecodeString(id)
+			if err != nil {
+				panic(err)
+			}
+			pretty.Printf("bs: %# v\n", string(bs))
+
+			// Delete those that does not exist anymore.
+			if _, ok := resourceAddresses[string(bs)]; !ok {
+				pretty.Printf("Deleting secret: %s\n", id)
+				if err := s.KeyVault.DeleteSecret(context.Background(), id); err != nil {
+					panic(err)
+				}
+			}
+		}
+
+		resourceSchema := resourceSchemas[r["type"].(string)]
+		attrs := primary["attributes"].(map[string]interface{})
+		pretty.Printf("%# v\n", attrs)
+
+		// Insert the resource's attributes in the key vault.
+		for key, value := range attrs {
+			encodedAttrName := rawStdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s.%s", strings.Join(s.modules[i].Path, "."), resourceName, key)))
+
+			// Is resource attribute sensitive?
+			//pretty.Printf("%# v\n", resourceSchema)
+			//pretty.Printf("%# v\n", key)
+			if block, ok := resourceSchema.Attributes[strings.Split(key, ".")[0]]; ok { // then mask.
+				if block.Sensitive {
+					// Insert value to keyvault here.
+					version, err := s.KeyVault.InsertSecret(context.Background(), encodedAttrName, value.(string))
+					if err != nil {
+						panic(fmt.Sprintf("error inserting secret to key vault: %s", err))
+					}
+					attrs[key] = secretAttr{
+						ID:      encodedAttrName,
+						Version: version,
+					}
+				} else {
+					pretty.Printf("not sensitive: %# v\n", key)
+				}
+			} else {
+				pretty.Printf("not ok: %# v\n", key)
+			}
+		}
 	}
 }
 
@@ -123,55 +179,6 @@ func (s *State) getAllResourceAttrAddresses() map[string]struct{} {
 		}
 	}
 	return resourceAttrAddr
-}
-
-var rawStdEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
-
-// maskResource masks all sensitive attributes in a resource.
-func (s *State) maskResource(i int, name string, attrs map[string]interface{}) {
-	pretty.Printf("attrs:\n%# v\n", attrs)
-
-	// List all the secrets from the keyvault.
-	secretIDs, err := s.KeyVault.ListSecrets(context.Background())
-	if err != nil {
-		panic(fmt.Errorf("error listing secrets: %s", err))
-	}
-
-	// Delete the resource's attributes that does not exists anymore in the key vault.
-	resourceAddresses := s.getAllResourceAttrAddresses()
-	for id := range secretIDs {
-		bs, err := rawStdEncoding.DecodeString(id)
-		if err != nil {
-			panic(err)
-		}
-		pretty.Printf("bs: %# v\n", string(bs))
-
-		// Delete those that does not exist anymore.
-		if _, ok := resourceAddresses[string(bs)]; !ok {
-			pretty.Printf("Deleting secret: %s\n", id)
-			if err := s.KeyVault.DeleteSecret(context.Background(), id); err != nil {
-				panic(err)
-			}
-		}
-	}
-
-	// Insert the resource's attributes in the key vault.
-	for key, value := range attrs {
-		encodedAttrName := rawStdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s.%s", strings.Join(s.modules[i].Path, "."), name, key)))
-
-		// Is resource attribute sensitive?
-		if s.modules[i].Resources[name][key] { // then mask.
-			// Insert value to keyvault here.
-			version, err := s.KeyVault.InsertSecret(context.Background(), encodedAttrName, value.(string))
-			if err != nil {
-				panic(fmt.Sprintf("error inserting secret to key vault: %s", err))
-			}
-			attrs[key] = secretAttr{
-				ID:      encodedAttrName,
-				Version: version,
-			}
-		}
-	}
 }
 
 // unmaskModule unmasks all sensitive attributes in a module.
