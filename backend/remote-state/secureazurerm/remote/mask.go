@@ -118,7 +118,11 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 						pretty.Printf("not sensitive: %# v\n", key)
 					}
 				} else {
-					pretty.Printf("not ok: %# v\n", key)
+					if _, ok := resourceSchema.BlockTypes[key]; ok {
+						pretty.Printf("TODO: blocktype: %# v\n", key)
+					} else {
+						pretty.Printf("not ok: %# v\n", key)
+					}
 				}
 			}
 		}
