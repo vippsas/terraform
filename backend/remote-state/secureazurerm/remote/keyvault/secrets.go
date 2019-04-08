@@ -49,19 +49,19 @@ func (k *KeyVault) ListSecrets(ctx context.Context) (map[string]struct{}, error)
 		return nil, fmt.Errorf("error getting secrets from key vault: %s", err)
 	}
 
-	m := make(map[string]struct{})
+	secretMap := make(map[string]struct{})
 	for {
 		values := secrets.Values()
 		if values == nil {
 			break
 		}
 		for _, value := range values {
-			m[getID(*value.ID)] = struct{}{}
+			secretMap[getID(*value.ID)] = struct{}{}
 		}
 		if err := secrets.NextWithContext(ctx); err != nil {
 			break
 		}
 	}
-	pretty.Printf("m: %# v\n", m)
-	return m, nil
+	pretty.Printf("secretMap: %# v\n", secretMap)
+	return secretMap, nil
 }
