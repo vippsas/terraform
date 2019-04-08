@@ -27,7 +27,8 @@ type KeyVault struct {
 	location          string
 }
 
-func genKVName() string {
+// generateKeyVaultName generates a new random key vault name of max length.
+func generateKeyVaultName() string {
 	var a, b string
 	a, err := rand.GenLowerAlphas(1)
 	if err != nil {
@@ -57,7 +58,7 @@ func Setup(ctx context.Context, resourceGroupName, location, workspace, subscrip
 		return k, err
 	}
 	if group.Tags == nil {
-		k.vaultName = genKVName()
+		k.vaultName = generateKeyVaultName()
 
 		tags := make(map[string]*string)
 		tags[workspace] = &k.vaultName
@@ -72,7 +73,7 @@ func Setup(ctx context.Context, resourceGroupName, location, workspace, subscrip
 			return k, fmt.Errorf("error updating tags on resource group %s: %s", resourceGroupName, err)
 		}
 	} else if (*(group.Tags))[workspace] == nil {
-		k.vaultName = genKVName()
+		k.vaultName = generateKeyVaultName()
 
 		(*group.Tags)[workspace] = &k.vaultName
 		_, err = groupsClient.CreateOrUpdate(
