@@ -11,78 +11,15 @@ import (
 	"github.com/kr/pretty"
 )
 
-// Module is used to report which attributes are sensitive or not.
-type Module struct {
-	Path      []string
-	Resources map[string]map[string]bool
-}
-
 // secretAttr is a sensitive attribute that is located as a secret in the Azure key vault.
 type secretAttr struct {
 	ID      string `json:"id"`      // ID of the secret.
 	Version string `json:"version"` // Version of the secret.
 }
 
-// copyResources copies the resources from a module i.
-func (s *State) copyResources(i int, resources map[string]*terraform.InstanceDiff) {
-	for name, resource := range resources {
-		s.modules[i].Resources[name] = make(map[string]bool)
-		for key, value := range resource.Attributes {
-			s.modules[i].Resources[name][key] = value.Sensitive
-		}
-	}
-}
-
-// copyModules copies the modules (only the relevant data).
-func (s *State) copyModules(modules []*terraform.ModuleDiff) {
-	if len(s.modules) != len(modules) {
-		s.modules = make([]Module, len(modules))
-	}
-	for i, module := range modules {
-		s.modules[i].Path = make([]string, len(module.Path))
-		copy(s.modules[i].Path, module.Path)
-		s.modules[i].Resources = make(map[string]map[string]bool)
-		s.copyResources(i, module.Resources)
-	}
-	// DEBUG: Print which attributes are sensitive. ~ bao.
-	/*
-		for i, module := range s.modules {
-			fmt.Printf("Module: %d\n", i)
-			for name, resource := range module.Resources {
-				fmt.Printf("Resource: %s:\n", name)
-				for attribute, value := range resource {
-					fmt.Printf("  %s: %t\n", attribute, value)
-				}
-			}
-		}
-	*/
-}
-
-// Report is used to report sensitive attributes to the state.
-func (s *State) Report(modules []*terraform.ModuleDiff) {
-	// Lock!
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.copyModules(modules)
-}
-
 // SetResourceProviders sets resource providers.
 func (s *State) SetResourceProviders(p []terraform.ResourceProvider) {
 	s.resourceProviders = p
-}
-
-// isModulePathEqual compares if the path of two modules are equal.
-func isModulePathEqual(a []interface{}, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, val := range a {
-		if val.(string) != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 var rawStdEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
@@ -95,7 +32,6 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 	for name := range resources {
 		resourceList = append(resourceList, strings.Split(name, ".")[0])
 	}
-	pretty.Printf("resourceList: %# v\n", resourceList)
 
 	var schemas []*terraform.ProviderSchema
 	for _, rp := range s.resourceProviders {
@@ -111,7 +47,6 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 	for _, schema := range schemas {
 		resourceSchemas = append(resourceSchemas, schema.ResourceTypes)
 	}
-	pretty.Printf("resourceSchemas: %# v\n", resourceSchemas)
 
 	for resourceName, resource := range module["resources"].(map[string]interface{}) {
 		r := resource.(map[string]interface{})
@@ -125,17 +60,17 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 
 		// Delete the resource's attributes that does not exists anymore in the key vault.
 		resourceAddresses := s.getAllResourceAttrAddresses()
-		for id := range secretIDs {
-			bs, err := rawStdEncoding.DecodeString(id)
+		for secretIDInBase32 := range secretIDs {
+			secretID, err := rawStdEncoding.DecodeString(secretIDInBase32)
 			if err != nil {
 				panic(err)
 			}
-			pretty.Printf("bs: %# v\n", string(bs))
+			pretty.Printf("secretID: %# v\n", string(secretID))
 
 			// Delete those that does not exist anymore.
-			if _, ok := resourceAddresses[string(bs)]; !ok {
-				pretty.Printf("Deleting secret: %s\n", id)
-				if err := s.KeyVault.DeleteSecret(context.Background(), id); err != nil {
+			if _, ok := resourceAddresses[string(secretID)]; !ok {
+				pretty.Printf("Deleting secret: %s\n", secretIDInBase32)
+				if err := s.KeyVault.DeleteSecret(context.Background(), secretIDInBase32); err != nil {
 					panic(err)
 				}
 			}
@@ -153,7 +88,11 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 
 			// Insert the resource's attributes in the key vault.
 			for key, value := range attrs {
-				encodedAttrName := rawStdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s.%s", strings.Join(s.modules[i].Path, "."), resourceName, key)))
+				var path []string
+				for _, s := range module["path"].([]interface{}) {
+					path = append(path, s.(string))
+				}
+				encodedAttrName := rawStdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s.%s", strings.Join(path, "."), resourceName, key)))
 
 				// Check if attribute exist in the schema.
 				if block, ok := resourceSchema.Attributes[strings.Split(key, ".")[0]]; ok {
@@ -179,6 +118,7 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 	}
 }
 
+// getAllResourceAttrAddresses returns all addresses to the resource attributes for the key vault.
 func (s *State) getAllResourceAttrAddresses() map[string]struct{} {
 	resourceAttrAddr := make(map[string]struct{})
 	for _, module := range s.state.Modules {
@@ -193,21 +133,18 @@ func (s *State) getAllResourceAttrAddresses() map[string]struct{} {
 
 // unmaskModule unmasks all sensitive attributes in a module.
 func (s *State) unmaskModule(i int, module map[string]interface{}) {
-	for resourceName, resource := range module["resources"].(map[string]interface{}) {
+	for _, resource := range module["resources"].(map[string]interface{}) {
 		r := resource.(map[string]interface{})
 		primary := r["primary"].(map[string]interface{})
-		s.unmaskResource(i, resourceName, primary["attributes"].(map[string]interface{}))
-	}
-}
-
-func (s *State) unmaskResource(i int, name string, attrs map[string]interface{}) {
-	for key, value := range attrs {
-		if sa, ok := value.(map[string]interface{}); ok {
-			secret, err := s.KeyVault.GetSecret(context.Background(), sa["id"].(string), sa["version"].(string))
-			if err != nil {
-				panic(fmt.Sprintf("error getting secret from key vault: %s", err))
+		attributes := primary["attributes"].(map[string]interface{})
+		for key, value := range attributes {
+			if secretAttribute, ok := value.(map[string]interface{}); ok {
+				secret, err := s.KeyVault.GetSecret(context.Background(), secretAttribute["id"].(string), secretAttribute["version"].(string))
+				if err != nil {
+					panic(fmt.Sprintf("error getting secret from key vault: %s", err))
+				}
+				attributes[key] = secret
 			}
-			attrs[key] = secret
 		}
 	}
 }
