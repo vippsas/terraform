@@ -58,10 +58,6 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 		return
 	}
 
-	// Set resource providers for masking sensitive attributes in remote state.
-	blobState := remoteState.(*remote.State)
-	blobState.SetResourceProviders(getResourceProviders(tfCtx))
-
 	// Setup the state
 	runningOp.State = tfCtx.State()
 
@@ -119,6 +115,10 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 			return
 		}
 	}
+
+	// Set resource providers for masking sensitive attributes in remote state.
+	blobState := remoteState.(*remote.State)
+	blobState.SetResourceProviders(getResourceProviders(tfCtx))
 
 	// Setup our hook for continuous state updates.
 	stateHook.State = remoteState

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform/backend"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote"
 	"github.com/hashicorp/terraform/config/module"
 	"github.com/hashicorp/terraform/terraform"
 )
@@ -17,14 +18,14 @@ func (b *Backend) refresh(stopCtx context.Context, cancelCtx context.Context, op
 	}
 
 	// Get our context
-	tfCtx, opState, err := b.context(op)
+	tfCtx, remoteState, err := b.context(op)
 	if err != nil {
 		runningOp.Err = err
 		return
 	}
 
 	// Set our state
-	runningOp.State = opState.State()
+	runningOp.State = remoteState.State()
 	if runningOp.State.Empty() || !runningOp.State.HasResources() {
 		msg := "Empty state (no resources exists)."
 		if b.CLI != nil {
@@ -33,6 +34,10 @@ func (b *Backend) refresh(stopCtx context.Context, cancelCtx context.Context, op
 			fmt.Println(msg)
 		}
 	}
+
+	// Set resource providers for masking sensitive attributes in remote state.
+	blobState := remoteState.(*remote.State)
+	blobState.SetResourceProviders(getResourceProviders(tfCtx))
 
 	// Perform the refresh in a goroutine so we can be interrupted
 	var newState *terraform.State
@@ -44,7 +49,7 @@ func (b *Backend) refresh(stopCtx context.Context, cancelCtx context.Context, op
 	}()
 
 	// Wait for "refresh" to be done.
-	if b.wait(doneCh, stopCtx, cancelCtx, tfCtx, opState) {
+	if b.wait(doneCh, stopCtx, cancelCtx, tfCtx, remoteState) {
 		return
 	}
 
@@ -56,11 +61,11 @@ func (b *Backend) refresh(stopCtx context.Context, cancelCtx context.Context, op
 	}
 
 	// Save state to storage account.
-	if err := opState.WriteState(newState); err != nil {
+	if err := remoteState.WriteState(newState); err != nil {
 		runningOp.Err = fmt.Errorf("error writing state in-memory: %s", err)
 		return
 	}
-	if err := opState.PersistState(); err != nil {
+	if err := remoteState.PersistState(); err != nil {
 		runningOp.Err = fmt.Errorf("error saving state remotely: %s", err)
 		return
 	}
