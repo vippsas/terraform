@@ -53,6 +53,7 @@ func Setup(ctx context.Context, resourceGroupName, location, workspace, subscrip
 	}
 	k.vaultClient.Authorizer = mgmtAuthorizer
 
+	// TODO: Replace these by saving the key vault name in the state itself.
 	group, err := groupsClient.Get(resourceGroupName)
 	if err != nil {
 		return k, err
