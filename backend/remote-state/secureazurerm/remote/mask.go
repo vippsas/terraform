@@ -102,7 +102,8 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 				encodedAttributeName := rawStdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s.%s", strings.Join(path, "."), resourceName, key)))
 
 				// Check if attribute exist in the schema.
-				if block, ok := resourceSchema.Attributes[strings.Split(key, ".")[0]]; ok {
+				resourceType := strings.Split(key, ".")[0]
+				if block, ok := resourceSchema.Attributes[resourceType]; ok {
 					// Is resource attribute sensitive?
 					if block.Sensitive { // then mask.
 						// Insert value to keyvault here.
@@ -118,7 +119,7 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 						pretty.Printf("not sensitive: %# v\n", key)
 					}
 				} else {
-					if _, ok := resourceSchema.BlockTypes[key]; ok {
+					if _, ok := resourceSchema.BlockTypes[resourceType]; ok {
 						pretty.Printf("TODO: blocktype: %# v\n", key)
 					} else {
 						pretty.Printf("not ok: %# v\n", key)
