@@ -11,8 +11,8 @@ import (
 	"github.com/kr/pretty"
 )
 
-// secretAttr is a sensitive attribute that is located as a secret in the Azure key vault.
-type secretAttr struct {
+// secretAttribute is a sensitive attribute that is located as a secret in the Azure key vault.
+type secretAttribute struct {
 	ID      string `json:"id"`      // ID of the secret.
 	Version string `json:"version"` // Version of the secret.
 }
@@ -90,28 +90,28 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 			}
 			pretty.Printf("resourceSchema: %# v\n", resourceSchema)
 
-			attrs := primary["attributes"].(map[string]interface{})
-			pretty.Printf("attrs: %# v\n", attrs)
+			attributes := primary["attributes"].(map[string]interface{})
+			pretty.Printf("attributes: %# v\n", attributes)
 
 			// Insert the resource's attributes in the key vault.
-			for key, value := range attrs {
+			for key, value := range attributes {
 				var path []string
 				for _, s := range module["path"].([]interface{}) {
 					path = append(path, s.(string))
 				}
-				encodedAttrName := rawStdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s.%s", strings.Join(path, "."), resourceName, key)))
+				encodedAttributeName := rawStdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s.%s", strings.Join(path, "."), resourceName, key)))
 
 				// Check if attribute exist in the schema.
 				if block, ok := resourceSchema.Attributes[strings.Split(key, ".")[0]]; ok {
 					// Is resource attribute sensitive?
 					if block.Sensitive { // then mask.
 						// Insert value to keyvault here.
-						version, err := s.KeyVault.InsertSecret(context.Background(), encodedAttrName, value.(string))
+						version, err := s.KeyVault.InsertSecret(context.Background(), encodedAttributeName, value.(string))
 						if err != nil {
 							panic(fmt.Sprintf("error inserting secret to key vault: %s", err))
 						}
-						attrs[key] = secretAttr{
-							ID:      encodedAttrName,
+						attributes[key] = secretAttribute{
+							ID:      encodedAttributeName,
 							Version: version,
 						}
 					} else {
