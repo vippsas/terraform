@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform/terraform"
 )
 
+// getResourceProviders returns all the resource providers for the given configuration.
 func getResourceProviders(c *terraform.Context) []terraform.ResourceProvider {
 	var providers []terraform.ResourceProvider
 	components := c.GetComponents()
