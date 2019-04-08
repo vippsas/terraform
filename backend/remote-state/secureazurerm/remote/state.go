@@ -24,7 +24,6 @@ type State struct {
 	state, // in-memory state.
 	readState *terraform.State // state read from the blob.
 
-	modules           []Module // contains what attributes are sensitive.
 	resourceProviders []terraform.ResourceProvider
 }
 
@@ -41,13 +40,6 @@ func (s *State) WriteState(ts *terraform.State) error {
 	// Lock, yay!
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	// Check if the upper-level hasn't forgotten to report sensitive attributes.
-	for _, module := range s.modules {
-		if module.Path == nil || module.Resources == nil {
-			return errors.New("no reported sensitive attributes")
-		}
-	}
 
 	// Check if the new written state has the same lineage as the old previous one.
 	if s.readState != nil && !ts.SameLineage(s.readState) {
@@ -87,17 +79,16 @@ func (s *State) RefreshState() error {
 	}
 
 	// Unmask remote state.
-	var m map[string]interface{}
-	if err := json.Unmarshal(payload.Data, &m); err != nil {
+	var stateMap map[string]interface{}
+	if err := json.Unmarshal(payload.Data, &stateMap); err != nil {
 		return fmt.Errorf("error unmarshalling state to map: %s", err)
 	}
-	for i, module := range m["modules"].([]interface{}) {
-		mod := module.(map[string]interface{})
-		s.unmaskModule(i, mod)
+	for i, module := range stateMap["modules"].([]interface{}) {
+		s.unmaskModule(i, module.(map[string]interface{}))
 	}
 
 	// Convert it back to terraform.State.
-	j, err := json.Marshal(m)
+	j, err := json.Marshal(stateMap)
 	if err != nil {
 		return fmt.Errorf("error marshalling map to JSON: %s", err)
 	}
@@ -139,10 +130,7 @@ func (s *State) PersistState() error {
 
 	// Mask sensitive attributes.
 	for i, module := range stateMap["modules"].([]interface{}) {
-		mod := module.(map[string]interface{})
-		if isModulePathEqual(mod["path"].([]interface{}), s.modules[i].Path) {
-			s.maskModule(i, mod)
-		}
+		s.maskModule(i, module.(map[string]interface{}))
 	}
 
 	// Marshal state map to JSON.

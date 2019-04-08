@@ -122,9 +122,6 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 	// Setup our hook for continuous state updates.
 	stateHook.State = remoteState
 
-	// DEPRECATED: Take a snapshot of the module diff to be used to determine the sensitive attributes.
-	blobState.Report(plan.Diff.Modules)
-
 	// Begin the "apply" (in a goroutine so that we can be interrupted).
 	var applyState *terraform.State
 	var applyErr error
