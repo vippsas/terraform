@@ -113,7 +113,8 @@ func (b *Backend) render(plan *format.Plan) {
 	}
 }
 
-const planHeaderIntro = `An execution plan has been generated and is shown below.
+const planHeaderIntro = `
+An execution plan has been generated and is shown below.
 Actions are indicated with the following symbols:
 `
 
