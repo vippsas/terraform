@@ -31,6 +31,7 @@ type Backend struct {
 
 	container *account.Container
 
+	// State credentials.
 	resourceGroupName,
 	location,
 	keyVaultPrefix,
