@@ -33,6 +33,9 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 		resourceList = append(resourceList, strings.Split(name, ".")[0])
 	}
 
+	if len(s.resourceProviders) == 0 {
+		panic("forgot to set resource providers")
+	}
 	var schemas []*terraform.ProviderSchema
 	for _, rp := range s.resourceProviders {
 		schema, err := rp.GetSchema(&terraform.ProviderSchemaRequest{
@@ -50,7 +53,6 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 
 	for resourceName, resource := range module["resources"].(map[string]interface{}) {
 		r := resource.(map[string]interface{})
-		primary := r["primary"].(map[string]interface{})
 
 		// List all the secrets from the keyvault.
 		secretIDs, err := s.KeyVault.ListSecrets(context.Background())
@@ -76,6 +78,8 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 			}
 		}
 
+		// Filter sensitive attributes into the key vault.
+		primary := r["primary"].(map[string]interface{})
 		for _, value := range resourceSchemas {
 			resourceSchema := value[r["type"].(string)]
 			if resourceSchema == nil {
