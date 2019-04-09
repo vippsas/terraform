@@ -71,5 +71,5 @@ func (b *Backend) setupKeyVault(workspaceName string) (*keyvault.KeyVault, error
 	if err != nil {
 		return nil, fmt.Errorf("error setting up key vault: %s", err)
 	}
-	return &keyVault, nil
+	return keyVault, nil
 }
