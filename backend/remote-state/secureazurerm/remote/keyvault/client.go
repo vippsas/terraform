@@ -30,16 +30,16 @@ type KeyVault struct {
 
 // generateKeyVaultName generates a new random key vault name of max length.
 func generateKeyVaultName() (string, error) {
-	var a, b string
-	a, err := rand.GenLowerAlphas(1)
+	var singleAlphaChar, Alphanumerics string
+	singleAlphaChar, err := rand.GenLowerAlphas(1)
 	if err != nil {
 		return "", fmt.Errorf("error generating alphabetic characters: %s", err)
 	}
-	b, err = rand.GenLowerAlphanums(23)
+	Alphanumerics, err = rand.GenLowerAlphanums(23)
 	if err != nil {
 		return "", fmt.Errorf("error generating lowercase alphabetic and numeric characters: %s", err)
 	}
-	return a + b, nil
+	return singleAlphaChar + Alphanumerics, nil
 }
 
 // Setup creates a new Azure Key Vault.
