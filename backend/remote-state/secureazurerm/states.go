@@ -1,7 +1,6 @@
 package secureazurerm
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 
@@ -9,7 +8,6 @@ import (
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
 	"github.com/hashicorp/terraform/state"
-	"github.com/hashicorp/terraform/terraform"
 )
 
 // States returns a list of the names of all remote states stored in separate unique blob.
@@ -32,7 +30,7 @@ func (b *Backend) States() ([]string, error) {
 // DeleteState deletes remote state.
 func (b *Backend) DeleteState(name string) error {
 	// Setup state blob.
-	blob, err := blob.Setup(b.container, name, nil) // blob name = workspace name.
+	blob, err := blob.Setup(b.container, name) // blob name = workspace name.
 	if err != nil {
 		return fmt.Errorf("error setting up state blob: %s", err)
 	}
@@ -53,20 +51,7 @@ func (b *Backend) DeleteState(name string) error {
 // State returns the state specified by name.
 func (b *Backend) State(name string) (state.State, error) {
 	// Setup blob.
-	blob, err := blob.Setup(b.container, name, func(blob *blob.Blob) error { // TODO: Move this into blob.go.
-		// Create new state in-memory.
-		tfState := terraform.NewState()
-		tfState.Serial++
-		// Write state to blob.
-		var buf bytes.Buffer
-		if err := terraform.WriteState(tfState, &buf); err != nil {
-			return fmt.Errorf("error writing state to buffer: %s", err)
-		}
-		if err := blob.Put(buf.Bytes()); err != nil {
-			return fmt.Errorf("error writing buffer to state blob: %s", err)
-		}
-		return nil
-	})
+	blob, err := blob.Setup(b.container, name)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up state blob: %s", err)
 	}

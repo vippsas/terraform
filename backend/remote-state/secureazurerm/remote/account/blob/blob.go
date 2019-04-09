@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account"
 	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/state/remote"
+	"github.com/hashicorp/terraform/terraform"
 )
 
 // Blob communicates to the remote blob in a container in a storage account in Azure.
@@ -22,7 +23,7 @@ type Blob struct {
 }
 
 // Setup setups a new or existing blob.
-func Setup(container *account.Container, name string, init func(*Blob) error) (*Blob, error) {
+func Setup(container *account.Container, name string) (*Blob, error) {
 	// Initialize.
 	blob := Blob{
 		container: container,
@@ -34,11 +35,21 @@ func Setup(container *account.Container, name string, init func(*Blob) error) (*
 	if err != nil {
 		return nil, fmt.Errorf("error checking blob existence: %s", err)
 	}
-	// If not exists, write empty blob.
+	// If not exists, write empty state blob.
 	if !exists {
-		if err := init(&blob); err != nil {
-			return nil, err
+		// Create new state in-memory.
+		tfState := terraform.NewState()
+		tfState.Serial++
+
+		// Write state to blob.
+		var buf bytes.Buffer
+		if err := terraform.WriteState(tfState, &buf); err != nil {
+			return nil, fmt.Errorf("error writing state to buffer: %s", err)
 		}
+		if err := blob.Put(buf.Bytes()); err != nil {
+			return nil, fmt.Errorf("error writing buffer to state blob: %s", err)
+		}
+		return nil, nil
 	}
 
 	return &blob, nil
