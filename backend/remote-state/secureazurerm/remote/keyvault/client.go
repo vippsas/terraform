@@ -91,6 +91,7 @@ func Setup(ctx context.Context, resourceGroupName, location, workspace, subscrip
 		k.vaultName = *(*group.Tags)[workspace]
 	}
 
+	// Setup the key vault.
 	vault, err := k.vaultClient.Get(ctx, resourceGroupName, k.vaultName)
 	if err != nil {
 		tenantID, err := uuid.FromString(tenantID)
