@@ -2,9 +2,12 @@ package keyvault
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
-	"github.com/Azure/azure-sdk-for-go/arm/resources/resources"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
+	"github.com/hashicorp/terraform/state"
+
 	KV "github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/mgmt/2016-10-01/keyvault"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
@@ -25,7 +28,6 @@ type KeyVault struct {
 	resourceGroupName string
 	workspace         string
 	location          string
-	groupsClient      resources.GroupsClient
 }
 
 // generateKeyVaultName generates a new random key vault name of max length.
@@ -43,59 +45,57 @@ func generateKeyVaultName() (string, error) {
 }
 
 // Setup creates a new Azure Key Vault.
-func Setup(ctx context.Context, props *properties.Properties, workspace string) (*KeyVault, error) {
+func Setup(ctx context.Context, blob *blob.Blob, props *properties.Properties, workspace string) (*KeyVault, error) {
 	k := &KeyVault{
 		resourceGroupName: props.ResourceGroupName,
 		vaultClient:       keyvault.NewVaultsClient(props.SubscriptionID),
 		keyClient:         KV.New(),
-		groupsClient:      props.GroupsClient,
 		workspace:         workspace,
 		location:          props.Location,
 	}
 	k.vaultClient.Authorizer = props.MgmtAuthorizer
 
-	// TODO: Replace these by saving the key vault name in the state itself.
-	group, err := props.GroupsClient.Get(props.ResourceGroupName)
+	payload, err := blob.Get()
 	if err != nil {
-		return nil, fmt.Errorf("error getting resource group named %s: %s", props.ResourceGroupName, err)
+		return nil, fmt.Errorf("error getting blob: %s", err)
 	}
-	if group.Tags == nil {
+	var stateMap map[string]interface{}
+	err = json.Unmarshal(payload.Data, &stateMap)
+	if err != nil {
+		panic(err)
+	}
+
+	if stateMap["keyVaultName"] == nil {
+		// Set a new generated key vault name.
 		k.vaultName, err = generateKeyVaultName()
 		if err != nil {
 			return nil, fmt.Errorf("error generating key vault name: %s", err)
 		}
+		stateMap["keyVaultName"] = k.vaultName
 
-		tags := make(map[string]*string)
-		tags[workspace] = &k.vaultName
-		_, err = props.GroupsClient.CreateOrUpdate(
-			props.ResourceGroupName,
-			resources.Group{
-				Location: &props.Location,
-				Tags:     &tags,
-			},
-		)
+		// Lock/Lease blob.
+		lockInfo := state.NewLockInfo()
+		lockInfo.Operation = "SetupKeyVault"
+		leaseID, err := blob.Lock(lockInfo)
 		if err != nil {
-			return k, fmt.Errorf("error updating tags on resource group %s: %s", props.ResourceGroupName, err)
+			return nil, fmt.Errorf("error locking blob: %s", err)
 		}
-	} else if (*(group.Tags))[workspace] == nil {
-		k.vaultName, err = generateKeyVaultName()
-		if err != nil {
-			return nil, fmt.Errorf("error generating key vault name: %s", err)
-		}
+		defer blob.Unlock(leaseID)
 
-		(*group.Tags)[workspace] = &k.vaultName
-		_, err = props.GroupsClient.CreateOrUpdate(
-			props.ResourceGroupName,
-			resources.Group{
-				Location: &props.Location,
-				Tags:     group.Tags,
-			},
-		)
+		// Marshal state map to JSON.
+		data, err := json.MarshalIndent(stateMap, "", "    ")
 		if err != nil {
-			return nil, fmt.Errorf("error updating tags on resource group %s: %s", props.ResourceGroupName, err)
+			return nil, fmt.Errorf("error marshalling state map to JSON: %s", err)
+		}
+		data = append(data, '\n')
+
+		// Put the JSON into the blob.
+		err = blob.Put(data)
+		if err != nil {
+			return nil, fmt.Errorf("error putting state to blob: %s", err)
 		}
 	} else {
-		k.vaultName = *(*group.Tags)[workspace]
+		k.vaultName = stateMap["keyVaultName"].(string)
 	}
 
 	// Setup the key vault.
@@ -144,28 +144,8 @@ func Setup(ctx context.Context, props *properties.Properties, workspace string) 
 
 // Delete key vault.
 func (k *KeyVault) Delete(ctx context.Context) error {
-	group, err := k.groupsClient.Get(k.resourceGroupName)
-	if err != nil {
-		return err
-	}
 	if _, err := k.vaultClient.Delete(ctx, k.resourceGroupName, k.vaultName); err != nil {
 		return fmt.Errorf("error deleting key vault: %s", err)
-	}
-	for tag := range *group.Tags {
-		if tag == k.workspace {
-			delete(*group.Tags, tag)
-			_, err = k.groupsClient.CreateOrUpdate(
-				k.resourceGroupName,
-				resources.Group{
-					Location: &k.location,
-					Tags:     group.Tags,
-				},
-			)
-			if err != nil {
-				return fmt.Errorf("error updating tags on resource group %s: %s", k.resourceGroupName, err)
-			}
-			break
-		}
 	}
 	return nil
 }
