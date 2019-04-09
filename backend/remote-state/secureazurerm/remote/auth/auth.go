@@ -5,15 +5,17 @@ import (
 	"fmt"
 	"os/exec"
 
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
+
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 )
 
-// NewMgmt creates a new authorizer using resource mgmt endpoint.
-func NewMgmt() (authorizer autorest.Authorizer, subscriptionID, tenantID, objectID string, err error) {
+// NewMgmt creates a new authorizer using resource management endpoint.
+func NewMgmt() (props *properties.Properties, err error) {
 	// Try authorizing using Azure CLI, which will use the resource: https://management.azure.com/.
-	authorizer, err = auth.NewAuthorizerFromCLIWithResource(azure.PublicCloud.ResourceManagerEndpoint)
+	props.MgmtAuthorizer, err = auth.NewAuthorizerFromCLIWithResource(azure.PublicCloud.ResourceManagerEndpoint)
 	if err != nil {
 		// Fetch subscriptionID from environment variable AZURE_SUBSCRIPTION_ID.
 		settings, innerErr := auth.GetSettingsFromEnvironment()
@@ -21,13 +23,14 @@ func NewMgmt() (authorizer autorest.Authorizer, subscriptionID, tenantID, object
 			err = fmt.Errorf("error creating new authorizer from CLI: %v: error getting settings from environment: %v", err, innerErr)
 			return
 		}
-		subscriptionID = settings.GetSubscriptionID()
-		if subscriptionID == "" {
+		props.SubscriptionID = settings.GetSubscriptionID()
+		if props.SubscriptionID == "" {
 			err = fmt.Errorf("error creating new authorizer from CLI: %v: environment variable %v is not set", err, auth.SubscriptionID)
 			return
 		}
+
 		// Authorize using MSI.
-		authorizer, innerErr = settings.GetMSI().Authorizer()
+		props.MgmtAuthorizer, innerErr = settings.GetMSI().Authorizer()
 		if innerErr != nil {
 			err = fmt.Errorf("error creating new authorizer from CLI: %v: error creating authorizer from environment: %v", err, innerErr)
 			return
@@ -45,10 +48,10 @@ func NewMgmt() (authorizer autorest.Authorizer, subscriptionID, tenantID, object
 			err = fmt.Errorf("error unmarshalling subscription ID and tenant ID from JSON output from Azure CLI: %s", err)
 			return
 		}
-		subscriptionID = m["id"].(string)
-		tenantID = m["tenantId"].(string)
+		props.SubscriptionID = m["id"].(string)
+		props.TenantID = m["tenantId"].(string)
 		out, err = exec.Command("az", "ad", "signed-in-user", "show", "--output", "json", "--query", "objectId").Output()
-		if err = json.Unmarshal(out, &objectID); err != nil {
+		if err = json.Unmarshal(out, &props.ObjectID); err != nil {
 			err = fmt.Errorf("error unmarshalling object ID from JSON output from Azure CLI: %s", err)
 			return
 		}
