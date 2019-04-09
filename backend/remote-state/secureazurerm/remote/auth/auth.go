@@ -13,7 +13,7 @@ import (
 )
 
 // NewMgmt creates a new authorizer using resource management endpoint.
-func NewMgmt() (props *properties.Properties, err error) {
+func NewMgmt() (props properties.Properties, err error) {
 	// Try authorizing using Azure CLI, which will use the resource: https://management.azure.com/.
 	props.MgmtAuthorizer, err = auth.NewAuthorizerFromCLIWithResource(azure.PublicCloud.ResourceManagerEndpoint)
 	if err != nil {

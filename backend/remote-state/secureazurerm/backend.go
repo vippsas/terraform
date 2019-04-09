@@ -31,7 +31,7 @@ type Backend struct {
 
 	container *account.Container
 
-	props *properties.Properties
+	props properties.Properties
 }
 
 // New creates a new backend for remote state stored in Azure storage account and key vault.
@@ -59,29 +59,27 @@ func New() backend.Backend {
 
 // configure bootstraps the Azure resources needed to use this backend.
 func (b *Backend) configure(ctx context.Context) error {
-	// Get the data attributes from the "backend"-block.
-	attrs := schema.FromContextBackendConfig(ctx)
-
-	// Resource Group:
-	b.props.ResourceGroupName = attrs.Get("resource_group_name").(string)
-	// Tags: <workspace>: <kvname>
-
-	b.props.Location = attrs.Get("location").(string)
-
 	var err error
 	b.props, err = auth.NewMgmt()
 	if err != nil {
 		return fmt.Errorf("error creating new mgmt authorizer: %s", err)
 	}
 
+	// Get the data attributes from the "backend"-block.
+	attrs := schema.FromContextBackendConfig(ctx)
+
+	b.props.ResourceGroupName = attrs.Get("resource_group_name").(string)
+	// Tags: <workspace>: <kvname>
+	b.props.Location = attrs.Get("location").(string)
+
 	// Setup the resource group for terraform.State.
-	b.props.GroupsClient = resources.NewGroupsClient(b.props.SubscriptionID)
-	b.props.GroupsClient.Authorizer = b.props.MgmtAuthorizer
+	groupsClient := resources.NewGroupsClient(b.props.SubscriptionID)
+	groupsClient.Authorizer = b.props.MgmtAuthorizer
 	// Check if the resource group already exists.
-	_, err = b.props.GroupsClient.Get(b.props.ResourceGroupName)
+	_, err = groupsClient.Get(b.props.ResourceGroupName)
 	if err != nil { // does not exist.
 		// Create the resource group.
-		_, err = b.props.GroupsClient.CreateOrUpdate(
+		_, err = groupsClient.CreateOrUpdate(
 			b.props.ResourceGroupName,
 			resources.Group{
 				Location: to.StringPtr(b.props.Location),
@@ -93,7 +91,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	// Setup a container in the Azure storage account.
-	if b.container, err = account.Setup(ctx, b.props, "states"); err != nil {
+	if b.container, err = account.Setup(ctx, &b.props, "states"); err != nil {
 		return fmt.Errorf("error creating container: %s", err)
 	}
 
