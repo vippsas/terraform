@@ -30,6 +30,11 @@ type KeyVault struct {
 	location          string
 }
 
+// Name returns the name of the key vault.
+func (k *KeyVault) Name() string {
+	return k.vaultName
+}
+
 // generateKeyVaultName generates a new random key vault name of max length.
 func generateKeyVaultName() (string, error) {
 	var singleAlphaChar, alphanumerics string

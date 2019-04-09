@@ -132,6 +132,7 @@ func (s *State) PersistState() error {
 	for i, module := range stateMap["modules"].([]interface{}) {
 		s.maskModule(i, module.(map[string]interface{}))
 	}
+	stateMap["keyVaultName"] = s.KeyVault.Name()
 
 	// Marshal state map to JSON.
 	data, err := json.MarshalIndent(stateMap, "", "    ")
