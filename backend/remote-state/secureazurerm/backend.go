@@ -6,9 +6,9 @@ import (
 	"sync"
 
 	"github.com/Azure/azure-sdk-for-go/arm/resources/resources"
-	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/hashicorp/terraform/backend"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/auth"
 	"github.com/hashicorp/terraform/helper/schema"
@@ -31,16 +31,7 @@ type Backend struct {
 
 	container *account.Container
 
-	// State credentials.
-	resourceGroupName,
-	location,
-	keyVaultPrefix,
-	subscriptionID,
-	tenantID,
-	objectID string
-
-	mgmtAuthorizer autorest.Authorizer
-	groupsClient   resources.GroupsClient
+	props *properties.Properties
 }
 
 // New creates a new backend for remote state stored in Azure storage account and key vault.
@@ -72,37 +63,37 @@ func (b *Backend) configure(ctx context.Context) error {
 	attrs := schema.FromContextBackendConfig(ctx)
 
 	// Resource Group:
-	b.resourceGroupName = attrs.Get("resource_group_name").(string)
+	b.props.ResourceGroupName = attrs.Get("resource_group_name").(string)
 	// Tags: <workspace>: <kvname>
 
-	b.location = attrs.Get("location").(string)
+	b.props.Location = attrs.Get("location").(string)
 
 	var err error
-	b.mgmtAuthorizer, b.subscriptionID, b.tenantID, b.objectID, err = auth.NewMgmt()
+	b.props, err = auth.NewMgmt()
 	if err != nil {
 		return fmt.Errorf("error creating new mgmt authorizer: %s", err)
 	}
 
 	// Setup the resource group for terraform.State.
-	b.groupsClient = resources.NewGroupsClient(b.subscriptionID)
-	b.groupsClient.Authorizer = b.mgmtAuthorizer
+	b.props.GroupsClient = resources.NewGroupsClient(b.props.SubscriptionID)
+	b.props.GroupsClient.Authorizer = b.props.MgmtAuthorizer
 	// Check if the resource group already exists.
-	_, err = b.groupsClient.Get(b.resourceGroupName)
+	_, err = b.props.GroupsClient.Get(b.props.ResourceGroupName)
 	if err != nil { // does not exist.
 		// Create the resource group.
-		_, err = b.groupsClient.CreateOrUpdate(
-			b.resourceGroupName,
+		_, err = b.props.GroupsClient.CreateOrUpdate(
+			b.props.ResourceGroupName,
 			resources.Group{
-				Location: to.StringPtr(b.location),
+				Location: to.StringPtr(b.props.Location),
 			},
 		)
 		if err != nil {
-			return fmt.Errorf("error creating a resource group %s: %s", b.resourceGroupName, err)
+			return fmt.Errorf("error creating a resource group %s: %s", b.props.ResourceGroupName, err)
 		}
 	}
 
 	// Setup a container in the Azure storage account.
-	if b.container, err = account.Setup(ctx, b.mgmtAuthorizer, b.subscriptionID, b.resourceGroupName, b.location, "states"); err != nil {
+	if b.container, err = account.Setup(ctx, b.props, "states"); err != nil {
 		return fmt.Errorf("error creating container: %s", err)
 	}
 

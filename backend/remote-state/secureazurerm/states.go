@@ -48,16 +48,16 @@ func (b *Backend) DeleteState(name string) error {
 	return nil
 }
 
-// State returns the state specified by name.
-func (b *Backend) State(name string) (state.State, error) {
+// State returns the state specified by workspace.
+func (b *Backend) State(workspaceName string) (state.State, error) {
 	// Setup blob.
-	blob, err := blob.Setup(b.container, name)
+	blob, err := blob.Setup(b.container, workspaceName)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up state blob: %s", err)
 	}
 
 	// Setup key vault.
-	keyVault, err := b.setupKeyVault(name)
+	keyVault, err := b.setupKeyVault(workspaceName)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up state key vault: %s", err)
 	}
@@ -66,8 +66,8 @@ func (b *Backend) State(name string) (state.State, error) {
 }
 
 // setupKeyVault setups the state key vault.
-func (b *Backend) setupKeyVault(name string) (*keyvault.KeyVault, error) {
-	keyVault, err := keyvault.Setup(context.Background(), b.resourceGroupName, b.location, name, b.subscriptionID, b.tenantID, b.objectID, b.mgmtAuthorizer, b.groupsClient)
+func (b *Backend) setupKeyVault(workspaceName string) (*keyvault.KeyVault, error) {
+	keyVault, err := keyvault.Setup(context.Background(), b.props, workspaceName)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up key vault: %s", err)
 	}
