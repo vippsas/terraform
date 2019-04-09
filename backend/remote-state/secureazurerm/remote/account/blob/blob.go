@@ -49,7 +49,6 @@ func Setup(container *account.Container, name string) (*Blob, error) {
 		if err := blob.Put(buf.Bytes()); err != nil {
 			return nil, fmt.Errorf("error writing buffer to state blob: %s", err)
 		}
-		return nil, nil
 	}
 
 	return &blob, nil

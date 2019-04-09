@@ -1,7 +1,6 @@
 package properties
 
 import (
-	"github.com/Azure/azure-sdk-for-go/arm/resources/resources"
 	"github.com/Azure/go-autorest/autorest"
 )
 
@@ -17,5 +16,4 @@ type Properties struct {
 
 	// Authorizers and clients.
 	MgmtAuthorizer autorest.Authorizer
-	GroupsClient   resources.GroupsClient
 }
