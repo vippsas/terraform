@@ -7,24 +7,25 @@ import (
 	"github.com/Azure/azure-sdk-for-go/arm/resources/resources"
 	KV "github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/mgmt/2016-10-01/keyvault"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/rand"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/auth"
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/to"
 )
 
 // KeyVault represents an Azure Key Vault.
 type KeyVault struct {
+	vaultName   string
+	vaultURI    string
+	vaultClient keyvault.VaultsClient
+	keyClient   KV.BaseClient
+
 	resourceGroupName string
-	vaultName         string
-	vaultURI          string
-	vaultClient       keyvault.VaultsClient
-	keyClient         KV.BaseClient
-	groupsClient      resources.GroupsClient
 	workspace         string
 	location          string
+	groupsClient      resources.GroupsClient
 }
 
 // generateKeyVaultName generates a new random key vault name of max length.
@@ -42,19 +43,19 @@ func generateKeyVaultName() string {
 }
 
 // Setup creates a new Azure Key Vault.
-func Setup(ctx context.Context, resourceGroupName, location, workspace, subscriptionID, tenantID, objectID string, mgmtAuthorizer autorest.Authorizer, groupsClient resources.GroupsClient) (KeyVault, error) {
+func Setup(ctx context.Context, props *properties.Properties, workspace string) (KeyVault, error) {
 	k := KeyVault{
-		resourceGroupName: resourceGroupName,
-		vaultClient:       keyvault.NewVaultsClient(subscriptionID),
+		resourceGroupName: props.ResourceGroupName,
+		vaultClient:       keyvault.NewVaultsClient(props.SubscriptionID),
 		keyClient:         KV.New(),
-		groupsClient:      groupsClient,
+		groupsClient:      props.GroupsClient,
 		workspace:         workspace,
-		location:          location,
+		location:          props.Location,
 	}
-	k.vaultClient.Authorizer = mgmtAuthorizer
+	k.vaultClient.Authorizer = props.MgmtAuthorizer
 
 	// TODO: Replace these by saving the key vault name in the state itself.
-	group, err := groupsClient.Get(resourceGroupName)
+	group, err := props.GroupsClient.Get(props.ResourceGroupName)
 	if err != nil {
 		return k, err
 	}
@@ -63,43 +64,43 @@ func Setup(ctx context.Context, resourceGroupName, location, workspace, subscrip
 
 		tags := make(map[string]*string)
 		tags[workspace] = &k.vaultName
-		_, err = groupsClient.CreateOrUpdate(
-			resourceGroupName,
+		_, err = props.GroupsClient.CreateOrUpdate(
+			props.ResourceGroupName,
 			resources.Group{
-				Location: &location,
+				Location: &props.Location,
 				Tags:     &tags,
 			},
 		)
 		if err != nil {
-			return k, fmt.Errorf("error updating tags on resource group %s: %s", resourceGroupName, err)
+			return k, fmt.Errorf("error updating tags on resource group %s: %s", props.ResourceGroupName, err)
 		}
 	} else if (*(group.Tags))[workspace] == nil {
 		k.vaultName = generateKeyVaultName()
 
 		(*group.Tags)[workspace] = &k.vaultName
-		_, err = groupsClient.CreateOrUpdate(
-			resourceGroupName,
+		_, err = props.GroupsClient.CreateOrUpdate(
+			props.ResourceGroupName,
 			resources.Group{
-				Location: &location,
+				Location: &props.Location,
 				Tags:     group.Tags,
 			},
 		)
 		if err != nil {
-			return k, fmt.Errorf("error updating tags on resource group %s: %s", resourceGroupName, err)
+			return k, fmt.Errorf("error updating tags on resource group %s: %s", props.ResourceGroupName, err)
 		}
 	} else {
 		k.vaultName = *(*group.Tags)[workspace]
 	}
 
 	// Setup the key vault.
-	vault, err := k.vaultClient.Get(ctx, resourceGroupName, k.vaultName)
+	vault, err := k.vaultClient.Get(ctx, props.ResourceGroupName, k.vaultName)
 	if err != nil {
-		tenantID, err := uuid.FromString(tenantID)
+		tenantID, err := uuid.FromString(props.TenantID)
 		if err != nil {
 			return k, fmt.Errorf("error converting tenant ID-string to UUID: %s", err)
 		}
-		vault, err = k.vaultClient.CreateOrUpdate(ctx, resourceGroupName, k.vaultName, keyvault.VaultCreateOrUpdateParameters{
-			Location: to.StringPtr(location),
+		vault, err = k.vaultClient.CreateOrUpdate(ctx, props.ResourceGroupName, k.vaultName, keyvault.VaultCreateOrUpdateParameters{
+			Location: to.StringPtr(props.Location),
 			Properties: &keyvault.VaultProperties{
 				TenantID: &tenantID,
 				Sku: &keyvault.Sku{
@@ -109,7 +110,7 @@ func Setup(ctx context.Context, resourceGroupName, location, workspace, subscrip
 				AccessPolicies: &[]keyvault.AccessPolicyEntry{
 					keyvault.AccessPolicyEntry{
 						TenantID: &tenantID,
-						ObjectID: &objectID,
+						ObjectID: &props.ObjectID,
 						Permissions: &keyvault.Permissions{
 							Secrets: &[]keyvault.SecretPermissions{
 								keyvault.SecretPermissionsList,

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/to"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/rand"
 
 	armStorage "github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2018-07-01/storage"
@@ -22,16 +22,16 @@ type Container struct {
 }
 
 // Setup creates a new remote client to the storage account.
-func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID, resourceGroupName, location, containerName string) (*Container, error) {
+func Setup(ctx context.Context, props *properties.Properties, containerName string) (*Container, error) {
 	var c Container
 
-	accountsClient := armStorage.NewAccountsClient(subscriptionID)
-	accountsClient.Authorizer = authorizer
+	accountsClient := armStorage.NewAccountsClient(props.SubscriptionID)
+	accountsClient.Authorizer = props.MgmtAuthorizer
 
 	// List to check for existing storage accounts.
-	result, err := accountsClient.ListByResourceGroup(ctx, resourceGroupName)
+	result, err := accountsClient.ListByResourceGroup(ctx, props.ResourceGroupName)
 	if err != nil {
-		return nil, fmt.Errorf("error listing storage accounts by resource group %s: %s", resourceGroupName, err)
+		return nil, fmt.Errorf("error listing storage accounts by resource group %s: %s", props.ResourceGroupName, err)
 	}
 
 	var storageAccountName string
@@ -62,14 +62,14 @@ func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID, 
 		httpsTrafficOnly := true
 		future, err := accountsClient.Create(
 			ctx,
-			resourceGroupName,
+			props.ResourceGroupName,
 			storageAccountName,
 			armStorage.AccountCreateParameters{
 				Sku: &armStorage.Sku{
 					Name: armStorage.StandardLRS,
 				},
 				Kind:     armStorage.BlobStorage,
-				Location: to.StringPtr(location),
+				Location: to.StringPtr(props.Location),
 				AccountPropertiesCreateParameters: &armStorage.AccountPropertiesCreateParameters{
 					AccessTier:             armStorage.Hot,
 					EnableHTTPSTrafficOnly: &httpsTrafficOnly,
@@ -91,13 +91,13 @@ func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID, 
 			return nil, fmt.Errorf("error waiting for storage account creation: %v", err)
 		}
 	} else if len(*result.Value) != 1 {
-		return nil, fmt.Errorf("only 1 storage account is allowed in the resource group %s", resourceGroupName)
+		return nil, fmt.Errorf("only 1 storage account is allowed in the resource group %s", props.ResourceGroupName)
 	} else {
 		storageAccountName = *(*result.Value)[0].Name
 	}
 
 	// Fetch an access key for storage account.
-	keys, err := accountsClient.ListKeys(ctx, resourceGroupName, storageAccountName)
+	keys, err := accountsClient.ListKeys(ctx, props.ResourceGroupName, storageAccountName)
 	if err != nil {
 		return nil, fmt.Errorf("error listing the access keys in the storage account %q: %s", storageAccountName, err)
 	}
@@ -132,9 +132,9 @@ func Setup(ctx context.Context, authorizer autorest.Authorizer, subscriptionID, 
 
 	// Create a new container in the storage account.
 	skc, _ := azblob.NewSharedKeyCredential(storageAccountName, accessKey1)
-	p := azblob.NewPipeline(skc, azblob.PipelineOptions{})
+	pipeline := azblob.NewPipeline(skc, azblob.PipelineOptions{})
 	u, _ := url.Parse(fmt.Sprintf("https://%s.blob.core.windows.net", storageAccountName))
-	service := azblob.NewServiceURL(*u, p)
+	service := azblob.NewServiceURL(*u, pipeline)
 	containerURL := service.NewContainerURL(containerName)
 	_, err = containerURL.Create(
 		ctx,
