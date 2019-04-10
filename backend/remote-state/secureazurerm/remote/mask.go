@@ -95,37 +95,43 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 
 			// Insert the resource's attributes in the key vault.
 			for key, value := range attributes {
+				// Make base32-encoded attribute name in the veins of <module paths>.<resource>.<attribute>
 				var path []string
 				for _, s := range module["path"].([]interface{}) {
 					path = append(path, s.(string))
 				}
 				encodedAttributeName := rawStdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s.%s", strings.Join(path, "."), resourceName, key)))
 
-				// Check if attribute exist in the schema.
-				resourceType := strings.Split(key, ".")[0]
-				if block, ok := resourceSchema.Attributes[resourceType]; ok {
-					// Is resource attribute sensitive?
-					if block.Sensitive { // then mask.
-						// Insert value to keyvault here.
-						version, err := s.KeyVault.InsertSecret(context.Background(), encodedAttributeName, value.(string))
-						if err != nil {
-							panic(fmt.Sprintf("error inserting secret to key vault: %s", err))
-						}
-						attributes[key] = secretAttribute{
-							ID:      encodedAttributeName,
-							Version: version,
-						}
-					} else {
-						pretty.Printf("not sensitive: %# v\n", key)
-					}
-				} else {
-					if _, ok := resourceSchema.BlockTypes[resourceType]; ok {
-						pretty.Printf("TODO: blocktype: %# v\n", key)
-					} else {
-						pretty.Printf("not ok: %# v\n", key)
-					}
-				}
+				keySplitted := strings.Split(key, ".")
+				s.maskAttributes(attributes, value.(string), encodedAttributeName, key, keySplitted, 0, resourceSchema)
 			}
+		}
+	}
+}
+
+// maskAttributes masks the attributes of an resource.
+func (s *State) maskAttributes(attributes map[string]interface{}, value string, encodedAttributeName string, key string, keySplitted []string, i int, resourceSchema *configschema.Block) {
+	// Check if attribute from the block exists in the schema.
+	if attribute, ok := resourceSchema.Attributes[keySplitted[i]]; ok {
+		// Is resource attribute sensitive?
+		if attribute.Sensitive { // then mask.
+			// Insert value to keyvault here.
+			version, err := s.KeyVault.InsertSecret(context.Background(), encodedAttributeName, value)
+			if err != nil {
+				panic(fmt.Sprintf("error inserting secret to key vault: %s", err))
+			}
+			attributes[key] = secretAttribute{
+				ID:      encodedAttributeName,
+				Version: version,
+			}
+		} else {
+			pretty.Printf("not sensitive: %# v\n", key)
+		}
+	} else {
+		if block, ok := resourceSchema.BlockTypes[keySplitted[i]]; ok {
+			s.maskAttributes(attributes, value, encodedAttributeName, key, keySplitted, i+2, &block.Block)
+		} else {
+			pretty.Printf("not ok: %# v\n", key)
 		}
 	}
 }
