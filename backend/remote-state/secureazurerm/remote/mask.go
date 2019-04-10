@@ -111,6 +111,11 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 
 // maskAttributes masks the attributes of an resource.
 func (s *State) maskAttributes(attributes map[string]interface{}, value string, encodedAttributeName string, key string, keySplitted []string, i int, resourceSchema *configschema.Block) {
+	// Check if there exist an attribute.
+	if i >= len(keySplitted) {
+		return
+	}
+
 	// Check if attribute from the block exists in the schema.
 	if attribute, ok := resourceSchema.Attributes[keySplitted[i]]; ok {
 		// Is resource attribute sensitive?
