@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	KV "github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
-	"github.com/kr/pretty"
 )
 
 // getID gets the ID without the base URI from the key vault's ID.
@@ -62,6 +61,5 @@ func (k *KeyVault) ListSecrets(ctx context.Context) (map[string]struct{}, error)
 			break
 		}
 	}
-	pretty.Printf("secretMap: %# v\n", secretMap)
 	return secretMap, nil
 }
