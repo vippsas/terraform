@@ -8,7 +8,6 @@ import (
 
 	"github.com/hashicorp/terraform/config/configschema"
 	"github.com/hashicorp/terraform/terraform"
-	"github.com/kr/pretty"
 )
 
 // secretAttribute is a sensitive attribute that is located as a secret in the Azure key vault.
@@ -44,11 +43,9 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 		if err != nil {
 			panic(err)
 		}
-		pretty.Printf("secretID: %# v\n", string(secretID))
 
 		// Delete those that does not exist anymore.
 		if _, ok := resourceAddresses[string(secretID)]; !ok {
-			pretty.Printf("Deleting secret: %s\n", secretIDInBase32)
 			if err := s.KeyVault.DeleteSecret(context.Background(), secretIDInBase32); err != nil {
 				panic(err)
 			}
@@ -88,10 +85,7 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 			if resourceSchema == nil {
 				continue
 			}
-			pretty.Printf("resourceSchema: %# v\n", resourceSchema)
-
 			attributes := primary["attributes"].(map[string]interface{})
-			pretty.Printf("attributes: %# v\n", attributes)
 
 			// Insert the resource's attributes in the key vault.
 			for key, value := range attributes {
@@ -129,14 +123,10 @@ func (s *State) maskAttributes(attributes map[string]interface{}, value string, 
 				ID:      encodedAttributeName,
 				Version: version,
 			}
-		} else {
-			pretty.Printf("not sensitive: %# v\n", key)
 		}
 	} else {
 		if block, ok := resourceSchema.BlockTypes[keySplitted[i]]; ok {
 			s.maskAttributes(attributes, value, encodedAttributeName, key, keySplitted, i+2, &block.Block)
-		} else {
-			pretty.Printf("not ok: %# v\n", key)
 		}
 	}
 }
