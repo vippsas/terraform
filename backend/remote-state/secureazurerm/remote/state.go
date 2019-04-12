@@ -150,7 +150,7 @@ func (s *State) PersistState() error {
 	s.readState = s.state.DeepCopy()
 
 	// Print it.
-	fmt.Printf("\nCurrent persisted state:\n%s", data)
+	fmt.Printf("\nCurrent persisted infrastructure state:\n%s", data)
 
 	return nil
 }
