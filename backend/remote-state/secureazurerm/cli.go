@@ -24,7 +24,7 @@ func (b *Backend) Colorize() *colorstring.Colorize {
 	}
 }
 
-// ColorOutput outputs the setup colored text to the terminal.
-func (b *Backend) ColorOutput(message string) {
+// OutputColor outputs the setup colored text to the terminal.
+func (b *Backend) OutputColor(message string) {
 	b.CLI.Output(b.Colorize().Color(message))
 }
