@@ -21,13 +21,13 @@ import (
 // TODO: Store the backend-configuration in a (separate) container instead of .terraform-dir?
 type Backend struct {
 	schema.Backend
+
 	mu sync.Mutex
 
 	// CLI
 	CLI         cli.Ui
 	CLIColor    *colorstring.Colorize
 	ContextOpts *terraform.ContextOpts
-	// never ask for input. always validate. always run in automation.
 
 	container *account.Container
 
