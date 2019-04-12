@@ -7,9 +7,9 @@ import (
 
 // CLIInit inits CLI.
 func (b *Backend) CLIInit(opts *backend.CLIOpts) error {
-	b.CLI = opts.CLI                 // neckbeard cli.
-	b.CLIColor = opts.CLIColor       // i <3 my colors.
-	b.ContextOpts = opts.ContextOpts // muh context.
+	b.CLI = opts.CLI
+	b.CLIColor = opts.CLIColor
+	b.ContextOpts = opts.ContextOpts
 	return nil
 }
 
@@ -22,4 +22,9 @@ func (b *Backend) Colorize() *colorstring.Colorize {
 		Colors:  colorstring.DefaultColors,
 		Disable: false, // ofc, we want color.
 	}
+}
+
+// ColorOutput outputs the setup colored text to the terminal.
+func (b *Backend) ColorOutput(message string) {
+	b.CLI.Output(b.Colorize().Color(message))
 }
