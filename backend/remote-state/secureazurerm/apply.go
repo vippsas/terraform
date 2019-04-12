@@ -168,11 +168,11 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 	// If we have a UI, output the results
 	if b.CLI != nil {
 		if op.Destroy {
-			b.ColorOutput(
+			b.OutputColor(
 				fmt.Sprintf("[reset][bold][green]\n%d destroyed.\n\nDestroy complete!",
 					countHook.Removed))
 		} else {
-			b.ColorOutput(
+			b.OutputColor(
 				fmt.Sprintf("[reset][bold][green]\n%d added, %d changed, %d destroyed.\n\nApply complete!",
 					countHook.Added, countHook.Changed, countHook.Removed))
 		}

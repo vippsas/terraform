@@ -94,20 +94,20 @@ func (b *Backend) render(plan *format.Plan) {
 	if counts[terraform.DiffRefresh] > 0 {
 		fmt.Fprintf(header, "%s: Read data from a resource in Azure.\n", format.DiffActionSymbol(terraform.DiffRefresh))
 	}
-	b.ColorOutput(header.String())
+	b.OutputColor(header.String())
 
 	// Render plan.
 	b.CLI.Output("Terraform will perform the following actions:\n")
-	b.ColorOutput(plan.Format(b.Colorize()))
+	b.OutputColor(plan.Format(b.Colorize()))
 
 	// Render number of actions.
 	stats := plan.Stats()
 	if stats.ToDestroy > 0 {
-		b.ColorOutput(fmt.Sprintf("[reset]%d to add, %d to change, [bold][red]️%d to (irreversibly) destroy![reset]",
+		b.OutputColor(fmt.Sprintf("[reset]%d to add, %d to change, [bold][red]️%d to (irreversibly) destroy![reset]",
 			stats.ToAdd, stats.ToChange, stats.ToDestroy,
 		))
 	} else {
-		b.ColorOutput(fmt.Sprintf("[reset]%d to add, %d to change, %d to destroy.[reset]",
+		b.OutputColor(fmt.Sprintf("[reset]%d to add, %d to change, %d to destroy.[reset]",
 			stats.ToAdd, stats.ToChange, stats.ToDestroy,
 		))
 	}
