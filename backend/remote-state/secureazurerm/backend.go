@@ -48,7 +48,7 @@ func New() backend.Backend {
 				"location": {
 					Type:        schema.TypeString,
 					Required:    true,
-					Description: "The location where the state is stored.",
+					Description: "The geographical location where the state is stored.",
 				},
 			},
 		},
