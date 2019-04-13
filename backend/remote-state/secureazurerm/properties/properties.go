@@ -14,6 +14,9 @@ type Properties struct {
 	TenantID,
 	ObjectID string
 
+	// ObjectIDs that can access the state key vault.
+	AccessPolicies []string
+
 	// Authorizers and clients.
 	MgmtAuthorizer autorest.Authorizer
 }
