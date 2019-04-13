@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/kr/pretty"
+
 	"github.com/Azure/azure-sdk-for-go/arm/resources/resources"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/hashicorp/terraform/backend"
@@ -50,6 +52,13 @@ func New() backend.Backend {
 					Required:    true,
 					Description: "The geographical location where the state is stored.",
 				},
+				"access_policies": {
+					Type:     schema.TypeList,
+					Optional: true,
+					Elem: &schema.Schema{
+						Type: schema.TypeString,
+					},
+				},
 			},
 		},
 	}
@@ -66,11 +75,17 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	// Get the data attributes from the "backend"-block.
-	attrs := schema.FromContextBackendConfig(ctx)
+	attributes := schema.FromContextBackendConfig(ctx)
 
-	b.props.ResourceGroupName = attrs.Get("resource_group_name").(string)
+	b.props.ResourceGroupName = attributes.Get("resource_group_name").(string)
 	// Tags: <workspace>: <kvname>
-	b.props.Location = attrs.Get("location").(string)
+
+	b.props.Location = attributes.Get("location").(string)
+
+	for _, value := range attributes.Get("access_policies").([]interface{}) {
+		b.props.AccessPolicies = append(b.props.AccessPolicies, value.(string))
+	}
+	pretty.Printf("%# v\n", b.props.AccessPolicies)
 
 	// Setup the resource group for terraform.State.
 	groupsClient := resources.NewGroupsClient(b.props.SubscriptionID)
