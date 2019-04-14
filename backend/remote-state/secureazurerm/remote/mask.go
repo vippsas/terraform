@@ -52,6 +52,10 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 		}
 	}
 
+	// TODO: Get state key vault properties.
+	// TODO: Delete access policies for service principals that does not exists anymore.
+	// TODO: Insert principal_id's in the state key vault "access policies" for those resources specified in access_policies.
+
 	resources := module["resources"].(map[string]interface{})
 
 	// Get the schemas for the resource attributes.
