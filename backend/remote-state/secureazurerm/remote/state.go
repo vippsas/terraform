@@ -18,8 +18,10 @@ import (
 type State struct {
 	mu sync.Mutex
 
-	Blob     *blob.Blob // client to communicate with the blob storage.
-	KeyVault *keyvault.KeyVault
+	Blob     *blob.Blob         // client to communicate with the state blob storage.
+	KeyVault *keyvault.KeyVault // client to communicate with the state key vault.
+
+	AccessPolicies *[]string
 
 	state, // in-memory state.
 	readState *terraform.State // state read from the blob.
