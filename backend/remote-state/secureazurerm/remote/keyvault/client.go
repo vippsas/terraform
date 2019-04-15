@@ -147,6 +147,40 @@ func Setup(ctx context.Context, blob *blob.Blob, props *properties.Properties, w
 	return k, nil
 }
 
+// ManagedIdentity contains the ID of a managed service principal.
+type ManagedIdentity struct {
+	PrincipalID string
+	TenantID    string
+}
+
+// AddIDToAccessPolicies adds a managed identity to the state key vault's access policies.
+func (k *KeyVault) AddIDToAccessPolicies(ctx context.Context, identity *ManagedIdentity) error {
+	tenantID, err := uuid.FromString(identity.TenantID)
+	if err != nil {
+		return fmt.Errorf("error converting tenant ID-string to UUID: %s", err)
+	}
+	accessPoliciesToAdd := []keyvault.AccessPolicyEntry{
+		keyvault.AccessPolicyEntry{
+			TenantID: &tenantID,
+			ObjectID: &identity.PrincipalID,
+			Permissions: &keyvault.Permissions{
+				Secrets: &[]keyvault.SecretPermissions{
+					keyvault.SecretPermissionsGet,
+				},
+			},
+		},
+	}
+	_, err = k.vaultClient.UpdateAccessPolicy(ctx, k.resourceGroupName, k.vaultName, keyvault.Add, keyvault.VaultAccessPolicyParameters{
+		Properties: &keyvault.VaultAccessPolicyProperties{
+			AccessPolicies: &accessPoliciesToAdd,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("error updating key vault: %s", err)
+	}
+	return nil
+}
+
 // Delete key vault.
 func (k *KeyVault) Delete(ctx context.Context) error {
 	if _, err := k.vaultClient.Delete(ctx, k.resourceGroupName, k.vaultName); err != nil {
