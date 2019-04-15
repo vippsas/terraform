@@ -6,15 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/kr/pretty"
 
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
 	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/terraform"
+	"github.com/kr/pretty"
 )
 
 // State contains the remote state.
@@ -159,7 +159,14 @@ func (s *State) PersistState() error {
 					continue
 				}
 				attributes := resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{})
-				pretty.Printf("%# v\n", attributes)
+				length, err := strconv.Atoi(attributes["identity.#"].(string))
+				if err != nil {
+					panic(err)
+				}
+				for i := 0; i < length; i++ {
+					pretty.Printf("identity.%d.principal_id: %# v\n", i, attributes[fmt.Sprintf("identity.%d.principal_id", i)])
+					pretty.Printf("identity.%d.tenant_id: %# v\n", i, attributes[fmt.Sprintf("identity.%d.tenant_id", i)])
+				}
 				break
 			}
 		}
