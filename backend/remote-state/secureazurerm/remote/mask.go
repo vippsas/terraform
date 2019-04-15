@@ -123,6 +123,8 @@ func (s *State) maskAttributes(attributes map[string]interface{}, value string, 
 			if err != nil {
 				panic(fmt.Sprintf("error inserting secret to key vault: %s", err))
 			}
+
+			// Replace attribute value with a reference/pointer to the secret value in the state key vault.
 			attributes[key] = secretAttribute{
 				ID:      encodedAttributeName,
 				Version: version,
