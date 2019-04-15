@@ -138,8 +138,11 @@ func (s *State) PersistState() error {
 		mod := module.(map[string]interface{})
 		path := mod["path"].([]interface{})
 
-		// TODO: Get state key vault properties.
+		// TODO: Get state key vault's access policies.
+
 		// TODO: Delete access policies for service principals that does not exists anymore.
+		// - Remove itself from the access policy list.
+		// - Compare with the resources in the state file.
 
 		// Add access policies to state key vault given in the configuration.
 		var stringPath string
