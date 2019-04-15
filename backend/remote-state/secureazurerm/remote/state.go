@@ -206,7 +206,6 @@ func (s *State) PersistState() error {
 					}
 					s.KeyVault.AddIDToAccessPolicies(context.Background(), &managedIdentity)
 				}
-				break
 			}
 		}
 
