@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/kr/pretty"
-
 	"github.com/Azure/azure-sdk-for-go/arm/resources/resources"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/hashicorp/terraform/backend"
@@ -85,7 +83,6 @@ func (b *Backend) configure(ctx context.Context) error {
 	for _, value := range attributes.Get("access_policies").([]interface{}) {
 		b.props.AccessPolicies = append(b.props.AccessPolicies, value.(string))
 	}
-	pretty.Printf("%# v\n", b.props.AccessPolicies)
 
 	// Setup the resource group for terraform.State.
 	groupsClient := resources.NewGroupsClient(b.props.SubscriptionID)
