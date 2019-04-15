@@ -6,7 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
+
+	"github.com/kr/pretty"
 
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
@@ -132,7 +135,36 @@ func (s *State) PersistState() error {
 
 	// Mask sensitive attributes.
 	for i, module := range stateMap["modules"].([]interface{}) {
-		s.maskModule(i, module.(map[string]interface{}))
+		mod := module.(map[string]interface{})
+		path := mod["path"].([]interface{})
+
+		// Add access policies to state key vault given in the configuration.
+		var stringPath string
+		if len(path) > 1 {
+			stringPath = path[0].(string) + "."
+			for _, s := range path[1:] {
+				stringPath = stringPath + "." + s.(string)
+			}
+		} else {
+			stringPath = path[0].(string)
+		}
+
+		for _, accessPolicy := range *s.AccessPolicies {
+			accessPolicyDotSplitted := strings.Split(accessPolicy, ".")
+			if strings.Join(accessPolicyDotSplitted[:len(path)], ".") == stringPath {
+				resourceName := strings.Join(accessPolicyDotSplitted[len(path):], ".")
+				resource, ok := mod["resources"].(map[string]interface{})[resourceName]
+				if !ok {
+					// could not find resource.
+					continue
+				}
+				attributes := resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{})
+				pretty.Printf("%# v\n", attributes)
+				break
+			}
+		}
+
+		s.maskModule(i, mod)
 	}
 	stateMap["keyVaultName"] = s.KeyVault.Name()
 
