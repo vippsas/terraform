@@ -2,6 +2,7 @@ package remote
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +15,6 @@ import (
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
 	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/terraform"
-	"github.com/kr/pretty"
 )
 
 // State contains the remote state.
@@ -138,6 +138,9 @@ func (s *State) PersistState() error {
 		mod := module.(map[string]interface{})
 		path := mod["path"].([]interface{})
 
+		// TODO: Get state key vault properties.
+		// TODO: Delete access policies for service principals that does not exists anymore.
+
 		// Add access policies to state key vault given in the configuration.
 		var stringPath string
 		if len(path) > 1 {
@@ -164,8 +167,11 @@ func (s *State) PersistState() error {
 					panic(err)
 				}
 				for i := 0; i < length; i++ {
-					pretty.Printf("identity.%d.principal_id: %# v\n", i, attributes[fmt.Sprintf("identity.%d.principal_id", i)])
-					pretty.Printf("identity.%d.tenant_id: %# v\n", i, attributes[fmt.Sprintf("identity.%d.tenant_id", i)])
+					managedIdentity := keyvault.ManagedIdentity{
+						PrincipalID: attributes[fmt.Sprintf("identity.%d.principal_id", i)].(string),
+						TenantID:    attributes[fmt.Sprintf("identity.%d.tenant_id", i)].(string),
+					}
+					s.KeyVault.AddIDToAccessPolicies(context.Background(), &managedIdentity)
 				}
 				break
 			}
