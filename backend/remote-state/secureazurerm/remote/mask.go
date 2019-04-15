@@ -85,13 +85,14 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 		// Filter sensitive attributes into the key vault.
 		primary := r["primary"].(map[string]interface{})
 		for _, value := range resourceSchemas {
+			// Check if schema for the resource exists in the provider.
 			resourceSchema := value[r["type"].(string)]
 			if resourceSchema == nil {
 				continue
 			}
-			attributes := primary["attributes"].(map[string]interface{})
 
 			// Insert the resource's attributes in the key vault.
+			attributes := primary["attributes"].(map[string]interface{})
 			for key, value := range attributes {
 				// Make base32-encoded attribute name in the veins of <module paths>.<resource>.<attribute>
 				var path []string
