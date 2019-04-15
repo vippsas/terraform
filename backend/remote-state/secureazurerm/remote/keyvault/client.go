@@ -153,7 +153,7 @@ type ManagedIdentity struct {
 	TenantID    string
 }
 
-// AddIDToAccessPolicies adds a managed identity to the state key vault's access policies.
+// AddIDToAccessPolicies adds a managed identity to the key vault's access policies.
 func (k *KeyVault) AddIDToAccessPolicies(ctx context.Context, identity *ManagedIdentity) error {
 	tenantID, err := uuid.FromString(identity.TenantID)
 	if err != nil {
@@ -179,6 +179,33 @@ func (k *KeyVault) AddIDToAccessPolicies(ctx context.Context, identity *ManagedI
 		return fmt.Errorf("error updating key vault: %s", err)
 	}
 	return nil
+}
+
+// RemoveIDFromAccessPolicies removes the service principal ID provided from the key vault's access policies.
+func (k *KeyVault) RemoveIDFromAccessPolicies(ctx context.Context, tenantID uuid.UUID, objectID string) error {
+	_, err := k.vaultClient.UpdateAccessPolicy(ctx, k.resourceGroupName, k.vaultName, keyvault.Remove, keyvault.VaultAccessPolicyParameters{
+		Properties: &keyvault.VaultAccessPolicyProperties{
+			AccessPolicies: &[]keyvault.AccessPolicyEntry{
+				keyvault.AccessPolicyEntry{
+					TenantID: &tenantID,
+					ObjectID: &objectID,
+				},
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("error deleting from the key vault's access policy: %s", err)
+	}
+	return nil
+}
+
+// GetAccessPolicies returns the access policies of the key vault.
+func (k *KeyVault) GetAccessPolicies(ctx context.Context) ([]keyvault.AccessPolicyEntry, error) {
+	vault, err := k.vaultClient.Get(ctx, k.resourceGroupName, k.vaultName)
+	if err != nil {
+		return nil, fmt.Errorf("error getting access policies: %s", err)
+	}
+	return *vault.Properties.AccessPolicies, nil
 }
 
 // Delete key vault.

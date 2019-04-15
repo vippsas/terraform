@@ -25,6 +25,7 @@ type State struct {
 	KeyVault *keyvault.KeyVault // client to communicate with the state key vault.
 
 	AccessPolicies *[]string
+	Owner          string
 
 	state, // in-memory state.
 	readState *terraform.State // state read from the blob.
@@ -138,11 +139,40 @@ func (s *State) PersistState() error {
 		mod := module.(map[string]interface{})
 		path := mod["path"].([]interface{})
 
-		// TODO: Get state key vault's access policies.
+		// Get state key vault's access policies.
+		accessPolicies, err := s.KeyVault.GetAccessPolicies(context.Background())
+		if err != nil {
+			panic(err)
+		}
 
-		// TODO: Delete access policies for service principals that does not exists anymore.
+		// Delete access policies for service principals that does not exists anymore.
 		// - Remove itself from the access policy list.
-		// - Compare with the resources in the state file.
+		for i, policy := range accessPolicies {
+			if *policy.ObjectID == s.Owner {
+				accessPolicies = append(accessPolicies[:i], accessPolicies[i+1:]...)
+				break
+			}
+		}
+		// - Compare the existing access policies with the resources in the state. Delete those that does not exists.
+		for _, accessPolicy := range accessPolicies {
+			for _, resource := range mod["resources"].(map[string]interface{}) {
+				attributes := resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{})
+				length, err := strconv.Atoi(attributes["identity.#"].(string))
+				if err != nil {
+					panic(err)
+				}
+				for i := 0; i < length; i++ {
+					if *accessPolicy.ObjectID == attributes[fmt.Sprintf("identity.%d.principal_id", i)].(string) {
+						goto end
+					}
+				}
+			}
+			err = s.KeyVault.RemoveIDFromAccessPolicies(context.Background(), *accessPolicy.TenantID, *accessPolicy.ObjectID)
+			if err != nil {
+				panic(err)
+			}
+		end:
+		}
 
 		// Add access policies to state key vault given in the configuration.
 		var stringPath string
