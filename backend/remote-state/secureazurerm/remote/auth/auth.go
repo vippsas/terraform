@@ -17,7 +17,7 @@ func NewMgmt() (props properties.Properties, err error) {
 	// Try authorizing using Azure CLI, which will use the resource: https://management.azure.com/.
 	props.MgmtAuthorizer, err = auth.NewAuthorizerFromCLIWithResource(azure.PublicCloud.ResourceManagerEndpoint)
 	if err != nil {
-		err = fmt.Errorf("error creating new authorizer from CLI: %v", err)
+		err = fmt.Errorf("error creating new authorizer from CLI with resource %s: %v", azure.PublicCloud.ResourceManagerEndpoint, err)
 		return
 	}
 	// Fetch subscriptionID and tenantID from Azure CLI.
@@ -47,8 +47,10 @@ func NewMgmt() (props properties.Properties, err error) {
 
 // NewVault creates a new authorizer using keyvault endpoint (don't use the constant, because it is formatted incorrectly).
 func NewVault() (authorizer autorest.Authorizer, err error) {
-	authorizer, err = auth.NewAuthorizerFromCLIWithResource("https://vault.azure.net")
+	vaultEndpoint := "https://vault.azure.net"
+	authorizer, err = auth.NewAuthorizerFromCLIWithResource(vaultEndpoint)
 	if err != nil {
+		err = fmt.Errorf("error creating new authorizer from CLI with resource %s: %v", vaultEndpoint, err)
 		return
 	}
 	return
