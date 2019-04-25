@@ -87,25 +87,32 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 				continue
 			}
 
+			// Make base32-encoded attribute name in the veins of <module paths>.<resource>.<attribute>
+			var path []string
+			for _, s := range module["path"].([]interface{}) {
+				path = append(path, s.(string))
+			}
+
 			// Insert the resource's attributes in the key vault.
 			attributes := primary["attributes"].(map[string]interface{})
 			for key, value := range attributes {
-				// Make base32-encoded attribute name in the veins of <module paths>.<resource>.<attribute>
-				var path []string
-				for _, s := range module["path"].([]interface{}) {
-					path = append(path, s.(string))
-				}
-				encodedAttributeName := rawStdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s.%s", strings.Join(path, "."), resourceName, key)))
-
-				keySplitted := strings.Split(key, ".")
-				s.maskAttributes(attributes, value.(string), encodedAttributeName, key, keySplitted, 0, resourceSchema)
+				s.maskAttributes(
+					attributes,
+					value.(string),
+					path,
+					resourceName,
+					key,
+					strings.Split(key, "."),
+					0,
+					resourceSchema,
+				)
 			}
 		}
 	}
 }
 
 // maskAttributes masks the attributes of an resource.
-func (s *State) maskAttributes(attributes map[string]interface{}, value string, encodedAttributeName string, key string, keySplitted []string, i int, resourceSchema *configschema.Block) {
+func (s *State) maskAttributes(attributes map[string]interface{}, value string, path []string, resourceName string, key string, keySplitted []string, i int, resourceSchema *configschema.Block) {
 	// Check if there exist an attribute.
 	if i >= len(keySplitted) {
 		return
@@ -115,10 +122,20 @@ func (s *State) maskAttributes(attributes map[string]interface{}, value string, 
 	if attribute, ok := resourceSchema.Attributes[keySplitted[i]]; ok {
 		// Is resource attribute sensitive?
 		if attribute.Sensitive { // then mask.
+			resourceAttributePath := fmt.Sprintf("%s.%s.%s", strings.Join(path, "."), resourceName, key)
+			encodedAttributeName := rawStdEncoding.EncodeToString([]byte(resourceAttributePath))
+			if len(encodedAttributeName) > 127 {
+				// TODO: Encoded attribute name is too long. Ignoring...
+				return
+			}
 			// Insert value to keyvault here.
+			//pretty.Printf("resourceAttributePath: %# v\nencodedAttributeName: %# v\nvalue:%# v\n", resourceAttributePath, encodedAttributeName, value)
+			if value == "" {
+				return
+			}
 			version, err := s.KeyVault.InsertSecret(context.Background(), encodedAttributeName, value)
 			if err != nil {
-				panic(fmt.Sprintf("error inserting secret to key vault: %s", err))
+				panic(fmt.Sprintf("error inserting secret into key vault: %s", err))
 			}
 
 			// Replace attribute value with a reference/pointer to the secret value in the state key vault.
@@ -129,7 +146,7 @@ func (s *State) maskAttributes(attributes map[string]interface{}, value string, 
 		}
 	} else {
 		if block, ok := resourceSchema.BlockTypes[keySplitted[i]]; ok {
-			s.maskAttributes(attributes, value, encodedAttributeName, key, keySplitted, i+2, &block.Block)
+			s.maskAttributes(attributes, value, path, resourceName, key, keySplitted, i+2, &block.Block)
 		}
 	}
 }
