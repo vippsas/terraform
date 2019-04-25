@@ -157,7 +157,11 @@ func (s *State) PersistState() error {
 		for _, accessPolicy := range accessPolicies {
 			for _, resource := range mod["resources"].(map[string]interface{}) {
 				attributes := resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{})
-				length, err := strconv.Atoi(attributes["identity.#"].(string))
+				value, ok := attributes["identity.#"]
+				if !ok {
+					continue
+				}
+				length, err := strconv.Atoi(value.(string))
 				if err != nil {
 					panic(err)
 				}
