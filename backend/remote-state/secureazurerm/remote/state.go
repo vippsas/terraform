@@ -31,6 +31,7 @@ type State struct {
 	readState *terraform.State // state read from the blob.
 
 	resourceProviders []terraform.ResourceProvider // resource providers used in the configuration.
+	secretIDs         map[string]struct{}
 }
 
 // State reads the state from the memory.
@@ -135,9 +136,10 @@ func (s *State) PersistState() error {
 	json.Unmarshal(buf.Bytes(), &stateMap)
 
 	// List all the secrets from the keyvault.
-	secretIDs, err := s.KeyVault.ListSecrets(context.Background())
+	var err error
+	s.secretIDs, err = s.KeyVault.ListSecrets(context.Background())
 	if err != nil {
-		panic(fmt.Errorf("error listing secrets: %s", err))
+		return fmt.Errorf("error listing secrets: %s", err)
 	}
 
 	// Delete the resource's attributes that does not exists anymore in the key vault.
@@ -152,11 +154,12 @@ func (s *State) PersistState() error {
 			}
 		}
 	}
-	for secretID := range secretIDs {
+	for secretID := range s.secretIDs {
 		if _, ok := resourceAddresses[secretID]; !ok {
 			if err := s.KeyVault.DeleteSecret(context.Background(), secretID); err != nil {
-				panic(err)
+				return fmt.Errorf("error deleting secret %s: %s", secretID, err)
 			}
+			delete(s.secretIDs, secretID)
 		}
 	}
 
