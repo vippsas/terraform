@@ -167,9 +167,7 @@ func (s *State) getAllResourceAttrAddresses() map[string]struct{} {
 // unmaskModule unmasks all sensitive attributes in a module.
 func (s *State) unmaskModule(i int, module map[string]interface{}) {
 	for _, resource := range module["resources"].(map[string]interface{}) {
-		r := resource.(map[string]interface{})
-		primary := r["primary"].(map[string]interface{})
-		attributes := primary["attributes"].(map[string]interface{})
+		attributes := resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{})
 		for key, value := range attributes {
 			if secretAttribute, ok := value.(map[string]interface{}); ok {
 				secret, err := s.KeyVault.GetSecret(context.Background(), secretAttribute["id"].(string), secretAttribute["version"].(string))
