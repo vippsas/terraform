@@ -35,8 +35,8 @@ func (k *KeyVault) Name() string {
 	return k.vaultName
 }
 
-// GenerateKeyVaultName generates a new random key vault name of max key vault name length.
-func GenerateKeyVaultName() (string, error) {
+// generateKeyVaultName generates a new random key vault name of max key vault name length.
+func generateKeyVaultName() (string, error) {
 	var singleAlphaChar, alphanumerics string
 	singleAlphaChar, err := rand.GenerateLowerAlphabeticChars(1)
 	if err != nil {
@@ -72,7 +72,7 @@ func Setup(ctx context.Context, blob *blob.Blob, props *properties.Properties, w
 
 	if stateMap["keyVaultName"] == nil {
 		// Set a new generated key vault name.
-		k.vaultName, err = GenerateKeyVaultName()
+		k.vaultName, err = generateKeyVaultName()
 		if err != nil {
 			return nil, fmt.Errorf("error generating key vault name: %s", err)
 		}
