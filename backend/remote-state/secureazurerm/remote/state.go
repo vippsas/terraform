@@ -145,15 +145,15 @@ func (s *State) PersistState() error {
 			return fmt.Errorf("error getting the state key vault's access policies: %s", err)
 		}
 
-		// Delete access policies for service principals that does not exists anymore.
-		// - Remove itself from the access policy list.
+		// Remove itself from the access policy list.
 		for i, policy := range accessPolicies {
 			if *policy.ObjectID == s.Owner {
 				accessPolicies = append(accessPolicies[:i], accessPolicies[i+1:]...)
 				break
 			}
 		}
-		// - Compare the existing access policies with the resources in the state. Delete those that does not exists.
+
+		// Compare the existing access policies with the current resources in the state. Delete those that does not exist anymore.
 		for _, accessPolicy := range accessPolicies {
 			for _, resource := range mod["resources"].(map[string]interface{}) {
 				attributes := resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{})
