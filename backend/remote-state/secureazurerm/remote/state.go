@@ -163,7 +163,7 @@ func (s *State) PersistState() error {
 				}
 				length, err := strconv.Atoi(value.(string))
 				if err != nil {
-					panic(err)
+					return fmt.Errorf("error converting identity.# to integer: %s", err)
 				}
 				for i := 0; i < length; i++ {
 					if *accessPolicy.ObjectID == attributes[fmt.Sprintf("identity.%d.principal_id", i)].(string) {
