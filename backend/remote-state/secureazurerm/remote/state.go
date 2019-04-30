@@ -24,13 +24,13 @@ type State struct {
 	Blob     *blob.Blob         // client to communicate with the state blob storage.
 	KeyVault *keyvault.KeyVault // client to communicate with the state key vault.
 
-	AccessPolicies *[]string
-	Owner          string
+	AccessPolicies *[]string // describes which resources has read access to the state.
+	Owner          string    // the owner of the state.
 
 	state, // in-memory state.
 	readState *terraform.State // state read from the blob.
 
-	resourceProviders []terraform.ResourceProvider
+	resourceProviders []terraform.ResourceProvider // resource providers used in the configuration.
 }
 
 // State reads the state from the memory.
@@ -145,7 +145,7 @@ func (s *State) PersistState() error {
 			return fmt.Errorf("error getting the state key vault's access policies: %s", err)
 		}
 
-		// Remove itself from the access policy list.
+		// Remove itself from the access policy list for comparison.
 		for i, policy := range accessPolicies {
 			if *policy.ObjectID == s.Owner {
 				accessPolicies = append(accessPolicies[:i], accessPolicies[i+1:]...)
