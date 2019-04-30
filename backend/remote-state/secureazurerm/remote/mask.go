@@ -51,11 +51,9 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 		}
 	}
 
-	resources := module["resources"].(map[string]interface{})
-
 	// Get the schemas for the resource attributes.
 	resourceList := []string{}
-	for name := range resources {
+	for name := range module["resources"].(map[string]interface{}) {
 		resourceList = append(resourceList, strings.Split(name, ".")[0])
 	}
 	var schemas []*terraform.ProviderSchema
