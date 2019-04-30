@@ -142,7 +142,7 @@ func (s *State) PersistState() error {
 		// Get state key vault's access policies.
 		accessPolicies, err := s.KeyVault.GetAccessPolicies(context.Background())
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("error getting the state key vault's access policies: %s", err)
 		}
 
 		// Delete access policies for service principals that does not exists anymore.
