@@ -35,7 +35,7 @@ func (k *KeyVault) Name() string {
 	return k.vaultName
 }
 
-// GenerateKeyVaultName generates a new random key vault name of max length.
+// GenerateKeyVaultName generates a new random key vault name of max key vault name length.
 func GenerateKeyVaultName() (string, error) {
 	var singleAlphaChar, alphanumerics string
 	singleAlphaChar, err := rand.GenerateLowerAlphabeticChars(1)
