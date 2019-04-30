@@ -87,12 +87,26 @@ func (s *State) maskAttribute(attributes map[string]interface{}, attributeValue 
 	if attribute, ok := resourceSchema.Attributes[attributeNameSplitted[i]]; ok {
 		// Is resource attribute sensitive?
 		if attribute.Sensitive { // then mask.
-			// Generate secret name for the attribute.
-			secretName, err := rand.GenerateLowerAlphanumericChars(32) // it's as long as the version string in length.
-			if err != nil {
-				panic(err) // TODO: Return as error.
+			var secretName string
+			var err error
+			retry := 0
+			maxRetries := 3
+			for ; retry < maxRetries; retry++ {
+				// Generate secret name for the attribute.
+				secretName, err = rand.GenerateLowerAlphanumericChars(32) // it's as long as the version string in length.
+				if err != nil {
+					panic(err) // TODO: Return as error.
+				}
+				// Check for the highly unlikely secret name collision.
+				if _, ok := s.secretIDs[secretName]; ok {
+					// Name collision! Retrying...
+					continue
+				}
+				break
 			}
-			// TODO: Check for highly unlikely secret name collision.
+			if retry >= maxRetries {
+				panic(fmt.Sprintf("error generating random secret name %d times", maxRetries)) // TODO: Return as error.
+			}
 
 			// Insert value to keyvault here.
 			version, err := s.KeyVault.InsertSecret(context.Background(), secretName, attributeValue)
