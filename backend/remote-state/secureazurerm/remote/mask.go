@@ -38,7 +38,7 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 			ResourceTypes: resourceList,
 		})
 		if err != nil {
-			panic(err)
+			panic(err) // TODO: Return as error.
 		}
 		schemas = append(schemas, schema)
 	}
@@ -90,14 +90,14 @@ func (s *State) maskAttribute(attributes map[string]interface{}, attributeValue 
 			// Generate secret name for the attribute.
 			secretName, err := rand.GenerateLowerAlphanumericChars(32) // it's as long as the version string in length.
 			if err != nil {
-				panic(err)
+				panic(err) // TODO: Return as error.
 			}
 			// TODO: Check for highly unlikely secret name collision.
 
 			// Insert value to keyvault here.
 			version, err := s.KeyVault.InsertSecret(context.Background(), secretName, attributeValue)
 			if err != nil {
-				panic(fmt.Sprintf("error inserting secret into key vault: %s", err))
+				panic(fmt.Sprintf("error inserting secret into key vault: %s", err)) // TODO: Return as error.
 			}
 
 			// Replace attribute value with a reference/pointer to the secret value in the state key vault.
@@ -122,7 +122,7 @@ func (s *State) unmaskModule(i int, module map[string]interface{}) {
 			if secretAttribute, ok := value.(map[string]interface{}); ok {
 				secretAttributeValue, err := s.KeyVault.GetSecret(context.Background(), secretAttribute["id"].(string), secretAttribute["version"].(string))
 				if err != nil {
-					panic(fmt.Sprintf("error getting secret from key vault: %s", err))
+					panic(fmt.Sprintf("error getting secret from key vault: %s", err)) // TODO: Return as error.
 				}
 				attributes[key] = secretAttributeValue
 			}
