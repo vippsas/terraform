@@ -134,6 +134,32 @@ func (s *State) PersistState() error {
 	stateMap := make(map[string]interface{})
 	json.Unmarshal(buf.Bytes(), &stateMap)
 
+	// List all the secrets from the keyvault.
+	secretIDs, err := s.KeyVault.ListSecrets(context.Background())
+	if err != nil {
+		panic(fmt.Errorf("error listing secrets: %s", err))
+	}
+
+	// Delete the resource's attributes that does not exists anymore in the key vault.
+	resourceAddresses := make(map[string]struct{})
+	for _, module := range stateMap["modules"].([]interface{}) {
+		for _, resource := range module.(map[string]interface{})["resources"].(map[string]interface{}) {
+			for _, attributeValue := range resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{}) {
+				object, ok := attributeValue.(map[string]interface{})
+				if ok {
+					resourceAddresses[object["id"].(string)] = struct{}{}
+				}
+			}
+		}
+	}
+	for secretID := range secretIDs {
+		if _, ok := resourceAddresses[secretID]; !ok {
+			if err := s.KeyVault.DeleteSecret(context.Background(), secretID); err != nil {
+				panic(err)
+			}
+		}
+	}
+
 	// Mask sensitive attributes.
 	for i, module := range stateMap["modules"].([]interface{}) {
 		mod := module.(map[string]interface{})
