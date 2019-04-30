@@ -145,6 +145,7 @@ func (s *State) maskAttributes(attributes map[string]interface{}, value string, 
 			}
 		}
 	} else {
+		// Nope, then check if it exists in the nested block types.
 		if block, ok := resourceSchema.BlockTypes[keySplitted[i]]; ok {
 			s.maskAttributes(attributes, value, path, resourceName, key, keySplitted, i+2, &block.Block)
 		}
