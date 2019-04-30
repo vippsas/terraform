@@ -119,6 +119,7 @@ func (s *State) maskAttributes(attributes map[string]interface{}, value string, 
 	if attribute, ok := resourceSchema.Attributes[keySplitted[i]]; ok {
 		// Is resource attribute sensitive?
 		if attribute.Sensitive { // then mask.
+			// Encode resource attribute path to base32 due to the naming limitations of the key vault.
 			encodedAttributeName := rawStdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s.%s", strings.Join(path, "."), resourceName, key)))
 			if len(encodedAttributeName) > 127 {
 				// TODO: Encoded attribute name is too long. Ignoring...
