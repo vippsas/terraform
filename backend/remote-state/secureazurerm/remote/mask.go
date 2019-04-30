@@ -166,11 +166,11 @@ func (s *State) unmaskModule(i int, module map[string]interface{}) {
 		attributes := resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{})
 		for key, value := range attributes {
 			if secretAttribute, ok := value.(map[string]interface{}); ok {
-				secret, err := s.KeyVault.GetSecret(context.Background(), secretAttribute["id"].(string), secretAttribute["version"].(string))
+				secretAttributeValue, err := s.KeyVault.GetSecret(context.Background(), secretAttribute["id"].(string), secretAttribute["version"].(string))
 				if err != nil {
 					panic(fmt.Sprintf("error getting secret from key vault: %s", err))
 				}
-				attributes[key] = secret
+				attributes[key] = secretAttributeValue
 			}
 		}
 	}
