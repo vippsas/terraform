@@ -188,7 +188,6 @@ func (s *State) PersistState() error {
 		} else {
 			stringPath = path[0].(string)
 		}
-
 		for _, accessPolicy := range *s.AccessPolicies {
 			accessPolicyDotSplitted := strings.Split(accessPolicy, ".")
 			if strings.Join(accessPolicyDotSplitted[:len(path)], ".") == stringPath {
@@ -213,6 +212,7 @@ func (s *State) PersistState() error {
 			}
 		}
 
+		// Then mask the module.
 		s.maskModule(i, mod)
 	}
 	stateMap["keyVaultName"] = s.KeyVault.Name()
