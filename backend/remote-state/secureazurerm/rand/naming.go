@@ -18,8 +18,8 @@ func genRandBytes(n int) ([]byte, error) {
 	return b, nil
 }
 
-// GenLowerAlphanums generates a random lowercase alphanumeric string of len n.
-func GenLowerAlphanums(n int) (string, error) {
+// GenerateLowerAlphanumericChars generates a random lowercase alphanumeric string of len n.
+func GenerateLowerAlphanumericChars(n int) (string, error) {
 	b, err := genRandBytes(n)
 	if err != nil {
 		return "", fmt.Errorf("error generating random bytes: %s", err)
@@ -32,8 +32,8 @@ func GenLowerAlphanums(n int) (string, error) {
 	return string(s), nil
 }
 
-// GenLowerAlphas generates a random lowercase alpha string of len n.
-func GenLowerAlphas(n int) (string, error) {
+// GenerateLowerAlphabeticChars generates a random lowercase alpha string of len n.
+func GenerateLowerAlphabeticChars(n int) (string, error) {
 	b, err := genRandBytes(n)
 	if err != nil {
 		return "", fmt.Errorf("error generating random bytes: %s", err)
