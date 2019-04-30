@@ -25,7 +25,6 @@ var rawStdEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)
 
 // maskModule masks all sensitive attributes in a module.
 func (s *State) maskModule(i int, module map[string]interface{}) {
-	// Setup.
 	if len(s.resourceProviders) == 0 {
 		panic("forgot to set resource providers")
 	}
