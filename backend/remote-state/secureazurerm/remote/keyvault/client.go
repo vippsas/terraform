@@ -35,14 +35,14 @@ func (k *KeyVault) Name() string {
 	return k.vaultName
 }
 
-// generateKeyVaultName generates a new random key vault name of max length.
-func generateKeyVaultName() (string, error) {
+// GenerateKeyVaultName generates a new random key vault name of max length.
+func GenerateKeyVaultName() (string, error) {
 	var singleAlphaChar, alphanumerics string
-	singleAlphaChar, err := rand.GenLowerAlphas(1)
+	singleAlphaChar, err := rand.GenerateLowerAlphabeticChars(1)
 	if err != nil {
 		return "", fmt.Errorf("error generating alphabetic characters: %s", err)
 	}
-	alphanumerics, err = rand.GenLowerAlphanums(23)
+	alphanumerics, err = rand.GenerateLowerAlphanumericChars(23)
 	if err != nil {
 		return "", fmt.Errorf("error generating lowercase alphabetic and numeric characters: %s", err)
 	}
@@ -72,7 +72,7 @@ func Setup(ctx context.Context, blob *blob.Blob, props *properties.Properties, w
 
 	if stateMap["keyVaultName"] == nil {
 		// Set a new generated key vault name.
-		k.vaultName, err = generateKeyVaultName()
+		k.vaultName, err = GenerateKeyVaultName()
 		if err != nil {
 			return nil, fmt.Errorf("error generating key vault name: %s", err)
 		}

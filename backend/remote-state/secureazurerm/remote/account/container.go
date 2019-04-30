@@ -38,7 +38,7 @@ func Setup(ctx context.Context, props *properties.Properties, containerName stri
 	// Check if none exists. If none, create one.
 	if len(*result.Value) == 0 {
 		// Generate a 24 lowercase alphanumeric characters.
-		storageAccountName, err = rand.GenLowerAlphanums(24)
+		storageAccountName, err = rand.GenerateLowerAlphanumericChars(24)
 		if err != nil {
 			return nil, fmt.Errorf("error generating a storage account name: %s", err)
 		}
