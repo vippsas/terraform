@@ -92,7 +92,7 @@ func (s *State) maskAttribute(attributes map[string]interface{}, attributeValue 
 			if err != nil {
 				panic(err)
 			}
-			// TODO: Check for highly unlikely collision.
+			// TODO: Check for highly unlikely secret name collision.
 
 			// Insert value to keyvault here.
 			version, err := s.KeyVault.InsertSecret(context.Background(), secretName, attributeValue)
