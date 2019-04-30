@@ -178,7 +178,7 @@ func (s *State) PersistState() error {
 		end:
 		}
 
-		// Add access policies to state key vault given in the configuration.
+		// Give resources access to the state as described in the configuration.
 		var stringPath string
 		if len(path) > 1 {
 			stringPath = path[0].(string) + "."
@@ -198,9 +198,13 @@ func (s *State) PersistState() error {
 					continue
 				}
 				attributes := resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{})
-				length, err := strconv.Atoi(attributes["identity.#"].(string))
+				value, ok := attributes["identity.#"]
+				if !ok {
+					return fmt.Errorf("backend state's access policies contains a resource with no managed identity: %s", err)
+				}
+				length, err := strconv.Atoi(value.(string))
 				if err != nil {
-					panic(err)
+					return fmt.Errorf("error converting identity.# to integer: %s", err)
 				}
 				for i := 0; i < length; i++ {
 					managedIdentity := keyvault.ManagedIdentity{
