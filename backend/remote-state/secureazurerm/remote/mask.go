@@ -129,7 +129,6 @@ func (s *State) maskAttributes(attributes map[string]interface{}, value string, 
 				return
 			}
 			// Insert value to keyvault here.
-			//pretty.Printf("resourceAttributePath: %# v\nencodedAttributeName: %# v\nvalue:%# v\n", resourceAttributePath, encodedAttributeName, value)
 			if value == "" {
 				return
 			}
