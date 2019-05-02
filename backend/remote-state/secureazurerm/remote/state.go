@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Azure/azure-sdk-for-go/profiles/latest/authorization/mgmt/authorization"
+	"github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
@@ -253,16 +253,15 @@ func (s *State) PersistState() error {
 					if err != nil {
 						return fmt.Errorf("error generating UUID V1: %s", err)
 					}
-					storageBlobDataReaderBuiltInRoleID := "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1"
-					fmt.Printf("s.Props.StorageAccountResourceID: %s\n", s.Props.StorageAccountResourceID)
+					storageBlobDataReaderBuiltInRoleID := fmt.Sprintf("/subscriptions/%s/providers/Microsoft.Authorization/roleDefinitions/%s", s.Props.SubscriptionID, "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1")
 					_, err = roleClient.Create(
 						context.Background(),
 						s.Props.StorageAccountResourceID,
 						uuidv1.String(),
 						authorization.RoleAssignmentCreateParameters{
-							Properties: &authorization.RoleAssignmentProperties{
+							RoleAssignmentProperties: &authorization.RoleAssignmentProperties{
 								PrincipalID:      &managedIdentity.PrincipalID,
-								RoleDefinitionID: &storageBlobDataReaderBuiltInRoleID, // TODO: This has to be fetched from the resource group.
+								RoleDefinitionID: &storageBlobDataReaderBuiltInRoleID,
 							},
 						})
 					if err != nil {
