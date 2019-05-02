@@ -91,7 +91,10 @@ func (s *State) RefreshState() error {
 		return fmt.Errorf("error unmarshalling state to map: %s", err)
 	}
 	for i, module := range stateMap["modules"].([]interface{}) {
-		s.unmaskModule(i, module.(map[string]interface{}))
+		err = s.unmaskModule(i, module.(map[string]interface{}))
+		if err != nil {
+			return fmt.Errorf("error unmasking module: %s", err)
+		}
 	}
 
 	// Convert it back to terraform.State.
@@ -202,7 +205,7 @@ func (s *State) PersistState() error {
 			}
 			err = s.KeyVault.RemoveIDFromAccessPolicies(context.Background(), *accessPolicy.TenantID, *accessPolicy.ObjectID)
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("error removing managed ID from access policies: %s", err)
 			}
 		end:
 		}
@@ -246,7 +249,14 @@ func (s *State) PersistState() error {
 		}
 
 		// Then mask the module.
-		s.maskModule(i, mod)
+		err = s.maskModule(i, mod)
+		if err != nil {
+			var paths []string
+			for _, s := range path {
+				paths = append(paths, s.(string))
+			}
+			return fmt.Errorf("error masking module %s: %s", strings.Join(paths, "."), err)
+		}
 	}
 	stateMap["keyVaultName"] = s.KeyVault.Name()
 
