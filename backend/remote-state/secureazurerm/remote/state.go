@@ -223,8 +223,7 @@ func (s *State) PersistState() error {
 		for _, accessPolicy := range *s.AccessPolicies {
 			accessPolicyDotSplitted := strings.Split(accessPolicy, ".")
 			if strings.Join(accessPolicyDotSplitted[:len(path)], ".") == stringPath {
-				resourceName := strings.Join(accessPolicyDotSplitted[len(path):], ".")
-				resource, ok := mod["resources"].(map[string]interface{})[resourceName]
+				resource, ok := mod["resources"].(map[string]interface{})[strings.Join(accessPolicyDotSplitted[len(path):], ".")]
 				if !ok {
 					// could not find resource.
 					continue
