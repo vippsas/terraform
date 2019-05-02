@@ -225,7 +225,7 @@ func (s *State) PersistState() error {
 			if strings.Join(accessPolicyDotSplitted[:len(path)], ".") == stringPath {
 				resource, ok := mod["resources"].(map[string]interface{})[strings.Join(accessPolicyDotSplitted[len(path):], ".")]
 				if !ok {
-					// could not find resource.
+					// could not find resource, perhaps due to being destroyed.
 					continue
 				}
 				attributes := resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{})
