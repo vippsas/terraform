@@ -17,6 +17,8 @@ type Properties struct {
 	// ObjectIDs that can access the state key vault.
 	AccessPolicies []string
 
+	StorageAccountResourceID string // The fully-qualified resource ID of the state's storage account.
+
 	// Authorizers and clients.
 	MgmtAuthorizer autorest.Authorizer
 }
