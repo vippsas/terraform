@@ -66,7 +66,7 @@ func (b *Backend) State(workspaceName string) (state.State, error) {
 		return nil, fmt.Errorf("error setting up state key vault: %s", err)
 	}
 
-	return &remote.State{Blob: blob, KeyVault: keyVault, AccessPolicies: &b.props.AccessPolicies, Owner: b.props.ObjectID}, nil
+	return &remote.State{Blob: blob, KeyVault: keyVault, Props: &b.props}, nil
 }
 
 // setupKeyVault setups the state key vault.

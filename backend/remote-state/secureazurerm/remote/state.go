@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
 	"github.com/hashicorp/terraform/state"
@@ -24,8 +25,7 @@ type State struct {
 	Blob     *blob.Blob         // client to communicate with the state blob storage.
 	KeyVault *keyvault.KeyVault // client to communicate with the state key vault.
 
-	AccessPolicies *[]string // describes which resources has read access to the state.
-	Owner          string    // the owner of the state.
+	Props *properties.Properties
 
 	state, // in-memory state.
 	readState *terraform.State // state read from the blob.
@@ -179,7 +179,7 @@ func (s *State) PersistState() error {
 
 		// Remove itself from the access policy list for comparison.
 		for i, policy := range accessPolicies {
-			if *policy.ObjectID == s.Owner {
+			if *policy.ObjectID == s.Props.ObjectID {
 				accessPolicies = append(accessPolicies[:i], accessPolicies[i+1:]...)
 				break
 			}
@@ -220,7 +220,7 @@ func (s *State) PersistState() error {
 		} else {
 			stringPath = path[0].(string)
 		}
-		for _, accessPolicy := range *s.AccessPolicies {
+		for _, accessPolicy := range s.Props.AccessPolicies {
 			accessPolicyDotSplitted := strings.Split(accessPolicy, ".")
 			if strings.Join(accessPolicyDotSplitted[:len(path)], ".") == stringPath {
 				resource, ok := mod["resources"].(map[string]interface{})[strings.Join(accessPolicyDotSplitted[len(path):], ".")]
@@ -243,6 +243,26 @@ func (s *State) PersistState() error {
 						TenantID:    attributes[fmt.Sprintf("identity.%d.tenant_id", i)].(string),
 					}
 					s.KeyVault.AddIDToAccessPolicies(context.Background(), &managedIdentity)
+
+					// TODO: Assign "Storage Blob Data Reader"-role to the managed identity.
+					/*
+						roleClient := authorization.NewRoleAssignmentsClient(s.Props.SubscriptionID)
+						roleClient.Authorizer = s.Props.MgmtAuthorizer
+						uuid, err := uuid.NewV1()
+						if err != nil {
+							return fmt.Errorf("error generating UUID V1: %s", err)
+						}
+						roleClient.Create(
+							context.Background(),
+							"",
+							uuid.String(),
+							authorization.RoleAssignmentCreateParameters{
+								Properties: &authorization.RoleAssignmentProperties{
+									PrincipalID:      &managedIdentity.PrincipalID,
+									RoleDefinitionID: &managedIdentity.PrincipalID,
+								},
+							})
+					*/
 				}
 			}
 		}
