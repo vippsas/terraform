@@ -22,7 +22,7 @@ func (s *State) SetResourceProviders(p []terraform.ResourceProvider) {
 }
 
 // maskModule masks all sensitive attributes in a module.
-func (s *State) maskModule(i int, module map[string]interface{}) {
+func (s *State) maskModule(i int, module map[string]interface{}) error {
 	if len(s.resourceProviders) == 0 {
 		panic("forgot to set resource providers")
 	}
@@ -38,7 +38,7 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 			ResourceTypes: resourceList,
 		})
 		if err != nil {
-			panic(err) // TODO: Return as error.
+			return fmt.Errorf("error getting resource schemas: %s", err)
 		}
 		schemas = append(schemas, schema)
 	}
@@ -74,13 +74,15 @@ func (s *State) maskModule(i int, module map[string]interface{}) {
 			}
 		}
 	}
+
+	return nil
 }
 
 // maskAttribute masks the attributes of an resource.
-func (s *State) maskAttribute(attributes map[string]interface{}, attributeValue string, attributeName string, attributeNameSplitted []string, i int, resourceSchema *configschema.Block) {
+func (s *State) maskAttribute(attributes map[string]interface{}, attributeValue string, attributeName string, attributeNameSplitted []string, i int, resourceSchema *configschema.Block) error {
 	// Check if there exist an attribute.
 	if i >= len(attributeNameSplitted) {
-		return
+		return nil
 	}
 
 	// Check if attribute from the block exists in the schema.
@@ -95,7 +97,7 @@ func (s *State) maskAttribute(attributes map[string]interface{}, attributeValue 
 				// Generate secret name for the attribute.
 				secretName, err = rand.GenerateLowerAlphanumericChars(32) // it's as long as the version string in length.
 				if err != nil {
-					panic(err) // TODO: Return as error.
+					return fmt.Errorf("error generating secret name: %s", err)
 				}
 				// Check for the highly unlikely secret name collision.
 				if _, ok := s.secretIDs[secretName]; ok {
@@ -105,13 +107,13 @@ func (s *State) maskAttribute(attributes map[string]interface{}, attributeValue 
 				break
 			}
 			if retry >= maxRetries {
-				panic(fmt.Sprintf("error generating random secret name %d times", maxRetries)) // TODO: Return as error.
+				return fmt.Errorf("error generating random secret name %d times", maxRetries)
 			}
 
 			// Insert value to keyvault here.
 			version, err := s.KeyVault.InsertSecret(context.Background(), secretName, attributeValue)
 			if err != nil {
-				panic(fmt.Sprintf("error inserting secret into key vault: %s", err)) // TODO: Return as error.
+				return fmt.Errorf("error inserting secret into key vault: %s", err)
 			}
 
 			// Replace attribute value with a reference/pointer to the secret value in the state key vault.
@@ -126,20 +128,23 @@ func (s *State) maskAttribute(attributes map[string]interface{}, attributeValue 
 			s.maskAttribute(attributes, attributeValue, attributeName, attributeNameSplitted, i+2, &block.Block)
 		}
 	}
+
+	return nil
 }
 
 // unmaskModule unmasks all sensitive attributes in a module.
-func (s *State) unmaskModule(i int, module map[string]interface{}) {
+func (s *State) unmaskModule(i int, module map[string]interface{}) error {
 	for _, resource := range module["resources"].(map[string]interface{}) {
 		attributes := resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{})
 		for key, value := range attributes {
 			if secretAttribute, ok := value.(map[string]interface{}); ok {
 				secretAttributeValue, err := s.KeyVault.GetSecret(context.Background(), secretAttribute["id"].(string), secretAttribute["version"].(string))
 				if err != nil {
-					panic(fmt.Sprintf("error getting secret from key vault: %s", err)) // TODO: Return as error.
+					return fmt.Errorf("error getting secret from key vault: %s", err)
 				}
 				attributes[key] = secretAttributeValue
 			}
 		}
 	}
+	return nil
 }
