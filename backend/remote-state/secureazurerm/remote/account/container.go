@@ -86,14 +86,18 @@ func Setup(ctx context.Context, props *properties.Properties, containerName stri
 		}
 
 		// Wait for creation completion.
-		_, err = future.Result(accountsClient)
+		var storageAccount armStorage.Account
+		storageAccount, err = future.Result(accountsClient)
 		if err != nil {
 			return nil, fmt.Errorf("error waiting for storage account creation: %v", err)
 		}
+		props.StorageAccountResourceID = *storageAccount.ID
 	} else if len(*result.Value) != 1 {
 		return nil, fmt.Errorf("only 1 storage account is allowed in the resource group %s", props.ResourceGroupName)
 	} else {
-		storageAccountName = *(*result.Value)[0].Name
+		storageAccount := (*result.Value)[0]
+		storageAccountName = *storageAccount.Name
+		props.StorageAccountResourceID = *storageAccount.ID
 	}
 
 	// Fetch an access key for storage account.
