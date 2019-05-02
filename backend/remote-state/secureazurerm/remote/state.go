@@ -11,11 +11,13 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Azure/azure-sdk-for-go/profiles/latest/authorization/mgmt/authorization"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
 	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/terraform"
+	uuid "github.com/satori/go.uuid"
 )
 
 // State contains the remote state.
@@ -237,6 +239,8 @@ func (s *State) PersistState() error {
 				if err != nil {
 					return fmt.Errorf("error converting identity.# to integer: %s", err)
 				}
+				roleClient := authorization.NewRoleAssignmentsClient(s.Props.SubscriptionID)
+				roleClient.Authorizer = s.Props.MgmtAuthorizer
 				for i := 0; i < length; i++ {
 					managedIdentity := keyvault.ManagedIdentity{
 						PrincipalID: attributes[fmt.Sprintf("identity.%d.principal_id", i)].(string),
@@ -244,25 +248,26 @@ func (s *State) PersistState() error {
 					}
 					s.KeyVault.AddIDToAccessPolicies(context.Background(), &managedIdentity)
 
-					// TODO: Assign "Storage Blob Data Reader"-role to the managed identity.
-					/*
-						roleClient := authorization.NewRoleAssignmentsClient(s.Props.SubscriptionID)
-						roleClient.Authorizer = s.Props.MgmtAuthorizer
-						uuid, err := uuid.NewV1()
-						if err != nil {
-							return fmt.Errorf("error generating UUID V1: %s", err)
-						}
-						roleClient.Create(
-							context.Background(),
-							"",
-							uuid.String(),
-							authorization.RoleAssignmentCreateParameters{
-								Properties: &authorization.RoleAssignmentProperties{
-									PrincipalID:      &managedIdentity.PrincipalID,
-									RoleDefinitionID: &managedIdentity.PrincipalID,
-								},
-							})
-					*/
+					// Assign "Storage Blob Data Reader"-role to the managed identity.
+					uuidv1, err := uuid.NewV1()
+					if err != nil {
+						return fmt.Errorf("error generating UUID V1: %s", err)
+					}
+					storageBlobDataReaderBuiltInRoleID := "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1"
+					fmt.Printf("s.Props.StorageAccountResourceID: %s\n", s.Props.StorageAccountResourceID)
+					_, err = roleClient.Create(
+						context.Background(),
+						s.Props.StorageAccountResourceID,
+						uuidv1.String(),
+						authorization.RoleAssignmentCreateParameters{
+							Properties: &authorization.RoleAssignmentProperties{
+								PrincipalID:      &managedIdentity.PrincipalID,
+								RoleDefinitionID: &storageBlobDataReaderBuiltInRoleID, // TODO: This has to be fetched from the resource group.
+							},
+						})
+					if err != nil {
+						return fmt.Errorf("error assigning the role \"Storage Blob Data Reader\" to the managed ID %s for gaining read-access to the state's storage account: %s", managedIdentity.PrincipalID, err)
+					}
 				}
 			}
 		}
