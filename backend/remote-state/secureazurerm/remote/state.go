@@ -224,52 +224,53 @@ func (s *State) PersistState() error {
 		}
 		for _, accessPolicy := range s.Props.AccessPolicies {
 			accessPolicyDotSplitted := strings.Split(accessPolicy, ".")
-			if strings.Join(accessPolicyDotSplitted[:len(path)], ".") == stringPath {
-				resource, ok := mod["resources"].(map[string]interface{})[strings.Join(accessPolicyDotSplitted[len(path):], ".")]
-				if !ok {
-					// could not find resource, perhaps due to being destroyed.
-					continue
+			if strings.Join(accessPolicyDotSplitted[:len(path)], ".") != stringPath {
+				continue
+			}
+			resource, ok := mod["resources"].(map[string]interface{})[strings.Join(accessPolicyDotSplitted[len(path):], ".")]
+			if !ok {
+				// could not find resource, perhaps due to being destroyed.
+				continue
+			}
+			attributes := resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{})
+			value, ok := attributes["identity.#"]
+			if !ok {
+				return fmt.Errorf("backend state's access policies contains a resource with no managed identity: %s", err)
+			}
+			length, err := strconv.Atoi(value.(string))
+			if err != nil {
+				return fmt.Errorf("error converting identity.# to integer: %s", err)
+			}
+			roleAssignmentClient := authorization.NewRoleAssignmentsClient(s.Props.SubscriptionID)
+			roleAssignmentClient.Authorizer = s.Props.MgmtAuthorizer
+			for i := 0; i < length; i++ {
+				managedIdentity := keyvault.ManagedIdentity{
+					PrincipalID: attributes[fmt.Sprintf("identity.%d.principal_id", i)].(string),
+					TenantID:    attributes[fmt.Sprintf("identity.%d.tenant_id", i)].(string),
 				}
-				attributes := resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{})
-				value, ok := attributes["identity.#"]
-				if !ok {
-					return fmt.Errorf("backend state's access policies contains a resource with no managed identity: %s", err)
-				}
-				length, err := strconv.Atoi(value.(string))
-				if err != nil {
-					return fmt.Errorf("error converting identity.# to integer: %s", err)
-				}
-				roleAssignmentClient := authorization.NewRoleAssignmentsClient(s.Props.SubscriptionID)
-				roleAssignmentClient.Authorizer = s.Props.MgmtAuthorizer
-				for i := 0; i < length; i++ {
-					managedIdentity := keyvault.ManagedIdentity{
-						PrincipalID: attributes[fmt.Sprintf("identity.%d.principal_id", i)].(string),
-						TenantID:    attributes[fmt.Sprintf("identity.%d.tenant_id", i)].(string),
-					}
-					s.KeyVault.AddIDToAccessPolicies(context.Background(), &managedIdentity)
+				s.KeyVault.AddIDToAccessPolicies(context.Background(), &managedIdentity)
 
-					// Assign "Storage Blob Data Reader"-role to the managed identity.
-					uuidv1, err := uuid.NewV1()
-					if err != nil {
-						return fmt.Errorf("error generating UUID V1: %s", err)
-					}
-					storageBlobDataReaderBuiltInRoleID := fmt.Sprintf(
-						"/subscriptions/%s/providers/Microsoft.Authorization/roleDefinitions/%s",
-						s.Props.SubscriptionID, "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
-					)
-					_, err = roleAssignmentClient.Create(
-						context.Background(),
-						s.Props.StorageAccountResourceID,
-						uuidv1.String(),
-						authorization.RoleAssignmentCreateParameters{
-							RoleAssignmentProperties: &authorization.RoleAssignmentProperties{
-								PrincipalID:      &managedIdentity.PrincipalID,
-								RoleDefinitionID: &storageBlobDataReaderBuiltInRoleID,
-							},
-						})
-					if err != nil {
-						return fmt.Errorf("error assigning the role \"Storage Blob Data Reader\" to the managed ID %s for gaining read-access to the state's storage account: %s", managedIdentity.PrincipalID, err)
-					}
+				// Assign "Storage Blob Data Reader"-role to the managed identity.
+				uuidv1, err := uuid.NewV1()
+				if err != nil {
+					return fmt.Errorf("error generating UUID V1: %s", err)
+				}
+				storageBlobDataReaderBuiltInRoleID := fmt.Sprintf(
+					"/subscriptions/%s/providers/Microsoft.Authorization/roleDefinitions/%s",
+					s.Props.SubscriptionID, "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+				)
+				_, err = roleAssignmentClient.Create(
+					context.Background(),
+					s.Props.StorageAccountResourceID,
+					uuidv1.String(),
+					authorization.RoleAssignmentCreateParameters{
+						RoleAssignmentProperties: &authorization.RoleAssignmentProperties{
+							PrincipalID:      &managedIdentity.PrincipalID,
+							RoleDefinitionID: &storageBlobDataReaderBuiltInRoleID,
+						},
+					})
+				if err != nil {
+					return fmt.Errorf("error assigning the role \"Storage Blob Data Reader\" to the managed ID %s for gaining read-access to the state's storage account: %s", managedIdentity.PrincipalID, err)
 				}
 			}
 		}
