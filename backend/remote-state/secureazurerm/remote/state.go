@@ -239,8 +239,8 @@ func (s *State) PersistState() error {
 				if err != nil {
 					return fmt.Errorf("error converting identity.# to integer: %s", err)
 				}
-				roleClient := authorization.NewRoleAssignmentsClient(s.Props.SubscriptionID)
-				roleClient.Authorizer = s.Props.MgmtAuthorizer
+				roleAssignmentClient := authorization.NewRoleAssignmentsClient(s.Props.SubscriptionID)
+				roleAssignmentClient.Authorizer = s.Props.MgmtAuthorizer
 				for i := 0; i < length; i++ {
 					managedIdentity := keyvault.ManagedIdentity{
 						PrincipalID: attributes[fmt.Sprintf("identity.%d.principal_id", i)].(string),
@@ -253,8 +253,11 @@ func (s *State) PersistState() error {
 					if err != nil {
 						return fmt.Errorf("error generating UUID V1: %s", err)
 					}
-					storageBlobDataReaderBuiltInRoleID := fmt.Sprintf("/subscriptions/%s/providers/Microsoft.Authorization/roleDefinitions/%s", s.Props.SubscriptionID, "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1")
-					_, err = roleClient.Create(
+					storageBlobDataReaderBuiltInRoleID := fmt.Sprintf(
+						"/subscriptions/%s/providers/Microsoft.Authorization/roleDefinitions/%s",
+						s.Props.SubscriptionID, "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+					)
+					_, err = roleAssignmentClient.Create(
 						context.Background(),
 						s.Props.StorageAccountResourceID,
 						uuidv1.String(),
