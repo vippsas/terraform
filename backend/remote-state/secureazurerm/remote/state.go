@@ -168,23 +168,23 @@ func (s *State) PersistState() error {
 		}
 	}
 
+	// Get state key vault's access policies.
+	accessPolicies, err := s.KeyVault.GetAccessPolicies(context.Background())
+	if err != nil {
+		return fmt.Errorf("error getting the state key vault's access policies: %s", err)
+	}
+
+	// Remove itself from the access policy list for comparison.
+	for i, policy := range accessPolicies {
+		if *policy.ObjectID == s.Props.ObjectID {
+			accessPolicies = append(accessPolicies[:i], accessPolicies[i+1:]...)
+			break
+		}
+	}
+
 	// Mask sensitive attributes.
 	for i, module := range stateMap["modules"].([]interface{}) {
 		mod := module.(map[string]interface{})
-
-		// Get state key vault's access policies.
-		accessPolicies, err := s.KeyVault.GetAccessPolicies(context.Background())
-		if err != nil {
-			return fmt.Errorf("error getting the state key vault's access policies: %s", err)
-		}
-
-		// Remove itself from the access policy list for comparison.
-		for i, policy := range accessPolicies {
-			if *policy.ObjectID == s.Props.ObjectID {
-				accessPolicies = append(accessPolicies[:i], accessPolicies[i+1:]...)
-				break
-			}
-		}
 
 		// Compare the existing access policies with the current resources in the state. Delete those that does not exist anymore.
 		for _, accessPolicy := range accessPolicies {
