@@ -171,7 +171,6 @@ func (s *State) PersistState() error {
 	// Mask sensitive attributes.
 	for i, module := range stateMap["modules"].([]interface{}) {
 		mod := module.(map[string]interface{})
-		path := mod["path"].([]interface{})
 
 		// Get state key vault's access policies.
 		accessPolicies, err := s.KeyVault.GetAccessPolicies(context.Background())
@@ -213,6 +212,7 @@ func (s *State) PersistState() error {
 		}
 
 		// Give resources access to the state as described in the configuration.
+		path := mod["path"].([]interface{})
 		var stringPath string
 		if len(path) > 1 {
 			stringPath = path[0].(string) + "."
