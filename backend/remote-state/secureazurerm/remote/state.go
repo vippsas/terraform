@@ -136,7 +136,7 @@ func (s *State) PersistState() error {
 		return fmt.Errorf("error writing state to buffer: %s", err)
 	}
 
-	// Unmarshall to state to map.
+	// Unmarshal state to map.
 	stateMap := make(map[string]interface{})
 	json.Unmarshal(buf.Bytes(), &stateMap)
 
