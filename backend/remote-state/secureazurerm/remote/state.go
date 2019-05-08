@@ -259,7 +259,13 @@ func (s *State) PersistState() error {
 					"/subscriptions/%s/providers/Microsoft.Authorization/roleDefinitions/%s",
 					s.Props.SubscriptionID, "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
 				)
-				_, err = roleAssignmentClient.Create(
+				if stateMap["roleAssignmentID"] != nil {
+					_, err = roleAssignmentClient.GetByID(context.Background(), stateMap["roleAssignmentID"].(string))
+					if err == nil { // role assignment exists.
+						continue
+					}
+				}
+				roleAssignmentID, err := roleAssignmentClient.Create(
 					context.Background(),
 					s.Props.StorageAccountResourceID,
 					uuidv1.String(),
@@ -272,6 +278,7 @@ func (s *State) PersistState() error {
 				if err != nil {
 					return fmt.Errorf("error assigning the role \"Storage Blob Data Reader\" to the managed ID %s for gaining read-access to the state's storage account: %s", managedIdentity.PrincipalID, err)
 				}
+				stateMap["roleAssignmentID"] = roleAssignmentID
 			}
 		}
 
