@@ -102,7 +102,6 @@ func (s *State) RefreshState() error {
 	for _, roleAssignmentID := range stateMap["roleAssignmentIDs"].([]interface{}) {
 		s.roleAssignmentIDs = append(s.roleAssignmentIDs, roleAssignmentID.(string))
 	}
-	fmt.Printf("s.roleAssignmentIDs: %v\n", s.roleAssignmentIDs)
 
 	// Convert it back to terraform.State.
 	j, err := json.Marshal(stateMap)
