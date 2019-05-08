@@ -29,8 +29,9 @@ type State struct {
 
 	Props *properties.Properties
 
-	state, // in-memory state.
-	readState *terraform.State // state read from the blob.
+	state, // current in-memory state.
+	readState *terraform.State // state read from the blob
+	roleAssignmentIDs []string
 
 	resourceProviders []terraform.ResourceProvider // resource providers used in the configuration.
 	secretIDs         map[string]struct{}
@@ -98,6 +99,10 @@ func (s *State) RefreshState() error {
 			return fmt.Errorf("error unmasking module: %s", err)
 		}
 	}
+	for _, roleAssignmentID := range stateMap["roleAssignmentIDs"].([]interface{}) {
+		s.roleAssignmentIDs = append(s.roleAssignmentIDs, roleAssignmentID.(string))
+	}
+	fmt.Printf("s.roleAssignmentIDs: %v\n", s.roleAssignmentIDs)
 
 	// Convert it back to terraform.State.
 	j, err := json.Marshal(stateMap)
@@ -136,39 +141,6 @@ func (s *State) PersistState() error {
 		return fmt.Errorf("error writing state to buffer: %s", err)
 	}
 
-	// Unmarshal state to map.
-	stateMap := make(map[string]interface{})
-	json.Unmarshal(buf.Bytes(), &stateMap)
-
-	// List all the secrets from the keyvault.
-	var err error
-	s.secretIDs, err = s.KeyVault.ListSecrets(context.Background())
-	if err != nil {
-		return fmt.Errorf("error listing secrets: %s", err)
-	}
-
-	// THIS IS INCORRECT!
-	// TODO: Delete the resource's attributes that does not exists anymore in the key vault.
-	resourceAttributeSecretIDs := make(map[string]struct{})
-	for _, module := range stateMap["modules"].([]interface{}) {
-		for _, resource := range module.(map[string]interface{})["resources"].(map[string]interface{}) {
-			for _, attributeValue := range resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{}) {
-				object, ok := attributeValue.(map[string]interface{})
-				if ok {
-					resourceAttributeSecretIDs[object["id"].(string)] = struct{}{}
-				}
-			}
-		}
-	}
-	for secretID := range s.secretIDs {
-		if _, ok := resourceAttributeSecretIDs[secretID]; !ok {
-			if err := s.KeyVault.DeleteSecret(context.Background(), secretID); err != nil {
-				return fmt.Errorf("error deleting secret %s: %s", secretID, err)
-			}
-			delete(s.secretIDs, secretID)
-		}
-	}
-
 	// Get state key vault's access policies.
 	accessPolicies, err := s.KeyVault.GetAccessPolicies(context.Background())
 	if err != nil {
@@ -182,6 +154,16 @@ func (s *State) PersistState() error {
 			break
 		}
 	}
+
+	// List and save all secrets from the keyvault.
+	s.secretIDs, err = s.KeyVault.ListSecrets(context.Background())
+	if err != nil {
+		return fmt.Errorf("error listing secrets: %s", err)
+	}
+
+	// Unmarshal state to map.
+	stateMap := make(map[string]interface{})
+	json.Unmarshal(buf.Bytes(), &stateMap)
 
 	// Mask sensitive attributes.
 	for i, module := range stateMap["modules"].([]interface{}) {
@@ -223,6 +205,7 @@ func (s *State) PersistState() error {
 		} else {
 			stringPath = path[0].(string)
 		}
+		var roleAssignmentIDs []string
 		for _, accessPolicy := range s.Props.AccessPolicies {
 			accessPolicyDotSplitted := strings.Split(accessPolicy, ".")
 			if strings.Join(accessPolicyDotSplitted[:len(path)], ".") != stringPath {
@@ -242,31 +225,40 @@ func (s *State) PersistState() error {
 			if err != nil {
 				return fmt.Errorf("error converting identity.# to integer: %s", err)
 			}
-			roleAssignmentClient := authorization.NewRoleAssignmentsClient(s.Props.SubscriptionID)
-			roleAssignmentClient.Authorizer = s.Props.MgmtAuthorizer
+			var principalIDs map[string]struct{}
+			principalIDs = make(map[string]struct{})
 			for i := 0; i < length; i++ {
 				managedIdentity := keyvault.ManagedIdentity{
 					PrincipalID: attributes[fmt.Sprintf("identity.%d.principal_id", i)].(string),
 					TenantID:    attributes[fmt.Sprintf("identity.%d.tenant_id", i)].(string),
 				}
 				s.KeyVault.AddIDToAccessPolicies(context.Background(), &managedIdentity)
+				principalIDs[managedIdentity.PrincipalID] = struct{}{}
+			}
 
-				// Assign "Storage Blob Data Reader"-role to the managed identity.
+			// Assign "Storage Blob Data Reader"-role to the managed identity.
+			roleAssignmentClient := authorization.NewRoleAssignmentsClient(s.Props.SubscriptionID)
+			roleAssignmentClient.Authorizer = s.Props.MgmtAuthorizer
+			storageBlobDataReaderBuiltInRoleID := fmt.Sprintf(
+				"/subscriptions/%s/providers/Microsoft.Authorization/roleDefinitions/%s",
+				s.Props.SubscriptionID, "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+			)
+			for _, roleAssignmentID := range s.roleAssignmentIDs {
+				roleAssignment, err := roleAssignmentClient.GetByID(context.Background(), roleAssignmentID)
+				if err != nil { // role assignment does not exist.
+					continue
+				}
+				fmt.Printf("roleAssignment.PrincipalID: %v\n", *roleAssignment.PrincipalID)
+				if _ = principalIDs[*roleAssignment.PrincipalID]; ok {
+					delete(principalIDs, *roleAssignment.PrincipalID)
+					roleAssignmentIDs = append(roleAssignmentIDs, *roleAssignment.ID)
+				}
+				// else role assignment does not exist.
+			}
+			for principalID := range principalIDs {
 				uuidv1, err := uuid.NewV1()
 				if err != nil {
 					return fmt.Errorf("error generating UUID V1: %s", err)
-				}
-				storageBlobDataReaderBuiltInRoleID := fmt.Sprintf(
-					"/subscriptions/%s/providers/Microsoft.Authorization/roleDefinitions/%s",
-					s.Props.SubscriptionID, "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
-				)
-				if stateMap["roleAssignmentID"] != nil {
-					fmt.Printf("stateMap: %s\n", stateMap["roleAssignmentID"])
-					id, err := roleAssignmentClient.GetByID(context.Background(), stateMap["roleAssignmentID"].(string))
-					if err == nil { // role assignment exists.
-						continue
-					}
-					fmt.Printf("%v\n", id)
 				}
 				roleAssignmentID, err := roleAssignmentClient.Create(
 					context.Background(),
@@ -274,25 +266,49 @@ func (s *State) PersistState() error {
 					uuidv1.String(),
 					authorization.RoleAssignmentCreateParameters{
 						RoleAssignmentProperties: &authorization.RoleAssignmentProperties{
-							PrincipalID:      &managedIdentity.PrincipalID,
+							PrincipalID:      &principalID,
 							RoleDefinitionID: &storageBlobDataReaderBuiltInRoleID,
 						},
 					})
 				if err != nil {
-					return fmt.Errorf("error assigning the role \"Storage Blob Data Reader\" to the managed ID %s for gaining read-access to the state's storage account: %s", managedIdentity.PrincipalID, err)
+					return fmt.Errorf("error assigning the role \"Storage Blob Data Reader\" to the managed ID %s for gaining read-access to the state's storage account: %s", principalID, err)
 				}
-				stateMap["roleAssignmentID"] = roleAssignmentID.ID
+				roleAssignmentIDs = append(roleAssignmentIDs, *roleAssignmentID.ID)
 			}
 		}
+		stateMap["roleAssignmentIDs"] = roleAssignmentIDs
 
 		// Then mask the module.
-		err = s.maskModule(i, mod)
+		err := s.maskModule(i, mod)
 		if err != nil {
 			var paths []string
 			for _, s := range path {
 				paths = append(paths, s.(string))
 			}
 			return fmt.Errorf("error masking module %s: %s", strings.Join(paths, "."), err)
+		}
+	}
+
+	// Delete the resource's attributes that does not exists anymore in the key vault.
+	resourceAttributeSecretIDs := make(map[string]struct{})
+	for _, module := range stateMap["modules"].([]interface{}) {
+		for _, resource := range module.(map[string]interface{})["resources"].(map[string]interface{}) {
+			for _, attributeValue := range resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{}) {
+				object, ok := attributeValue.(map[string]interface{})
+				if ok {
+					resourceAttributeSecretIDs[object["id"].(string)] = struct{}{}
+				}
+			}
+		}
+	}
+	// TODO: BUG!
+	for secretID := range s.secretIDs {
+		if _, ok := resourceAttributeSecretIDs[secretID]; !ok {
+			fmt.Println("deleting key")
+			if err := s.KeyVault.DeleteSecret(context.Background(), secretID); err != nil {
+				return fmt.Errorf("error deleting secret %s: %s", secretID, err)
+			}
+			delete(s.secretIDs, secretID)
 		}
 	}
 	stateMap["keyVaultName"] = s.KeyVault.Name()
