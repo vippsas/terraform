@@ -247,7 +247,6 @@ func (s *State) PersistState() error {
 				if err != nil { // role assignment does not exist.
 					continue
 				}
-				fmt.Printf("roleAssignment.PrincipalID: %v\n", *roleAssignment.PrincipalID)
 				if _ = principalIDs[*roleAssignment.PrincipalID]; ok {
 					delete(principalIDs, *roleAssignment.PrincipalID)
 					roleAssignmentIDs = append(roleAssignmentIDs, *roleAssignment.ID)
