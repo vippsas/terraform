@@ -67,7 +67,7 @@ func Setup(ctx context.Context, blob *blob.Blob, props *properties.Properties, w
 	var stateMap map[string]interface{}
 	err = json.Unmarshal(payload.Data, &stateMap)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("error unmarshalling state blob to JSON: %s", err)
 	}
 
 	if stateMap["keyVaultName"] == nil {

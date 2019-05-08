@@ -147,20 +147,21 @@ func (s *State) PersistState() error {
 		return fmt.Errorf("error listing secrets: %s", err)
 	}
 
-	// Delete the resource's attributes that does not exists anymore in the key vault.
-	resourceAddresses := make(map[string]struct{})
+	// THIS IS INCORRECT!
+	// TODO: Delete the resource's attributes that does not exists anymore in the key vault.
+	resourceAttributeSecretIDs := make(map[string]struct{})
 	for _, module := range stateMap["modules"].([]interface{}) {
 		for _, resource := range module.(map[string]interface{})["resources"].(map[string]interface{}) {
 			for _, attributeValue := range resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{}) {
 				object, ok := attributeValue.(map[string]interface{})
 				if ok {
-					resourceAddresses[object["id"].(string)] = struct{}{}
+					resourceAttributeSecretIDs[object["id"].(string)] = struct{}{}
 				}
 			}
 		}
 	}
 	for secretID := range s.secretIDs {
-		if _, ok := resourceAddresses[secretID]; !ok {
+		if _, ok := resourceAttributeSecretIDs[secretID]; !ok {
 			if err := s.KeyVault.DeleteSecret(context.Background(), secretID); err != nil {
 				return fmt.Errorf("error deleting secret %s: %s", secretID, err)
 			}
@@ -260,10 +261,12 @@ func (s *State) PersistState() error {
 					s.Props.SubscriptionID, "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
 				)
 				if stateMap["roleAssignmentID"] != nil {
-					_, err = roleAssignmentClient.GetByID(context.Background(), stateMap["roleAssignmentID"].(string))
+					fmt.Printf("stateMap: %s\n", stateMap["roleAssignmentID"])
+					id, err := roleAssignmentClient.GetByID(context.Background(), stateMap["roleAssignmentID"].(string))
 					if err == nil { // role assignment exists.
 						continue
 					}
+					fmt.Printf("%v\n", id)
 				}
 				roleAssignmentID, err := roleAssignmentClient.Create(
 					context.Background(),
@@ -278,7 +281,7 @@ func (s *State) PersistState() error {
 				if err != nil {
 					return fmt.Errorf("error assigning the role \"Storage Blob Data Reader\" to the managed ID %s for gaining read-access to the state's storage account: %s", managedIdentity.PrincipalID, err)
 				}
-				stateMap["roleAssignmentID"] = roleAssignmentID
+				stateMap["roleAssignmentID"] = roleAssignmentID.ID
 			}
 		}
 
