@@ -99,8 +99,10 @@ func (s *State) RefreshState() error {
 			return fmt.Errorf("error unmasking module: %s", err)
 		}
 	}
-	for _, roleAssignmentID := range stateMap["roleAssignmentIDs"].([]interface{}) {
-		s.roleAssignmentIDs = append(s.roleAssignmentIDs, roleAssignmentID.(string))
+	if stateMap["roleAssignmentIDs"] != nil {
+		for _, roleAssignmentID := range stateMap["roleAssignmentIDs"].([]interface{}) {
+			s.roleAssignmentIDs = append(s.roleAssignmentIDs, roleAssignmentID.(string))
+		}
 	}
 
 	// Convert it back to terraform.State.
