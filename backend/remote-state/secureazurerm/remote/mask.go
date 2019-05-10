@@ -105,7 +105,7 @@ func (s *State) maskAttribute(path []string, resourceName string, attributes map
 				return fmt.Errorf("error marshalling path: %s", err)
 			}
 			p := string(pb)
-			tags["path"] = &p
+			tags["module"] = &p
 			rb, err := json.Marshal(resourceName)
 			if err != nil {
 				return fmt.Errorf("error marshalling resource name: %s", err)
