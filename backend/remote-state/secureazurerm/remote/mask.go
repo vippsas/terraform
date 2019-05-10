@@ -147,8 +147,8 @@ func (s *State) maskAttribute(path []string, resourceName string, attributes map
 				}
 			}
 
-			// Insert value to keyvault.
-			version, err := s.KeyVault.InsertSecret(context.Background(), secretName, attributeValue, tags)
+			// Set value in keyvault.
+			version, err := s.KeyVault.SetSecret(context.Background(), secretName, attributeValue, tags)
 			if err != nil {
 				return fmt.Errorf("error inserting secret into key vault: %s", err)
 			}
