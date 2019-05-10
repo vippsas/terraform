@@ -93,8 +93,8 @@ func (s *State) RefreshState() error {
 	if err := json.Unmarshal(payload.Data, &stateMap); err != nil {
 		return fmt.Errorf("error unmarshalling state to map: %s", err)
 	}
-	for i, module := range stateMap["modules"].([]interface{}) {
-		err = s.unmaskModule(i, module.(map[string]interface{}))
+	for _, module := range stateMap["modules"].([]interface{}) {
+		err = s.unmaskModule(module.(map[string]interface{}))
 		if err != nil {
 			return fmt.Errorf("error unmasking module: %s", err)
 		}
@@ -167,7 +167,7 @@ func (s *State) PersistState() error {
 	json.Unmarshal(buf.Bytes(), &stateMap)
 
 	// Mask sensitive attributes.
-	for i, module := range stateMap["modules"].([]interface{}) {
+	for _, module := range stateMap["modules"].([]interface{}) {
 		mod := module.(map[string]interface{})
 
 		// Compare the existing access policies with the current resources in the state. Delete those that does not exist anymore.
@@ -279,7 +279,7 @@ func (s *State) PersistState() error {
 		stateMap["roleAssignmentIDs"] = roleAssignmentIDs
 
 		// Then mask the module.
-		err := s.maskModule(i, mod)
+		err := s.maskModule(mod)
 		if err != nil {
 			var paths []string
 			for _, s := range path {
