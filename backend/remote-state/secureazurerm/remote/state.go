@@ -294,9 +294,9 @@ func (s *State) PersistState() error {
 	for _, module := range stateMap["modules"].([]interface{}) {
 		for _, resource := range module.(map[string]interface{})["resources"].(map[string]interface{}) {
 			for _, attributeValue := range resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{}) {
-				object, ok := attributeValue.(map[string]interface{})
+				object, ok := attributeValue.(secretAttribute)
 				if ok {
-					resourceAttributeSecretIDs[object["id"].(string)] = struct{}{}
+					resourceAttributeSecretIDs[object.ID] = struct{}{}
 				}
 			}
 		}
