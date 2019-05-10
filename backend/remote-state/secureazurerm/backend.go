@@ -73,12 +73,8 @@ func (b *Backend) configure(ctx context.Context) error {
 
 	// Get the data attributes from the "backend"-block.
 	attributes := schema.FromContextBackendConfig(ctx)
-
 	b.props.ResourceGroupName = attributes.Get("resource_group_name").(string)
-	// Tags: <workspace>: <kvname>
-
 	b.props.Location = attributes.Get("location").(string)
-
 	for _, value := range attributes.Get("access_policies").([]interface{}) {
 		b.props.AccessPolicies = append(b.props.AccessPolicies, value.(string))
 	}
