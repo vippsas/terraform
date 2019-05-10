@@ -97,28 +97,7 @@ func (s *State) maskAttribute(path []string, resourceName string, attributes map
 	if attribute, ok := resourceSchema.Attributes[attributeNameSplitted[namePos]]; ok {
 		// Is resource attribute sensitive?
 		if attribute.Sensitive { // then mask.
-			var secretName string
-			var err error
-			retry := 0
-			maxRetries := 3
-			for ; retry < maxRetries; retry++ {
-				// Generate secret name for the attribute.
-				secretName, err = rand.GenerateLowerAlphanumericChars(32) // it's as long as the version string in length.
-				if err != nil {
-					return fmt.Errorf("error generating secret name: %s", err)
-				}
-				// Check for the highly unlikely secret name collision.
-				if _, ok := s.secretIDs[secretName]; ok {
-					// Name collision! Retrying...
-					continue
-				}
-				break
-			}
-			if retry >= maxRetries {
-				return fmt.Errorf("error generating random secret name %d times", maxRetries)
-			}
-
-			// Insert value to keyvault here.
+			// Tag secret with related state info.
 			tags := make(map[string]*string)
 			pb, err := json.Marshal(path)
 			if err != nil {
@@ -138,6 +117,29 @@ func (s *State) maskAttribute(path []string, resourceName string, attributes map
 			}
 			a := string(ab)
 			tags["attribute"] = &a
+
+			// Generate secret name.
+			var secretName string
+			retry := 0
+			maxRetries := 3
+			for ; retry < maxRetries; retry++ {
+				// Generate secret name for the attribute.
+				secretName, err = rand.GenerateLowerAlphanumericChars(32) // it's as long as the version string in length.
+				if err != nil {
+					return fmt.Errorf("error generating secret name: %s", err)
+				}
+				// Check for the highly unlikely secret name collision.
+				if _, ok := s.secretIDs[secretName]; ok {
+					// Name collision! Retrying...
+					continue
+				}
+				break
+			}
+			if retry >= maxRetries {
+				return fmt.Errorf("error generating random secret name %d times", maxRetries)
+			}
+
+			// Insert value to keyvault.
 			version, err := s.KeyVault.InsertSecret(context.Background(), secretName, attributeValue, tags)
 			if err != nil {
 				return fmt.Errorf("error inserting secret into key vault: %s", err)
