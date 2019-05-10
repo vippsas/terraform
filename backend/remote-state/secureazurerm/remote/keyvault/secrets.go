@@ -16,8 +16,8 @@ func getID(ID string) string {
 	return ID[i+1 : len(ID)]
 }
 
-// InsertSecret inserts a secret into the key vault. Returns the version.
-func (k *KeyVault) InsertSecret(ctx context.Context, name, value string, tags map[string]*string) (string, error) {
+// SetSecret sets a secret in a key vault. If the secret does not exist, it creates it. Returns the version of the secret.
+func (k *KeyVault) SetSecret(ctx context.Context, name, value string, tags map[string]*string) (string, error) {
 	contentType := "text/plain;charset=UTF-8"
 	bundle, err := k.keyClient.SetSecret(ctx, k.vaultURI, name, KV.SecretSetParameters{Value: &value, ContentType: &contentType, Tags: tags})
 	if err != nil {
