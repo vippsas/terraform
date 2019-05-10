@@ -2,6 +2,7 @@ package secureazurerm
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -141,15 +142,34 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 	runningOp.State = applyState
 	// Write the state to memory.
 	if err := remoteState.WriteState(applyState); err != nil {
-		// TODO: Output state to CLI.
-		//runningOp.Err = b.backupStateForError(applyState, err)
+		// Output applied state to CLI.
+		var outputErr error
+		data, marshalErr := json.MarshalIndent(applyState, "", "    ")
+		if err != nil {
+			outputErr = fmt.Errorf("error marshalling applied state: %s", marshalErr)
+		}
+		data = append(data, '\n')
+		fmt.Printf("Current infrastructure state:\n%v\n", data)
+		if outputErr != nil {
+			runningOp.Err = fmt.Errorf("%s: error writing state in-memory: %s", marshalErr, err)
+			return
+		}
 		runningOp.Err = fmt.Errorf("error writing state in-memory: %s", err)
 		return
 	}
 	// Save the state to remote.
 	if err := remoteState.PersistState(); err != nil {
-		// TODO: Output state to CLI.
-		//runningOp.Err = b.backupStateForError(applyState, err)
+		// Output applied state to CLI.
+		var outputErr error
+		data, marshallErr := json.MarshalIndent(applyState, "", "    ")
+		if err != nil {
+			outputErr = fmt.Errorf("error marshalling applied state: %s", marshallErr)
+		}
+		fmt.Printf("Current infrastructure state:\n%v\n", data)
+		if outputErr != nil {
+			runningOp.Err = fmt.Errorf("%s: error persisting state: %s", outputErr, err)
+			return
+		}
 		runningOp.Err = fmt.Errorf("error persisting state: %s", err)
 		return
 	}
