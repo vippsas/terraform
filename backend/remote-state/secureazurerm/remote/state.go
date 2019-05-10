@@ -11,13 +11,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
 	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/terraform"
-	uuid "github.com/satori/go.uuid"
 )
 
 // State contains the remote state.
@@ -31,7 +29,6 @@ type State struct {
 
 	state, // current in-memory state.
 	readState *terraform.State // state read from the blob
-	roleAssignmentIDs []string
 
 	resourceProviders []terraform.ResourceProvider // resource providers used in the configuration.
 	secretIDs         map[string]keyvault.SecretMetadata
@@ -97,11 +94,6 @@ func (s *State) RefreshState() error {
 		err = s.unmaskModule(module.(map[string]interface{}))
 		if err != nil {
 			return fmt.Errorf("error unmasking module: %s", err)
-		}
-	}
-	if stateMap["roleAssignmentIDs"] != nil {
-		for _, roleAssignmentID := range stateMap["roleAssignmentIDs"].([]interface{}) {
-			s.roleAssignmentIDs = append(s.roleAssignmentIDs, roleAssignmentID.(string))
 		}
 	}
 
@@ -206,7 +198,6 @@ func (s *State) PersistState() error {
 		} else {
 			stringPath = path[0].(string)
 		}
-		var roleAssignmentIDs []string
 		for _, accessPolicy := range s.Props.AccessPolicies {
 			accessPolicyDotSplitted := strings.Split(accessPolicy, ".")
 			if strings.Join(accessPolicyDotSplitted[:len(path)], ".") != stringPath {
@@ -226,57 +217,14 @@ func (s *State) PersistState() error {
 			if err != nil {
 				return fmt.Errorf("error converting identity.# to integer: %s", err)
 			}
-			var principalIDs map[string]struct{}
-			principalIDs = make(map[string]struct{})
 			for i := 0; i < length; i++ {
 				managedIdentity := keyvault.ManagedIdentity{
 					PrincipalID: attributes[fmt.Sprintf("identity.%d.principal_id", i)].(string),
 					TenantID:    attributes[fmt.Sprintf("identity.%d.tenant_id", i)].(string),
 				}
 				s.KeyVault.AddIDToAccessPolicies(context.Background(), &managedIdentity)
-				principalIDs[managedIdentity.PrincipalID] = struct{}{}
-			}
-
-			// Assign "Storage Blob Data Reader"-role to the managed identity.
-			roleAssignmentClient := authorization.NewRoleAssignmentsClient(s.Props.SubscriptionID)
-			roleAssignmentClient.Authorizer = s.Props.MgmtAuthorizer
-			storageBlobDataReaderBuiltInRoleID := fmt.Sprintf(
-				"/subscriptions/%s/providers/Microsoft.Authorization/roleDefinitions/%s",
-				s.Props.SubscriptionID, "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
-			)
-			for _, roleAssignmentID := range s.roleAssignmentIDs {
-				roleAssignment, err := roleAssignmentClient.GetByID(context.Background(), roleAssignmentID)
-				if err != nil { // role assignment does not exist.
-					continue
-				}
-				if _ = principalIDs[*roleAssignment.PrincipalID]; ok {
-					delete(principalIDs, *roleAssignment.PrincipalID)
-					roleAssignmentIDs = append(roleAssignmentIDs, *roleAssignment.ID)
-				}
-				// else role assignment does not exist.
-			}
-			for principalID := range principalIDs {
-				uuidv1, err := uuid.NewV1()
-				if err != nil {
-					return fmt.Errorf("error generating UUID V1: %s", err)
-				}
-				roleAssignmentID, err := roleAssignmentClient.Create(
-					context.Background(),
-					s.Props.StorageAccountResourceID,
-					uuidv1.String(),
-					authorization.RoleAssignmentCreateParameters{
-						RoleAssignmentProperties: &authorization.RoleAssignmentProperties{
-							PrincipalID:      &principalID,
-							RoleDefinitionID: &storageBlobDataReaderBuiltInRoleID,
-						},
-					})
-				if err != nil {
-					return fmt.Errorf("error assigning the role \"Storage Blob Data Reader\" to the managed ID %s for gaining read-access to the state's storage account: %s", principalID, err)
-				}
-				roleAssignmentIDs = append(roleAssignmentIDs, *roleAssignmentID.ID)
 			}
 		}
-		stateMap["roleAssignmentIDs"] = roleAssignmentIDs
 
 		// Then mask the module.
 		err := s.maskModule(mod)
