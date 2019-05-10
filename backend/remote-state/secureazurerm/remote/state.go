@@ -303,7 +303,6 @@ func (s *State) PersistState() error {
 	}
 	for secretID := range s.secretIDs {
 		if _, ok := resourceAttributeSecretIDs[secretID]; !ok {
-			fmt.Println("deleting key")
 			if err := s.KeyVault.DeleteSecret(context.Background(), secretID); err != nil {
 				return fmt.Errorf("error deleting secret %s: %s", secretID, err)
 			}
