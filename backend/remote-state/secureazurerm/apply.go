@@ -149,7 +149,7 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 			outputErr = fmt.Errorf("error marshalling applied state: %s", marshalErr)
 		}
 		data = append(data, '\n')
-		fmt.Printf("Current infrastructure state:\n%v\n", data)
+		fmt.Printf("Current infrastructure state:\n%s\n", string(data))
 		if outputErr != nil {
 			runningOp.Err = fmt.Errorf("%s: error writing state in-memory: %s", marshalErr, err)
 			return
@@ -165,7 +165,7 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 		if err != nil {
 			outputErr = fmt.Errorf("error marshalling applied state: %s", marshallErr)
 		}
-		fmt.Printf("Current infrastructure state:\n%v\n", data)
+		fmt.Printf("Current infrastructure state:\n%s\n", string(data))
 		if outputErr != nil {
 			runningOp.Err = fmt.Errorf("%s: error persisting state: %s", outputErr, err)
 			return
