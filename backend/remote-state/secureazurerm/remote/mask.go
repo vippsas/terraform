@@ -2,6 +2,7 @@ package remote
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -48,7 +49,7 @@ func (s *State) maskModule(module map[string]interface{}) error {
 	}
 
 	// Mask the sensitive resource attributes by moving them to the key vault.
-	for _, resource := range module["resources"].(map[string]interface{}) {
+	for resourceName, resource := range module["resources"].(map[string]interface{}) {
 		r := resource.(map[string]interface{})
 
 		// Filter sensitive attributes into the key vault.
@@ -60,10 +61,17 @@ func (s *State) maskModule(module map[string]interface{}) error {
 				continue
 			}
 
+			var path []string
+			for _, value := range module["path"].([]interface{}) {
+				path = append(path, value.(string))
+			}
+
 			// Insert the resource's attributes in the key vault.
 			attributes := primary["attributes"].(map[string]interface{})
 			for attributeName, attributeValue := range attributes {
 				s.maskAttribute(
+					path,
+					resourceName,
 					attributes,
 					attributeName,
 					attributeValue.(string),
@@ -79,7 +87,7 @@ func (s *State) maskModule(module map[string]interface{}) error {
 }
 
 // maskAttribute masks the attributes of a resource.
-func (s *State) maskAttribute(attributes map[string]interface{}, attributeName, attributeValue string, attributeNameSplitted []string, namePos int, resourceSchema *configschema.Block) error {
+func (s *State) maskAttribute(path []string, resourceName string, attributes map[string]interface{}, attributeName, attributeValue string, attributeNameSplitted []string, namePos int, resourceSchema *configschema.Block) error {
 	// Check if there exist an attribute.
 	if namePos >= len(attributeNameSplitted) {
 		return nil
@@ -111,7 +119,26 @@ func (s *State) maskAttribute(attributes map[string]interface{}, attributeName, 
 			}
 
 			// Insert value to keyvault here.
-			version, err := s.KeyVault.InsertSecret(context.Background(), secretName, attributeValue)
+			tags := make(map[string]*string)
+			pb, err := json.Marshal(path)
+			if err != nil {
+				return fmt.Errorf("error marshalling path: %s", err)
+			}
+			p := string(pb)
+			tags["path"] = &p
+			rb, err := json.Marshal(resourceName)
+			if err != nil {
+				return fmt.Errorf("error marshalling resource name: %s", err)
+			}
+			r := string(rb)
+			tags["resource"] = &r
+			ab, err := json.Marshal(attributeName)
+			if err != nil {
+				return fmt.Errorf("error marshalling attribute: %s", err)
+			}
+			a := string(ab)
+			tags["attribute"] = &a
+			version, err := s.KeyVault.InsertSecret(context.Background(), secretName, attributeValue, tags)
 			if err != nil {
 				return fmt.Errorf("error inserting secret into key vault: %s", err)
 			}
@@ -126,6 +153,8 @@ func (s *State) maskAttribute(attributes map[string]interface{}, attributeName, 
 		// Nope, then check if it exists in the nested block types.
 		if block, ok := resourceSchema.BlockTypes[attributeNameSplitted[namePos]]; ok {
 			s.maskAttribute(
+				path,
+				resourceName,
 				attributes,
 				attributeName,
 				attributeValue,

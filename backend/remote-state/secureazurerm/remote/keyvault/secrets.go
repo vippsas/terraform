@@ -17,9 +17,9 @@ func getID(ID string) string {
 }
 
 // InsertSecret inserts a secret into the key vault. Returns the version.
-func (k *KeyVault) InsertSecret(ctx context.Context, name string, value string) (string, error) {
+func (k *KeyVault) InsertSecret(ctx context.Context, name, value string, tags map[string]*string) (string, error) {
 	contentType := "text/plain;charset=UTF-8"
-	bundle, err := k.keyClient.SetSecret(ctx, k.vaultURI, name, KV.SecretSetParameters{Value: &value, ContentType: &contentType})
+	bundle, err := k.keyClient.SetSecret(ctx, k.vaultURI, name, KV.SecretSetParameters{Value: &value, ContentType: &contentType, Tags: tags})
 	if err != nil {
 		return "", fmt.Errorf("error inserting secret: %s", err)
 	}
@@ -41,21 +41,27 @@ func (k *KeyVault) GetSecret(ctx context.Context, name string, version string) (
 	return *bundle.Value, nil
 }
 
+// SecretMetadata contains the metadata of the secret.
+type SecretMetadata struct {
+	Tags map[string]*string
+}
+
 // ListSecrets returns the names of the secrets.
-func (k *KeyVault) ListSecrets(ctx context.Context) (map[string]struct{}, error) {
+func (k *KeyVault) ListSecrets(ctx context.Context) (map[string]SecretMetadata, error) {
 	secrets, err := k.keyClient.GetSecrets(ctx, k.vaultURI, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error getting secrets from key vault: %s", err)
 	}
-
-	secretMap := make(map[string]struct{})
+	secretMap := make(map[string]SecretMetadata)
 	for {
 		values := secrets.Values()
 		if values == nil {
 			break
 		}
 		for _, value := range values {
-			secretMap[getID(*value.ID)] = struct{}{}
+			secretMap[getID(*value.ID)] = SecretMetadata{
+				Tags: value.Tags,
+			}
 		}
 		if err := secrets.NextWithContext(ctx); err != nil {
 			break
