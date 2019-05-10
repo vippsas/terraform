@@ -79,14 +79,14 @@ func (s *State) maskModule(i int, module map[string]interface{}) error {
 }
 
 // maskAttribute masks the attributes of a resource.
-func (s *State) maskAttribute(attributes map[string]interface{}, attributeValue string, attributeName string, attributeNameSplitted []string, i int, resourceSchema *configschema.Block) error {
+func (s *State) maskAttribute(attributes map[string]interface{}, attributeValue string, attributeName string, attributeNameSplitted []string, namePos int, resourceSchema *configschema.Block) error {
 	// Check if there exist an attribute.
-	if i >= len(attributeNameSplitted) {
+	if namePos >= len(attributeNameSplitted) {
 		return nil
 	}
 
 	// Check if attribute from the block exists in the schema.
-	if attribute, ok := resourceSchema.Attributes[attributeNameSplitted[i]]; ok {
+	if attribute, ok := resourceSchema.Attributes[attributeNameSplitted[namePos]]; ok {
 		// Is resource attribute sensitive?
 		if attribute.Sensitive { // then mask.
 			var secretName string
@@ -124,8 +124,8 @@ func (s *State) maskAttribute(attributes map[string]interface{}, attributeValue 
 		}
 	} else {
 		// Nope, then check if it exists in the nested block types.
-		if block, ok := resourceSchema.BlockTypes[attributeNameSplitted[i]]; ok {
-			s.maskAttribute(attributes, attributeValue, attributeName, attributeNameSplitted, i+2, &block.Block)
+		if block, ok := resourceSchema.BlockTypes[attributeNameSplitted[namePos]]; ok {
+			s.maskAttribute(attributes, attributeValue, attributeName, attributeNameSplitted, namePos+2, &block.Block)
 		}
 	}
 
