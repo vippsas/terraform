@@ -118,25 +118,33 @@ func (s *State) maskAttribute(path []string, resourceName string, attributes map
 			a := string(ab)
 			tags["attribute"] = &a
 
-			// Generate secret name.
+			// Set existing secret name or generate a new one.
 			var secretName string
-			retry := 0
-			maxRetries := 3
-			for ; retry < maxRetries; retry++ {
-				// Generate secret name for the attribute.
-				secretName, err = rand.GenerateLowerAlphanumericChars(32) // it's as long as the version string in length.
-				if err != nil {
-					return fmt.Errorf("error generating secret name: %s", err)
+			for secretID, value := range s.secretIDs {
+				if *value.Tags["path"] == p && *value.Tags["resource"] == r && *value.Tags["attribute"] == a {
+					secretName = secretID
+					break
 				}
-				// Check for the highly unlikely secret name collision.
-				if _, ok := s.secretIDs[secretName]; ok {
-					// Name collision! Retrying...
-					continue
-				}
-				break
 			}
-			if retry >= maxRetries {
-				return fmt.Errorf("error generating random secret name %d times", maxRetries)
+			if secretName == "" {
+				retry := 0
+				maxRetries := 3
+				for ; retry < maxRetries; retry++ {
+					// Generate secret name for the attribute.
+					secretName, err = rand.GenerateLowerAlphanumericChars(32) // it's as long as the version string in length.
+					if err != nil {
+						return fmt.Errorf("error generating secret name: %s", err)
+					}
+					// Check for the highly unlikely secret name collision.
+					if _, ok := s.secretIDs[secretName]; ok {
+						// Name collision! Retrying...
+						continue
+					}
+					break
+				}
+				if retry >= maxRetries {
+					return fmt.Errorf("error generating random secret name %d times", maxRetries)
+				}
 			}
 
 			// Insert value to keyvault.
