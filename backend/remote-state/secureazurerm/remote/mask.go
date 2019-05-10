@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/rand"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
 	"github.com/hashicorp/terraform/config/configschema"
 	"github.com/hashicorp/terraform/terraform"
 )
@@ -140,6 +141,7 @@ func (s *State) maskAttribute(path []string, resourceName string, attributes map
 						// Name collision! Retrying...
 						continue
 					}
+					s.secretIDs[secretName] = keyvault.SecretMetadata{Tags: tags}
 					break
 				}
 				if retry >= maxRetries {
