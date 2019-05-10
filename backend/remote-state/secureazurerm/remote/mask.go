@@ -65,8 +65,8 @@ func (s *State) maskModule(module map[string]interface{}) error {
 			for attributeName, attributeValue := range attributes {
 				s.maskAttribute(
 					attributes,
-					attributeValue.(string),
 					attributeName,
+					attributeValue.(string),
 					strings.Split(attributeName, "."),
 					0,
 					resourceSchema,
@@ -79,7 +79,7 @@ func (s *State) maskModule(module map[string]interface{}) error {
 }
 
 // maskAttribute masks the attributes of a resource.
-func (s *State) maskAttribute(attributes map[string]interface{}, attributeValue string, attributeName string, attributeNameSplitted []string, namePos int, resourceSchema *configschema.Block) error {
+func (s *State) maskAttribute(attributes map[string]interface{}, attributeName, attributeValue string, attributeNameSplitted []string, namePos int, resourceSchema *configschema.Block) error {
 	// Check if there exist an attribute.
 	if namePos >= len(attributeNameSplitted) {
 		return nil
@@ -125,7 +125,14 @@ func (s *State) maskAttribute(attributes map[string]interface{}, attributeValue 
 	} else {
 		// Nope, then check if it exists in the nested block types.
 		if block, ok := resourceSchema.BlockTypes[attributeNameSplitted[namePos]]; ok {
-			s.maskAttribute(attributes, attributeValue, attributeName, attributeNameSplitted, namePos+2, &block.Block)
+			s.maskAttribute(
+				attributes,
+				attributeName,
+				attributeValue,
+				attributeNameSplitted,
+				namePos+2,
+				&block.Block,
+			)
 		}
 	}
 
