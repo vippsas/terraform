@@ -18,7 +18,6 @@ import (
 )
 
 // Backend maintains the remote state in Azure.
-// TODO: Store the backend-configuration in a (separate) container instead of .terraform-dir?
 type Backend struct {
 	schema.Backend
 
