@@ -22,7 +22,7 @@ func (s *State) SetResourceProviders(p []terraform.ResourceProvider) {
 }
 
 // maskModule masks all sensitive attributes in a module.
-func (s *State) maskModule(i int, module map[string]interface{}) error {
+func (s *State) maskModule(module map[string]interface{}) error {
 	if len(s.resourceProviders) == 0 {
 		panic("forgot to set resource providers")
 	}
@@ -133,7 +133,7 @@ func (s *State) maskAttribute(attributes map[string]interface{}, attributeValue 
 }
 
 // unmaskModule unmasks all sensitive attributes in a module.
-func (s *State) unmaskModule(i int, module map[string]interface{}) error {
+func (s *State) unmaskModule(module map[string]interface{}) error {
 	for _, resource := range module["resources"].(map[string]interface{}) {
 		attributes := resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{})
 		for key, value := range attributes {
