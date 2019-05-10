@@ -34,7 +34,7 @@ type State struct {
 	roleAssignmentIDs []string
 
 	resourceProviders []terraform.ResourceProvider // resource providers used in the configuration.
-	secretIDs         map[string]struct{}
+	secretIDs         map[string]keyvault.SecretMetadata
 }
 
 // State reads the state from the memory.
@@ -301,7 +301,6 @@ func (s *State) PersistState() error {
 			}
 		}
 	}
-	// TODO: BUG!
 	for secretID := range s.secretIDs {
 		if _, ok := resourceAttributeSecretIDs[secretID]; !ok {
 			fmt.Println("deleting key")
