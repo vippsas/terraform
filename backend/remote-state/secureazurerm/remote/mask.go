@@ -78,7 +78,7 @@ func (s *State) maskModule(i int, module map[string]interface{}) error {
 	return nil
 }
 
-// maskAttribute masks the attributes of an resource.
+// maskAttribute masks the attributes of a resource.
 func (s *State) maskAttribute(attributes map[string]interface{}, attributeValue string, attributeName string, attributeNameSplitted []string, i int, resourceSchema *configschema.Block) error {
 	// Check if there exist an attribute.
 	if i >= len(attributeNameSplitted) {
