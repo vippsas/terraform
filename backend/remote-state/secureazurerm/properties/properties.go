@@ -7,7 +7,7 @@ import (
 // Properties describes the properties of the state resource group.
 type Properties struct {
 	// State resource group properties.
-	ResourceGroupName,
+	Name,
 	Location,
 	KeyVaultPrefix,
 	SubscriptionID,
