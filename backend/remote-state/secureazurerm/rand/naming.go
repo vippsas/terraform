@@ -6,7 +6,6 @@ import (
 )
 
 var chars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
-var letters = []rune("abcdefghijklmnopqrstuvwxyz")
 
 // genRandBytes securely generates random bytes.
 func genRandBytes(n int) ([]byte, error) {
@@ -28,20 +27,6 @@ func GenerateLowerAlphanumericChars(n int) (string, error) {
 	var s []rune
 	for _, number := range b {
 		s = append(s, chars[int(number)%len(chars)])
-	}
-	return string(s), nil
-}
-
-// GenerateLowerAlphabeticChars generates a random lowercase alpha string of len n.
-func GenerateLowerAlphabeticChars(n int) (string, error) {
-	b, err := genRandBytes(n)
-	if err != nil {
-		return "", fmt.Errorf("error generating random bytes: %s", err)
-	}
-
-	var s []rune
-	for _, number := range b {
-		s = append(s, letters[int(number)%len(letters)])
 	}
 	return string(s), nil
 }

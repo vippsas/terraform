@@ -39,7 +39,7 @@ func New() backend.Backend {
 		Backend: schema.Backend{
 			// Fields in backend {}. Ensure that all values are stored only in the configuration files.
 			Schema: map[string]*schema.Schema{
-				"resource_group_name": {
+				"name": {
 					Type:        schema.TypeString,
 					Required:    true,
 					Description: "The resource group name.",
@@ -73,7 +73,7 @@ func (b *Backend) configure(ctx context.Context) error {
 
 	// Get the data attributes from the "backend"-block.
 	attributes := schema.FromContextBackendConfig(ctx)
-	b.props.ResourceGroupName = attributes.Get("resource_group_name").(string)
+	b.props.Name = attributes.Get("name").(string)
 	b.props.Location = attributes.Get("location").(string)
 	for _, value := range attributes.Get("access_policies").([]interface{}) {
 		b.props.AccessPolicies = append(b.props.AccessPolicies, value.(string))
@@ -83,17 +83,17 @@ func (b *Backend) configure(ctx context.Context) error {
 	groupsClient := resources.NewGroupsClient(b.props.SubscriptionID)
 	groupsClient.Authorizer = b.props.MgmtAuthorizer
 	// Check if the resource group already exists.
-	_, err = groupsClient.Get(b.props.ResourceGroupName)
+	_, err = groupsClient.Get(b.props.Name)
 	if err != nil { // resource group does not exist.
 		// Create the resource group.
 		_, err = groupsClient.CreateOrUpdate(
-			b.props.ResourceGroupName,
+			b.props.Name,
 			resources.Group{
 				Location: to.StringPtr(b.props.Location),
 			},
 		)
 		if err != nil {
-			return fmt.Errorf("error creating a resource group %s: %s", b.props.ResourceGroupName, err)
+			return fmt.Errorf("error creating a resource group %s: %s", b.props.Name, err)
 		}
 	}
 
