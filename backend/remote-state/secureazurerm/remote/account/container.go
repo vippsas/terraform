@@ -8,7 +8,6 @@ import (
 
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
-	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/rand"
 
 	armStorage "github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2018-07-01/storage"
 	"github.com/Azure/azure-sdk-for-go/storage"
@@ -29,19 +28,15 @@ func Setup(ctx context.Context, props *properties.Properties, containerName stri
 	accountsClient.Authorizer = props.MgmtAuthorizer
 
 	// List to check for existing storage accounts.
-	result, err := accountsClient.ListByResourceGroup(ctx, props.ResourceGroupName)
+	result, err := accountsClient.ListByResourceGroup(ctx, props.Name)
 	if err != nil {
-		return nil, fmt.Errorf("error listing storage accounts by resource group %s: %s", props.ResourceGroupName, err)
+		return nil, fmt.Errorf("error listing storage accounts by resource group %s: %s", props.Name, err)
 	}
 
 	var storageAccountName string
 	// Check if none exists. If none, create one.
 	if len(*result.Value) == 0 {
-		// Generate a 24 lowercase alphanumeric characters.
-		storageAccountName, err = rand.GenerateLowerAlphanumericChars(24)
-		if err != nil {
-			return nil, fmt.Errorf("error generating a storage account name: %s", err)
-		}
+		storageAccountName = props.Name
 
 		// Check if storage account name is available:
 		result, err := accountsClient.CheckNameAvailability(
@@ -62,7 +57,7 @@ func Setup(ctx context.Context, props *properties.Properties, containerName stri
 		httpsTrafficOnly := true
 		future, err := accountsClient.Create(
 			ctx,
-			props.ResourceGroupName,
+			props.Name,
 			storageAccountName,
 			armStorage.AccountCreateParameters{
 				Sku: &armStorage.Sku{
@@ -93,7 +88,7 @@ func Setup(ctx context.Context, props *properties.Properties, containerName stri
 		}
 		props.StorageAccountResourceID = *storageAccount.ID
 	} else if len(*result.Value) != 1 {
-		return nil, fmt.Errorf("only 1 storage account is allowed in the resource group %s", props.ResourceGroupName)
+		return nil, fmt.Errorf("only 1 storage account is allowed in the resource group %s", props.Name)
 	} else {
 		storageAccount := (*result.Value)[0]
 		storageAccountName = *storageAccount.Name
@@ -101,7 +96,7 @@ func Setup(ctx context.Context, props *properties.Properties, containerName stri
 	}
 
 	// Fetch an access key for storage account.
-	keys, err := accountsClient.ListKeys(ctx, props.ResourceGroupName, storageAccountName)
+	keys, err := accountsClient.ListKeys(ctx, props.Name, storageAccountName)
 	if err != nil {
 		return nil, fmt.Errorf("error listing the access keys in the storage account %q: %s", storageAccountName, err)
 	}

@@ -257,7 +257,6 @@ func (s *State) PersistState() error {
 			delete(s.secretIDs, secretID)
 		}
 	}
-	stateMap["keyVaultName"] = s.KeyVault.Name()
 
 	// Marshal state map to JSON.
 	data, err := json.MarshalIndent(stateMap, "", "    ")

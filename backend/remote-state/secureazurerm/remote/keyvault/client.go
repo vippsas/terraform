@@ -6,12 +6,10 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
-	"github.com/hashicorp/terraform/state"
 
 	KV "github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/mgmt/2016-10-01/keyvault"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
-	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/rand"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/auth"
 	uuid "github.com/satori/go.uuid"
 
@@ -35,24 +33,10 @@ func (k *KeyVault) Name() string {
 	return k.vaultName
 }
 
-// generateKeyVaultName generates a new random key vault name of max key vault name length.
-func generateKeyVaultName() (string, error) {
-	var singleAlphaChar, alphanumerics string
-	singleAlphaChar, err := rand.GenerateLowerAlphabeticChars(1)
-	if err != nil {
-		return "", fmt.Errorf("error generating alphabetic characters: %s", err)
-	}
-	alphanumerics, err = rand.GenerateLowerAlphanumericChars(23)
-	if err != nil {
-		return "", fmt.Errorf("error generating lowercase alphabetic and numeric characters: %s", err)
-	}
-	return singleAlphaChar + alphanumerics, nil
-}
-
 // Setup creates a new Azure Key Vault.
 func Setup(ctx context.Context, blob *blob.Blob, props *properties.Properties, workspace string) (*KeyVault, error) {
 	k := &KeyVault{
-		resourceGroupName: props.ResourceGroupName,
+		resourceGroupName: props.Name,
 		vaultClient:       keyvault.NewVaultsClient(props.SubscriptionID),
 		keyClient:         KV.New(),
 		workspace:         workspace,
@@ -70,47 +54,17 @@ func Setup(ctx context.Context, blob *blob.Blob, props *properties.Properties, w
 		return nil, fmt.Errorf("error unmarshalling state blob to JSON: %s", err)
 	}
 
-	if stateMap["keyVaultName"] == nil {
-		// Set a new generated key vault name.
-		k.vaultName, err = generateKeyVaultName()
-		if err != nil {
-			return nil, fmt.Errorf("error generating key vault name: %s", err)
-		}
-		stateMap["keyVaultName"] = k.vaultName
-
-		// Lock/Lease blob.
-		lockInfo := state.NewLockInfo()
-		lockInfo.Operation = "SetupKeyVault"
-		leaseID, err := blob.Lock(lockInfo)
-		if err != nil {
-			return nil, fmt.Errorf("error locking blob: %s", err)
-		}
-		defer blob.Unlock(leaseID)
-
-		// Marshal state map to JSON.
-		data, err := json.MarshalIndent(stateMap, "", "    ")
-		if err != nil {
-			return nil, fmt.Errorf("error marshalling state map to JSON: %s", err)
-		}
-		data = append(data, '\n')
-
-		// Put the JSON into the blob.
-		err = blob.Put(data)
-		if err != nil {
-			return nil, fmt.Errorf("error putting state to blob: %s", err)
-		}
-	} else {
-		k.vaultName = stateMap["keyVaultName"].(string)
-	}
+	// Set a new generated key vault name.
+	k.vaultName = props.Name + workspace
 
 	// Setup the key vault.
-	vault, err := k.vaultClient.Get(ctx, props.ResourceGroupName, k.vaultName)
+	vault, err := k.vaultClient.Get(ctx, props.Name, k.vaultName)
 	if err != nil {
 		tenantID, err := uuid.FromString(props.TenantID)
 		if err != nil {
 			return nil, fmt.Errorf("error converting tenant ID-string to UUID: %s", err)
 		}
-		vault, err = k.vaultClient.CreateOrUpdate(ctx, props.ResourceGroupName, k.vaultName, keyvault.VaultCreateOrUpdateParameters{
+		vault, err = k.vaultClient.CreateOrUpdate(ctx, props.Name, k.vaultName, keyvault.VaultCreateOrUpdateParameters{
 			Location: to.StringPtr(props.Location),
 			Properties: &keyvault.VaultProperties{
 				TenantID: &tenantID,
