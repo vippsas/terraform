@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
@@ -35,19 +36,30 @@ func NewMgmt() (props properties.Properties, err error) {
 	props.SubscriptionID = m["id"].(string)
 	props.TenantID = m["tenantId"].(string)
 	user := m["user"].(map[string]interface{})
-	if user["type"].(string) == "servicePrincipal" {
-		out, err = exec.Command("az", "ad", "sp", "show", "--id", user["name"].(string), "--output", "json", "--query", "objectId").Output()
+
+	// Get the objectID of the signed-in user.
+	userType := user["type"].(string)
+	switch userType {
+	case "servicePrincipal":
+		clientID := user["name"].(string)
+		out, err = exec.Command("az", "ad", "sp", "show", "--id", clientID, "--output", "json", "--query", "objectId").Output()
 		if err != nil {
 			err = fmt.Errorf("error getting service principal: %s", err)
 			return
 		}
-	} else {
-		// Get the objectID of the signed-in user.
+		os.Setenv("ARM_CLIENT_ID", clientID)
+		os.Setenv("ARM_CLIENT_SECRET", os.Getenv("servicePrincipalKey")) // defined in the agent.
+		os.Setenv("ARM_SUBSCRIPTION_ID", props.SubscriptionID)
+		os.Setenv("ARM_TENANT_ID", props.TenantID)
+	case "user":
 		out, err = exec.Command("az", "ad", "signed-in-user", "show", "--output", "json", "--query", "objectId").Output()
 		if err != nil {
 			err = fmt.Errorf("error getting signed-in user: %s", err)
 			return
 		}
+	default:
+		err = fmt.Errorf("unknown user type")
+		return
 	}
 	if err = json.Unmarshal(out, &props.ObjectID); err != nil {
 		err = fmt.Errorf("error unmarshalling object ID from JSON output from Azure CLI: %s", err)
