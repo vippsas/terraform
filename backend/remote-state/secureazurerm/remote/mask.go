@@ -122,7 +122,7 @@ func (s *State) maskAttribute(path []string, resourceName string, attributes map
 			// Set existing secret name or generate a new one.
 			var secretName string
 			for secretID, value := range s.secretIDs {
-				if *value.Tags["path"] == p && *value.Tags["resource"] == r && *value.Tags["attribute"] == a {
+				if *value.Tags["module"] == p && *value.Tags["resource"] == r && *value.Tags["attribute"] == a {
 					secretName = secretID
 					break
 				}
