@@ -3,6 +3,7 @@ package secureazurerm
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/Azure/azure-sdk-for-go/arm/resources/resources"
@@ -75,8 +76,19 @@ func (b *Backend) configure(ctx context.Context) error {
 	attributes := schema.FromContextBackendConfig(ctx)
 	b.props.Name = attributes.Get("name").(string)
 	b.props.Location = attributes.Get("location").(string)
-	for _, value := range attributes.Get("access_policies").([]interface{}) {
-		b.props.AccessPolicies = append(b.props.AccessPolicies, value.(string))
+	for _, resourceAddress := range attributes.Get("access_policies").([]interface{}) {
+		sa := []string{"root"}
+		splitted := strings.Split(resourceAddress.(string), ".")
+		for i := 0; i < len(splitted); {
+			if splitted[i] == "module" {
+				sa = append(sa, splitted[i+1])
+				i += 2
+			} else {
+				sa = append(sa, splitted[i])
+				i++
+			}
+		}
+		b.props.AccessPolicies = append(b.props.AccessPolicies, strings.Join(sa, "."))
 	}
 
 	// Setup the resource group for terraform.State.
