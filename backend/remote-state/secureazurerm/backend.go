@@ -43,7 +43,7 @@ func New() backend.Backend {
 				"name": {
 					Type:        schema.TypeString,
 					Required:    true,
-					Description: "The resource group name.",
+					Description: "The name of the state's storage account and naming prefix for the state's key vaults.",
 				},
 				"location": {
 					Type:        schema.TypeString,

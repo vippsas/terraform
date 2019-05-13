@@ -34,9 +34,21 @@ func NewMgmt() (props properties.Properties, err error) {
 	}
 	props.SubscriptionID = m["id"].(string)
 	props.TenantID = m["tenantId"].(string)
-
-	// Get the objectID of the signed-in user.
-	out, err = exec.Command("az", "ad", "signed-in-user", "show", "--output", "json", "--query", "objectId").Output()
+	user := m["user"].(map[string]interface{})
+	if user["type"].(string) == "servicePrincipal" {
+		out, err = exec.Command("az", "ad", "sp", "show", "--id", user["name"].(string), "--output", "json", "--query", "objectId").Output()
+		if err != nil {
+			err = fmt.Errorf("error getting service principal: %s", err)
+			return
+		}
+	} else {
+		// Get the objectID of the signed-in user.
+		out, err = exec.Command("az", "ad", "signed-in-user", "show", "--output", "json", "--query", "objectId").Output()
+		if err != nil {
+			err = fmt.Errorf("error getting signed-in user: %s", err)
+			return
+		}
+	}
 	if err = json.Unmarshal(out, &props.ObjectID); err != nil {
 		err = fmt.Errorf("error unmarshalling object ID from JSON output from Azure CLI: %s", err)
 		return
