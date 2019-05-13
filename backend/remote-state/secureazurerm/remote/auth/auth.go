@@ -48,7 +48,7 @@ func NewMgmt() (props properties.Properties, err error) {
 			return
 		}
 		os.Setenv("ARM_CLIENT_ID", clientID)
-		os.Setenv("ARM_CLIENT_SECRET", os.Getenv("servicePrincipalKey")) // defined in the agent.
+		os.Setenv("ARM_CLIENT_SECRET", os.Getenv("servicePrincipalKey")) // defined in the agent after enabling a setting.
 		os.Setenv("ARM_SUBSCRIPTION_ID", props.SubscriptionID)
 		os.Setenv("ARM_TENANT_ID", props.TenantID)
 	case "user":
