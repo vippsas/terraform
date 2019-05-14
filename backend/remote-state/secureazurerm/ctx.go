@@ -35,8 +35,8 @@ func (b *Backend) context(op *backend.Operation) (*terraform.Context, state.Stat
 
 	// Initialize our context options
 	var opts terraform.ContextOpts
-	if v := b.ContextOpts; v != nil {
-		opts = *v
+	if b.ContextOpts != nil {
+		opts = *b.ContextOpts
 	}
 
 	// Copy set options from the operation and load our state.
