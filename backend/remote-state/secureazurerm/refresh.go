@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform/backend"
-	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote"
 	"github.com/hashicorp/terraform/config/module"
 	"github.com/hashicorp/terraform/terraform"
 )
@@ -34,10 +33,6 @@ func (b *Backend) refresh(stopCtx context.Context, cancelCtx context.Context, op
 			fmt.Println(msg)
 		}
 	}
-
-	// Set resource providers for masking sensitive attributes in remote state.
-	blobState := remoteState.(*remote.State)
-	blobState.SetResourceProviders(getResourceProviders(tfCtx))
 
 	// Perform the refresh in a goroutine so we can be interrupted
 	var newState *terraform.State
