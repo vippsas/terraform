@@ -116,10 +116,6 @@ type Context struct {
 	shadowErr           error
 }
 
-func (c *Context) GetComponents() contextComponentFactory {
-	return c.components
-}
-
 // NewContext creates a new Context structure.
 //
 // Once a Context is creator, the pointer values within ContextOpts
