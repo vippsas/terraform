@@ -273,9 +273,6 @@ func (s *State) PersistState() error {
 	// Set the persisted state as our new main reference state.
 	s.readState = s.state.DeepCopy()
 
-	// Print it.
-	fmt.Printf("\nCurrent persisted infrastructure state:\n%s", data)
-
 	return nil
 }
 
