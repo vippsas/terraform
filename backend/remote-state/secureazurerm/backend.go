@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/auth"
 	"github.com/hashicorp/terraform/helper/schema"
-	"github.com/hashicorp/terraform/terraform"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
 )
@@ -25,9 +24,8 @@ type Backend struct {
 	mu sync.Mutex
 
 	// CLI
-	CLI         cli.Ui
-	CLIColor    *colorstring.Colorize
-	ContextOpts *terraform.ContextOpts
+	CLI      cli.Ui
+	CLIColor *colorstring.Colorize
 
 	container *account.Container
 

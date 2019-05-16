@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
+	"github.com/hashicorp/terraform/config/module"
 	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/terraform"
 )
@@ -25,8 +27,7 @@ type State struct {
 	Blob     *blob.Blob         // client to communicate with the state blob storage.
 	KeyVault *keyvault.KeyVault // client to communicate with the state key vault.
 
-	ResourceProviders []terraform.ResourceProvider
-	Props             *properties.Properties
+	Props *properties.Properties
 
 	state, // current in-memory state.
 	readState *terraform.State // state read from the blob
@@ -158,6 +159,37 @@ func (s *State) PersistState() error {
 	stateMap := make(map[string]interface{})
 	json.Unmarshal(buf.Bytes(), &stateMap)
 
+	// Get resource providers.
+	mod := s.Props.ContextOpts.Module
+	if mod == nil {
+		pwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("error getting pwd: %s", err)
+		}
+		mod, err = module.NewTreeModule("", pwd)
+		if err != nil {
+			return err
+		}
+	}
+	reqd := terraform.ModuleTreeDependencies(mod, nil).AllPluginRequirements()
+	if s.Props.ContextOpts.ProviderSHA256s != nil && !s.Props.ContextOpts.SkipProviderVerify {
+		reqd.LockExecutables(s.Props.ContextOpts.ProviderSHA256s)
+	}
+	providerFactories, errs := s.Props.ContextOpts.ProviderResolver.ResolveProviders(reqd)
+	if errs != nil {
+		return &terraform.ResourceProviderError{
+			Errors: errs,
+		}
+	}
+	var providers []terraform.ResourceProvider
+	for _, f := range providerFactories {
+		provider, err := f()
+		if err != nil {
+			return fmt.Errorf("error retrieving provider: %s", err)
+		}
+		providers = append(providers, provider)
+	}
+
 	// Mask sensitive attributes.
 	for _, module := range stateMap["modules"].([]interface{}) {
 		mod := module.(map[string]interface{})
@@ -227,7 +259,7 @@ func (s *State) PersistState() error {
 		}
 
 		// Then mask the module.
-		err := s.maskModule(mod)
+		err := s.maskModule(providers, mod)
 		if err != nil {
 			var paths []string
 			for _, s := range path {
