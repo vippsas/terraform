@@ -18,9 +18,14 @@ type secretAttribute struct {
 	Version string `json:"version"` // Version of the secret.
 }
 
+// SetResourceProviders sets resource providers.
+func (s *State) SetResourceProviders(p []terraform.ResourceProvider) {
+	s.resourceProviders = p
+}
+
 // maskModule masks all sensitive attributes in a module.
 func (s *State) maskModule(module map[string]interface{}) error {
-	if len(s.ResourceProviders) == 0 {
+	if len(s.resourceProviders) == 0 {
 		panic("forgot to set resource providers")
 	}
 
@@ -30,7 +35,7 @@ func (s *State) maskModule(module map[string]interface{}) error {
 		resourceList = append(resourceList, strings.Split(name, ".")[0])
 	}
 	var schemas []*terraform.ProviderSchema
-	for _, rp := range s.ResourceProviders {
+	for _, rp := range s.resourceProviders {
 		schema, err := rp.GetSchema(&terraform.ProviderSchemaRequest{
 			ResourceTypes: resourceList,
 		})
