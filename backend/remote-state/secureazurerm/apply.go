@@ -27,12 +27,12 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 	// Setup our count hook that keeps track of resource changes
 	countHook := new(local.CountHook)
 	stateHook := new(local.StateHook)
-	if b.ContextOpts == nil {
-		b.ContextOpts = new(terraform.ContextOpts)
+	if b.props.ContextOpts == nil {
+		b.props.ContextOpts = new(terraform.ContextOpts)
 	}
-	old := b.ContextOpts.Hooks
-	defer func() { b.ContextOpts.Hooks = old }()
-	b.ContextOpts.Hooks = append(b.ContextOpts.Hooks, countHook, stateHook)
+	old := b.props.ContextOpts.Hooks
+	defer func() { b.props.ContextOpts.Hooks = old }()
+	b.props.ContextOpts.Hooks = append(b.props.ContextOpts.Hooks, countHook, stateHook)
 
 	// Get our context
 	tfCtx, remoteState, err := b.context(op)

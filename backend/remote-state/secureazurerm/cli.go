@@ -9,7 +9,7 @@ import (
 func (b *Backend) CLIInit(opts *backend.CLIOpts) error {
 	b.CLI = opts.CLI
 	b.CLIColor = opts.CLIColor
-	b.ContextOpts = opts.ContextOpts
+	b.props.ContextOpts = opts.ContextOpts
 	return nil
 }
 

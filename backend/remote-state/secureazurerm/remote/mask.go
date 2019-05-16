@@ -19,8 +19,8 @@ type secretAttribute struct {
 }
 
 // maskModule masks all sensitive attributes in a module.
-func (s *State) maskModule(module map[string]interface{}) error {
-	if len(s.ResourceProviders) == 0 {
+func (s *State) maskModule(providers []terraform.ResourceProvider, module map[string]interface{}) error {
+	if len(providers) == 0 {
 		panic("forgot to set resource providers")
 	}
 
@@ -30,7 +30,7 @@ func (s *State) maskModule(module map[string]interface{}) error {
 		resourceList = append(resourceList, strings.Split(name, ".")[0])
 	}
 	var schemas []*terraform.ProviderSchema
-	for _, rp := range s.ResourceProviders {
+	for _, rp := range providers {
 		schema, err := rp.GetSchema(&terraform.ProviderSchemaRequest{
 			ResourceTypes: resourceList,
 		})
