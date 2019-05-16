@@ -25,13 +25,13 @@ type State struct {
 	Blob     *blob.Blob         // client to communicate with the state blob storage.
 	KeyVault *keyvault.KeyVault // client to communicate with the state key vault.
 
-	ResourceProviders []terraform.ResourceProvider
-	Props             *properties.Properties
+	Props *properties.Properties
 
 	state, // current in-memory state.
 	readState *terraform.State // state read from the blob
 
-	secretIDs map[string]keyvault.SecretMetadata
+	resourceProviders []terraform.ResourceProvider // resource providers used in the configuration.
+	secretIDs         map[string]keyvault.SecretMetadata
 }
 
 // State reads the state from the memory.
