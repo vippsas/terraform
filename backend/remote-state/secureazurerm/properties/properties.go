@@ -2,6 +2,7 @@ package properties
 
 import (
 	"github.com/Azure/go-autorest/autorest"
+	"github.com/hashicorp/terraform/terraform"
 )
 
 // Properties describes the properties of the state resource group.
@@ -21,4 +22,6 @@ type Properties struct {
 
 	// Authorizers and clients.
 	MgmtAuthorizer autorest.Authorizer
+
+	ContextOpts *terraform.ContextOpts
 }
