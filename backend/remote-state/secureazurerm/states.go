@@ -3,11 +3,14 @@ package secureazurerm
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
+	"github.com/hashicorp/terraform/config/module"
 	"github.com/hashicorp/terraform/state"
+	"github.com/hashicorp/terraform/terraform"
 )
 
 // States returns a list of the names of all remote states stored in separate unique blob.
@@ -66,7 +69,11 @@ func (b *Backend) State(workspaceName string) (state.State, error) {
 		return nil, fmt.Errorf("error setting up state key vault: %s", err)
 	}
 
-	return &remote.State{Blob: blob, KeyVault: keyVault, Props: &b.props}, nil
+	providers, err := GetProviders(b.ContextOpts)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving providers: %s", err)
+	}
+	return &remote.State{Blob: blob, KeyVault: keyVault, ResourceProviders: providers, Props: &b.props}, nil
 }
 
 // setupKeyVault setups the state key vault.
@@ -76,4 +83,38 @@ func (b *Backend) setupKeyVault(blob *blob.Blob, workspaceName string) (*keyvaul
 		return nil, fmt.Errorf("error setting up key vault: %s", err)
 	}
 	return keyVault, nil
+}
+
+// GetProviders returns all the resource providers for the given configuration.
+func GetProviders(opts *terraform.ContextOpts) ([]terraform.ResourceProvider, error) {
+	mod := opts.Module
+	if mod == nil {
+		pwd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("error getting pwd: %s", err)
+		}
+		mod, err = module.NewTreeModule("", pwd)
+		if err != nil {
+			return nil, err
+		}
+	}
+	reqd := terraform.ModuleTreeDependencies(mod, nil).AllPluginRequirements()
+	if opts.ProviderSHA256s != nil && !opts.SkipProviderVerify {
+		reqd.LockExecutables(opts.ProviderSHA256s)
+	}
+	providerFactories, errs := opts.ProviderResolver.ResolveProviders(reqd)
+	if errs != nil {
+		return nil, &terraform.ResourceProviderError{
+			Errors: errs,
+		}
+	}
+	var providers []terraform.ResourceProvider
+	for _, f := range providerFactories {
+		provider, err := f()
+		if err != nil {
+			return nil, fmt.Errorf("error retrieving provider: %s", err)
+		}
+		providers = append(providers, provider)
+	}
+	return providers, nil
 }
