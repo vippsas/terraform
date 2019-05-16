@@ -9,27 +9,10 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform/backend"
 	"github.com/hashicorp/terraform/backend/local"
-	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote"
 	"github.com/hashicorp/terraform/command/format"
 	"github.com/hashicorp/terraform/config/module"
 	"github.com/hashicorp/terraform/terraform"
 )
-
-// getResourceProviders returns all the resource providers for the given configuration.
-func getResourceProviders(c *terraform.Context) []terraform.ResourceProvider {
-	var providers []terraform.ResourceProvider
-	components := c.GetComponents()
-
-	for _, id := range components.ResourceProviders() {
-		p, err := components.ResourceProvider(id, "")
-		if err != nil {
-			continue
-		}
-		providers = append(providers, p)
-	}
-
-	return providers
-}
 
 // apply does "terraform apply".
 func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *backend.Operation, runningOp *backend.RunningOperation) {
@@ -115,10 +98,6 @@ func (b *Backend) apply(stopCtx context.Context, cancelCtx context.Context, op *
 			return
 		}
 	}
-
-	// Set resource providers for masking sensitive attributes in remote state.
-	blobState := remoteState.(*remote.State)
-	blobState.SetResourceProviders(getResourceProviders(tfCtx))
 
 	// Setup our hook for continuous state updates.
 	stateHook.State = remoteState
