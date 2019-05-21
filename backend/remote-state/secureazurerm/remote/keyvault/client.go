@@ -92,10 +92,9 @@ func Setup(ctx context.Context, blob *blob.Blob, props *properties.Properties, w
 			return nil, fmt.Errorf("error creating key vault: %s", err)
 		}
 	} else {
-		entries := *vault.Properties.AccessPolicies
 		found := false
-		for _, entry := range entries {
-			if *entry.ObjectID == props.ObjectID {
+		for _, policy := range *vault.Properties.AccessPolicies {
+			if *policy.ObjectID == props.ObjectID {
 				found = true
 				break
 			}
