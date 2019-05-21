@@ -62,6 +62,20 @@ func Setup(ctx context.Context, blob *blob.Blob, props *properties.Properties, w
 	if err != nil {
 		return nil, fmt.Errorf("error converting tenant ID-string to UUID: %s", err)
 	}
+	accessPolicies := []keyvault.AccessPolicyEntry{
+		keyvault.AccessPolicyEntry{
+			TenantID: &tenantID,
+			ObjectID: &props.ObjectID,
+			Permissions: &keyvault.Permissions{
+				Secrets: &[]keyvault.SecretPermissions{
+					keyvault.SecretPermissionsList,
+					keyvault.SecretPermissionsGet,
+					keyvault.SecretPermissionsSet,
+					keyvault.SecretPermissionsDelete,
+				},
+			},
+		},
+	}
 	vault, err := k.vaultClient.Get(ctx, props.Name, k.vaultName)
 	if err != nil {
 		vault, err = k.vaultClient.CreateOrUpdate(ctx, props.Name, k.vaultName, keyvault.VaultCreateOrUpdateParameters{
@@ -72,20 +86,7 @@ func Setup(ctx context.Context, blob *blob.Blob, props *properties.Properties, w
 					Family: to.StringPtr("A"),
 					Name:   keyvault.Standard,
 				},
-				AccessPolicies: &[]keyvault.AccessPolicyEntry{
-					keyvault.AccessPolicyEntry{
-						TenantID: &tenantID,
-						ObjectID: &props.ObjectID,
-						Permissions: &keyvault.Permissions{
-							Secrets: &[]keyvault.SecretPermissions{
-								keyvault.SecretPermissionsList,
-								keyvault.SecretPermissionsGet,
-								keyvault.SecretPermissionsSet,
-								keyvault.SecretPermissionsDelete,
-							},
-						},
-					},
-				},
+				AccessPolicies: &accessPolicies,
 			},
 		})
 		if err != nil {
@@ -100,23 +101,9 @@ func Setup(ctx context.Context, blob *blob.Blob, props *properties.Properties, w
 			}
 		}
 		if !found {
-			accessPoliciesToAdd := []keyvault.AccessPolicyEntry{
-				keyvault.AccessPolicyEntry{
-					TenantID: &tenantID,
-					ObjectID: &props.ObjectID,
-					Permissions: &keyvault.Permissions{
-						Secrets: &[]keyvault.SecretPermissions{
-							keyvault.SecretPermissionsList,
-							keyvault.SecretPermissionsGet,
-							keyvault.SecretPermissionsSet,
-							keyvault.SecretPermissionsDelete,
-						},
-					},
-				},
-			}
 			_, err = k.vaultClient.UpdateAccessPolicy(ctx, k.resourceGroupName, k.vaultName, keyvault.Add, keyvault.VaultAccessPolicyParameters{
 				Properties: &keyvault.VaultAccessPolicyProperties{
-					AccessPolicies: &accessPoliciesToAdd,
+					AccessPolicies: &accessPolicies,
 				},
 			})
 			if err != nil {
@@ -145,20 +132,19 @@ func (k *KeyVault) AddIDToAccessPolicies(ctx context.Context, identity *ManagedI
 	if err != nil {
 		return fmt.Errorf("error converting tenant ID-string to UUID: %s", err)
 	}
-	accessPoliciesToAdd := []keyvault.AccessPolicyEntry{
-		keyvault.AccessPolicyEntry{
-			TenantID: &tenantID,
-			ObjectID: &identity.PrincipalID,
-			Permissions: &keyvault.Permissions{
-				Secrets: &[]keyvault.SecretPermissions{
-					keyvault.SecretPermissionsGet,
-				},
-			},
-		},
-	}
 	_, err = k.vaultClient.UpdateAccessPolicy(ctx, k.resourceGroupName, k.vaultName, keyvault.Add, keyvault.VaultAccessPolicyParameters{
 		Properties: &keyvault.VaultAccessPolicyProperties{
-			AccessPolicies: &accessPoliciesToAdd,
+			AccessPolicies: &[]keyvault.AccessPolicyEntry{
+				keyvault.AccessPolicyEntry{
+					TenantID: &tenantID,
+					ObjectID: &identity.PrincipalID,
+					Permissions: &keyvault.Permissions{
+						Secrets: &[]keyvault.SecretPermissions{
+							keyvault.SecretPermissionsGet,
+						},
+					},
+				},
+			},
 		},
 	})
 	if err != nil {
