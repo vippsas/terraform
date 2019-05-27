@@ -7,7 +7,7 @@ import (
 	KV "github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
 )
 
-// getID gets the ID without the base URI from the key vault's ID.
+// getID gets the secret name (ID without the base URI) from the key vault's ID.
 func getID(ID string) string {
 	i := len(ID) - 1
 	for ID[i] != '/' {
@@ -18,11 +18,34 @@ func getID(ID string) string {
 
 // SetSecret sets a secret in a key vault. If the secret does not exist, it creates it. Returns the version of the secret.
 func (k *KeyVault) SetSecret(ctx context.Context, name, value string, tags map[string]*string) (string, error) {
+	// Get latest secret.
+	var maxResults int32
+	maxResults = 1
+	result, err := k.keyClient.GetSecretVersions(ctx, k.vaultURI, name, &maxResults)
+	if err != nil {
+		return "", fmt.Errorf("error getting secret versions: %s", err)
+	}
+	values := result.Values()
+	if len(values) > 0 {
+		secretVersion := getID(*values[0].ID)
+		secretValue, err := k.GetSecret(ctx, name, secretVersion)
+		if err != nil {
+			return "", fmt.Errorf("error getting secret: %s", err)
+		}
+		// If it still the same, don't insert a new secret.
+		if secretValue == value {
+			return secretVersion, nil
+		}
+	}
+
+	// Set/insert new secret.
 	contentType := "text/plain;charset=UTF-8"
 	bundle, err := k.keyClient.SetSecret(ctx, k.vaultURI, name, KV.SecretSetParameters{Value: &value, ContentType: &contentType, Tags: tags})
 	if err != nil {
 		return "", fmt.Errorf("error inserting secret: %s", err)
 	}
+
+	// Return the current secret version.
 	return getID(*bundle.ID), nil
 }
 
