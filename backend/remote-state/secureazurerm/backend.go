@@ -42,11 +42,13 @@ func New() backend.Backend {
 					Type:        schema.TypeString,
 					Required:    true,
 					Description: "The name of the state's storage account and naming prefix for the state's key vaults.",
+					DefaultFunc: schema.EnvDefaultFunc("SECURE_ARM_NAME", ""),
 				},
 				"location": {
 					Type:        schema.TypeString,
 					Required:    true,
 					Description: "The geographical location where the state is stored.",
+					DefaultFunc: schema.EnvDefaultFunc("SECURE_ARM_LOCATION", ""),
 				},
 				"access_policies": {
 					Type:     schema.TypeList,
@@ -73,7 +75,13 @@ func (b *Backend) configure(ctx context.Context) error {
 	// Get the data attributes from the "backend"-block.
 	attributes := schema.FromContextBackendConfig(ctx)
 	b.props.Name = attributes.Get("name").(string)
+	if b.props.Name == "" {
+		return fmt.Errorf("name is empty")
+	}
 	b.props.Location = attributes.Get("location").(string)
+	if b.props.Location == "" {
+		return fmt.Errorf("location is empty")
+	}
 	for _, resourceAddress := range attributes.Get("access_policies").([]interface{}) {
 		sa := []string{"root"}
 		splitted := strings.Split(resourceAddress.(string), ".")
