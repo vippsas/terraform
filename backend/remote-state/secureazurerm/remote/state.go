@@ -168,7 +168,7 @@ func (s *State) PersistState() error {
 		}
 		mod, err = module.NewTreeModule("", pwd)
 		if err != nil {
-			return err
+			return fmt.Errorf("error making new tree module: %s", err)
 		}
 	}
 	reqd := terraform.ModuleTreeDependencies(mod, nil).AllPluginRequirements()
