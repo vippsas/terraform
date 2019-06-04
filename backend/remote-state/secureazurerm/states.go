@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform/state"
 )
 
-// States returns a list of the names of all remote states stored in separate unique blob.
-// They're all named after the workspace (workspace = remote state = blob).
+// States returns the name of all blobs that stores the state file.
+// They're all named after the workspace (workspace name = blob name).
 func (b *Backend) States() ([]string, error) {
 	// Get the blobs of the container.
 	blobs, err := b.container.List()
@@ -36,13 +36,12 @@ func (b *Backend) DeleteState(name string) error {
 		return fmt.Errorf("error setting up state blob: %s", err)
 	}
 
-	// Setup state key vault
+	// Setup the state's key vault.
 	keyVault, err := b.setupKeyVault(blob, name)
 	if err != nil {
 		return fmt.Errorf("error setting up state key vault: %s", err)
 	}
-	// and delete it!
-
+	// and then delete the key vault!
 	keyVault.Delete(context.Background())
 	if err := blob.Delete(); err != nil {
 		return fmt.Errorf("error deleting state %s: %s", name, err)
