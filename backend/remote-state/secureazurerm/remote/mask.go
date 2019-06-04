@@ -112,29 +112,29 @@ func (s *State) maskAttribute(path []string, resourceName string, attributes map
 		if attribute.Sensitive { // then mask.
 			// Tag secret with related state info.
 			tags := make(map[string]*string)
-			pb, err := json.Marshal(path)
+			pathInJSONBytes, err := json.Marshal(path)
 			if err != nil {
 				return fmt.Errorf("error marshalling path: %s", err)
 			}
-			p := string(pb)
-			tags["module"] = &p
-			rb, err := json.Marshal(resourceName)
+			pathInJSON := string(pathInJSONBytes)
+			tags["module"] = &pathInJSON
+			resourceNameInJSONBytes, err := json.Marshal(resourceName)
 			if err != nil {
 				return fmt.Errorf("error marshalling resource name: %s", err)
 			}
-			r := string(rb)
-			tags["resource"] = &r
-			ab, err := json.Marshal(attributeName)
+			resourceNameInJSON := string(resourceNameInJSONBytes)
+			tags["resource"] = &resourceNameInJSON
+			attributeNameInJSONBytes, err := json.Marshal(attributeName)
 			if err != nil {
 				return fmt.Errorf("error marshalling attribute: %s", err)
 			}
-			a := string(ab)
-			tags["attribute"] = &a
+			attributeNameInJSON := string(attributeNameInJSONBytes)
+			tags["attribute"] = &attributeNameInJSON
 
 			// Set existing secret name or generate a new one.
 			var secretName string
 			for secretID, value := range s.secretIDs {
-				if *value.Tags["module"] == p && *value.Tags["resource"] == r && *value.Tags["attribute"] == a {
+				if *value.Tags["module"] == pathInJSON && *value.Tags["resource"] == resourceNameInJSON && *value.Tags["attribute"] == attributeNameInJSON {
 					secretName = secretID
 					break
 				}
