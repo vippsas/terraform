@@ -2,15 +2,32 @@ package remote
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/rand"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
 	"github.com/hashicorp/terraform/config/configschema"
 	"github.com/hashicorp/terraform/terraform"
 )
+
+var chars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
+
+// generateLowerAlphanumericChars generates a random lowercase alphanumeric string of len n.
+func generateLowerAlphanumericChars(n int) (string, error) {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", fmt.Errorf("error reading from secure random generator: %s", err)
+	}
+
+	var s []rune
+	for _, number := range b {
+		s = append(s, chars[int(number)%len(chars)])
+	}
+	return string(s), nil
+}
 
 // secretAttribute is a sensitive attribute that is located as a secret in the Azure key vault.
 type secretAttribute struct {
@@ -127,7 +144,7 @@ func (s *State) maskAttribute(path []string, resourceName string, attributes map
 				maxRetries := 3
 				for ; retry < maxRetries; retry++ {
 					// Generate secret name for the attribute.
-					secretName, err = rand.GenerateLowerAlphanumericChars(32) // it's as long as the version string in length.
+					secretName, err = generateLowerAlphanumericChars(32) // it's as long as the version string in length.
 					if err != nil {
 						return fmt.Errorf("error generating secret name: %s", err)
 					}
