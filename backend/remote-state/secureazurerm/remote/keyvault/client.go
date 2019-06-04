@@ -10,9 +10,9 @@ import (
 	KV "github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/mgmt/2016-10-01/keyvault"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
-	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/auth"
 	uuid "github.com/satori/go.uuid"
 
+	azauth "github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/Azure/go-autorest/autorest/to"
 )
 
@@ -113,7 +113,11 @@ func Setup(ctx context.Context, blob *blob.Blob, props *properties.Properties, w
 	}
 	k.vaultURI = *vault.Properties.VaultURI
 
-	k.keyClient.Authorizer, err = auth.NewVault()
+	vaultEndpoint := "https://vault.azure.net"
+	k.keyClient.Authorizer, err = azauth.NewAuthorizerFromCLIWithResource(vaultEndpoint)
+	if err != nil {
+		return nil, fmt.Errorf("error creating new authorizer from CLI with resource %s: %v", vaultEndpoint, err)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error creating new vault authorizer: %s", err)
 	}
