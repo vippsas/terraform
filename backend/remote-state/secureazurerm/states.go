@@ -11,8 +11,7 @@ import (
 )
 
 // States returns a list of the names of all remote states stored in separate unique blob.
-// They are all named after the workspace.
-// Basically, remote state = workspace = blob.
+// They're all named after the workspace (workspace = remote state = blob).
 func (b *Backend) States() ([]string, error) {
 	// Get the blobs of the container.
 	blobs, err := b.container.List()
