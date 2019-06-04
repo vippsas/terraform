@@ -91,7 +91,12 @@ func (b *Blob) Get() (*remote.Payload, error) {
 		}
 		return nil, err
 	}
-	defer data.Close() // TODO: Handle close error.
+	defer func() {
+		err := data.Close()
+		if err != nil {
+			panic(fmt.Errorf("error closing blob: %s", err))
+		}
+	}()
 
 	// Copy the blob data to a byte buffer.
 	buf := bytes.NewBuffer(nil)
