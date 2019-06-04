@@ -162,11 +162,11 @@ func (s *State) PersistState() error {
 	// Get resource providers.
 	mod := s.Props.ContextOpts.Module
 	if mod == nil {
-		pwd, err := os.Getwd()
+		cwd, err := os.Getwd()
 		if err != nil {
-			return fmt.Errorf("error getting pwd: %s", err)
+			return fmt.Errorf("error getting current working directory: %s", err)
 		}
-		mod, err = module.NewTreeModule("", pwd)
+		mod, err = module.NewTreeModule("", cwd)
 		if err != nil {
 			return fmt.Errorf("error making new tree module: %s", err)
 		}
