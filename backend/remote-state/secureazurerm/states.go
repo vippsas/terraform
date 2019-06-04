@@ -67,7 +67,7 @@ func (b *Backend) State(workspaceName string) (state.State, error) {
 	return &remote.State{Blob: blob, KeyVault: keyVault, Props: &b.props}, nil
 }
 
-// setupKeyVault setups the state key vault.
+// setupKeyVault setups the state/workspace's key vault.
 func (b *Backend) setupKeyVault(blob *blob.Blob, workspaceName string) (*keyvault.KeyVault, error) {
 	keyVault, err := keyvault.Setup(context.Background(), blob, &b.props, workspaceName)
 	if err != nil {
