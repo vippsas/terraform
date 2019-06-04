@@ -73,7 +73,6 @@ func (b *Blob) Get() (*remote.Payload, error) {
 
 	// Get blob containing remote state.
 	blob := b.container.GetBlob(b.Name)
-	options := &storage.GetBlobOptions{}
 
 	// Check if blob exists.
 	blobExists, err := blob.Exists()
@@ -85,7 +84,7 @@ func (b *Blob) Get() (*remote.Payload, error) {
 	}
 
 	// Get remote state from blob.
-	data, err := blob.Get(options)
+	data, err := blob.Get(&storage.GetBlobOptions{})
 	if err != nil {
 		if storErr, ok := err.(storage.AzureStorageServiceError); ok {
 			return nil, fmt.Errorf(storErr.Code)
