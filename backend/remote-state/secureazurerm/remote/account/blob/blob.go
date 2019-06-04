@@ -24,7 +24,7 @@ type Blob struct {
 
 // Setup setups a new or existing blob.
 func Setup(container *account.Container, name string) (*Blob, error) {
-	// Initialize.
+	// Initialize blob.
 	blob := Blob{
 		container: container,
 		Name:      name,
