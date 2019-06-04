@@ -65,7 +65,7 @@ func (b *Blob) Exists() (bool, error) {
 }
 
 // Get gets the remote state from the blob in the container in the Azure Storage Account.
-func (b *Blob) Get() (*remote.Payload, error) {
+func (b *Blob) Get() (payload *remote.Payload, returnErr error) {
 	// Check if client's fields are set correctly.
 	if err := b.isValid(); err != nil {
 		return nil, fmt.Errorf("blob is invalid: %s", err)
@@ -94,7 +94,8 @@ func (b *Blob) Get() (*remote.Payload, error) {
 	defer func() {
 		err := data.Close()
 		if err != nil {
-			panic(fmt.Errorf("error closing blob: %s", err))
+			returnErr = fmt.Errorf("error closing blob: %s", err)
+			return
 		}
 	}()
 
@@ -104,7 +105,7 @@ func (b *Blob) Get() (*remote.Payload, error) {
 		return nil, fmt.Errorf("failed to read remote state: %s", err)
 	}
 	// Make payload from remote state blob data.
-	payload := &remote.Payload{Data: buf.Bytes()}
+	payload = &remote.Payload{Data: buf.Bytes()}
 	if len(payload.Data) == 0 { // is payload empty?
 		return nil, nil
 	}
@@ -148,7 +149,7 @@ func (b *Blob) Put(data []byte) error {
 }
 
 // Delete deletes the blob.
-func (b *Blob) Delete() error {
+func (b *Blob) Delete() (returnErr error) {
 	// Is fields set correctly?
 	if err := b.isValid(); err != nil {
 		return fmt.Errorf("blob is invalid: %s", err)
@@ -160,7 +161,13 @@ func (b *Blob) Delete() error {
 	if err != nil {
 		return fmt.Errorf("error locking blob: %s", err)
 	}
-	defer b.Unlock(leaseID)
+	defer func() {
+		err := b.Unlock(leaseID)
+		if err != nil {
+			returnErr = fmt.Errorf("error unlocking blob: %s", err)
+			return
+		}
+	}()
 
 	// Call the API to delete the blob!
 	del := true
