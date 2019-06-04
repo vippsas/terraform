@@ -32,13 +32,13 @@ func (k *KeyVault) SetSecret(ctx context.Context, name, value string, tags map[s
 		if err != nil {
 			return "", fmt.Errorf("error getting secret: %s", err)
 		}
-		// If it still the same, don't insert a new secret.
+		// If it's still the same, don't insert a new secret.
 		if secretValue == value {
 			return secretVersion, nil
 		}
 	}
 
-	// Set/insert new secret.
+	// Set/insert a new secret.
 	contentType := "text/plain;charset=UTF-8"
 	bundle, err := k.keyClient.SetSecret(ctx, k.vaultURI, name, KV.SecretSetParameters{Value: &value, ContentType: &contentType, Tags: tags})
 	if err != nil {
