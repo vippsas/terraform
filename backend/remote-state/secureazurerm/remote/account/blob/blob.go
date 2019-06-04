@@ -137,10 +137,11 @@ func (b *Blob) Put(data []byte) error {
 			return fmt.Errorf("error getting metadata: %s", err)
 		}
 	}
-	// Set blob content type, which is JSON.
+
+	// Set the blob's properties.
 	blob.Properties.ContentType = "application/json"
-	// Set blob content length.
 	blob.Properties.ContentLength = int64(len(data))
+
 	// Create a block blob that replaces the old one and upload the remote state in JSON to the blob.
 	if err = blob.CreateBlockBlobFromReader(bytes.NewReader(data), &storage.PutBlobOptions{LeaseID: b.leaseID}); err != nil {
 		return fmt.Errorf("error creating block blob: %s", err)
