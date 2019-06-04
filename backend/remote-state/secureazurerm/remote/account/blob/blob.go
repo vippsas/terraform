@@ -122,8 +122,8 @@ func (b *Blob) Put(data []byte) error {
 
 	// Check if blob exists.
 	blobExists, err := blob.Exists()
-	if err != nil { // failed to check existence of blob.
-		return err
+	if err != nil {
+		return fmt.Errorf("error checking existence of blob: %s", err)
 	}
 	if blobExists {
 		if err := b.isLeased(); err != nil {
