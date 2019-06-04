@@ -50,7 +50,7 @@ func (b *Backend) DeleteState(name string) error {
 	return nil
 }
 
-// State returns the state specified by workspace.
+// State returns the state of the given workspaceName.
 func (b *Backend) State(workspaceName string) (state.State, error) {
 	// Setup blob.
 	blob, err := blob.Setup(b.container, workspaceName)
