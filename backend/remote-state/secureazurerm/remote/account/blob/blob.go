@@ -144,7 +144,7 @@ func (b *Blob) Put(data []byte) error {
 	if err = blob.CreateBlockBlobFromReader(bytes.NewReader(data), &storage.PutBlobOptions{LeaseID: b.leaseID}); err != nil {
 		return fmt.Errorf("error creating block blob: %s", err)
 	}
-	return blob.SetProperties(&storage.SetBlobPropertiesOptions{LeaseID: b.leaseID}) // if a blob existed previously, it will set the properties of it on the newly created blob.
+	return blob.SetProperties(&storage.SetBlobPropertiesOptions{LeaseID: b.leaseID})
 }
 
 // Delete deletes the blob.
