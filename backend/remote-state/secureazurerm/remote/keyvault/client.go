@@ -118,9 +118,6 @@ func Setup(ctx context.Context, blob *blob.Blob, props *properties.Properties, w
 	if err != nil {
 		return nil, fmt.Errorf("error creating new authorizer from CLI with resource %s: %v", vaultEndpoint, err)
 	}
-	if err != nil {
-		return nil, fmt.Errorf("error creating new vault authorizer: %s", err)
-	}
 	return k, nil
 }
 
