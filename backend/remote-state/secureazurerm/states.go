@@ -59,7 +59,7 @@ func (b *Backend) State(workspaceName string) (state.State, error) {
 	}
 
 	// Setup key vault.
-	keyVault, err := b.setupKeyVault(blob, workspaceName)
+	keyVault, err := b.setupKeyVault(workspaceName)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up state key vault: %s", err)
 	}
@@ -68,8 +68,8 @@ func (b *Backend) State(workspaceName string) (state.State, error) {
 }
 
 // setupKeyVault setups the state/workspace's key vault.
-func (b *Backend) setupKeyVault(blob *blob.Blob, workspaceName string) (*keyvault.KeyVault, error) {
-	keyVault, err := keyvault.Setup(context.Background(), blob, &b.props, workspaceName)
+func (b *Backend) setupKeyVault(workspaceName string) (*keyvault.KeyVault, error) {
+	keyVault, err := keyvault.Setup(context.Background(), &b.props, workspaceName)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up key vault: %s", err)
 	}
