@@ -30,20 +30,23 @@ func (b *Backend) States() ([]string, error) {
 
 // DeleteState deletes remote state.
 func (b *Backend) DeleteState(name string) error {
+	// Setup the state's key vault.
+	keyVault, err := b.setupKeyVault(name)
+	if err != nil {
+		return fmt.Errorf("error setting up state key vault: %s", err)
+	}
+	// and then delete the key vault!
+	if err = keyVault.Delete(context.Background()); err != nil {
+		return fmt.Errorf("error deleting key vault: %s", err)
+	}
+
 	// Setup state blob.
 	blob, err := blob.Setup(b.container, name) // blob name = workspace name.
 	if err != nil {
 		return fmt.Errorf("error setting up state blob: %s", err)
 	}
-
-	// Setup the state's key vault.
-	keyVault, err := b.setupKeyVault(blob, name)
-	if err != nil {
-		return fmt.Errorf("error setting up state key vault: %s", err)
-	}
-	// and then delete the key vault!
-	keyVault.Delete(context.Background())
-	if err := blob.Delete(); err != nil {
+	// and then delete the blob!
+	if err = blob.Delete(); err != nil {
 		return fmt.Errorf("error deleting state %s: %s", name, err)
 	}
 

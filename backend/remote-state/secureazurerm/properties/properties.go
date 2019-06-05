@@ -3,6 +3,7 @@ package properties
 import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/hashicorp/terraform/terraform"
+	uuid "github.com/satori/go.uuid"
 )
 
 // Properties describes the properties of the state resource group.
@@ -12,8 +13,9 @@ type Properties struct {
 	Location,
 	KeyVaultPrefix,
 	SubscriptionID,
-	TenantID,
 	ObjectID string
+
+	TenantID uuid.UUID
 
 	// ObjectIDs that can access the state key vault.
 	AccessPolicies []string
