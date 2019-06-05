@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -48,12 +47,6 @@ func (s *State) WriteState(ts *terraform.State) error {
 	// Lock, yay!
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	// Check if the new written state has the same lineage as the old previous one.
-	if s.readState != nil && !ts.SameLineage(s.readState) {
-		// don't err here!
-		log.Printf("[WARN] incompatible state lineage: given %s but want %s", ts.Lineage, s.readState.Lineage)
-	}
 
 	// Write the state to memory.
 	s.state = ts.DeepCopy()
