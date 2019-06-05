@@ -2,10 +2,7 @@ package keyvault
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-
-	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
 
 	KV "github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/mgmt/2016-10-01/keyvault"
@@ -34,7 +31,7 @@ func (k *KeyVault) Name() string {
 }
 
 // Setup creates a new Azure Key Vault.
-func Setup(ctx context.Context, blob *blob.Blob, props *properties.Properties, workspace string) (*KeyVault, error) {
+func Setup(ctx context.Context, props *properties.Properties, workspace string) (*KeyVault, error) {
 	k := &KeyVault{
 		resourceGroupName: props.Name,
 		vaultClient:       keyvault.NewVaultsClient(props.SubscriptionID),
@@ -43,16 +40,6 @@ func Setup(ctx context.Context, blob *blob.Blob, props *properties.Properties, w
 		location:          props.Location,
 	}
 	k.vaultClient.Authorizer = props.MgmtAuthorizer
-
-	payload, err := blob.Get()
-	if err != nil {
-		return nil, fmt.Errorf("error getting blob: %s", err)
-	}
-	var stateMap map[string]interface{}
-	err = json.Unmarshal(payload.Data, &stateMap)
-	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling state blob to JSON: %s", err)
-	}
 
 	// Set a new generated key vault name.
 	k.vaultName = props.Name + workspace
