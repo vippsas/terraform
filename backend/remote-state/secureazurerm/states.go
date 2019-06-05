@@ -37,7 +37,7 @@ func (b *Backend) DeleteState(name string) error {
 	}
 	// and then delete the key vault!
 	if err = keyVault.Delete(context.Background()); err != nil {
-		return fmt.Errorf("error deleting key vault: %s", err)
+		return fmt.Errorf("error deleting state key vault: %s", err)
 	}
 
 	// Setup the state's blob.
@@ -47,7 +47,7 @@ func (b *Backend) DeleteState(name string) error {
 	}
 	// and then delete the blob!
 	if err = blob.Delete(); err != nil {
-		return fmt.Errorf("error deleting state %s: %s", name, err)
+		return fmt.Errorf("error deleting state blob %s: %s", name, err)
 	}
 
 	return nil
