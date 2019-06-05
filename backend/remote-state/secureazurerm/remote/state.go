@@ -155,6 +155,7 @@ func (s *State) PersistState() error {
 	// Get resource providers.
 	mod := s.Props.ContextOpts.Module
 	if mod == nil {
+		// TODO: Read config path from command-line argument.
 		cwd, err := os.Getwd()
 		if err != nil {
 			return fmt.Errorf("error getting current working directory: %s", err)
@@ -236,7 +237,7 @@ func (s *State) PersistState() error {
 			attributes := resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{})
 			value, ok := attributes["identity.#"]
 			if !ok {
-				return fmt.Errorf("backend state's access policies contains a resource with no managed identity: %s", err)
+				return fmt.Errorf("state backend's access policies contains a resource with no managed identity: %s", err)
 			}
 			length, err := strconv.Atoi(value.(string))
 			if err != nil {
