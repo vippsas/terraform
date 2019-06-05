@@ -114,8 +114,7 @@ func Setup(ctx context.Context, blob *blob.Blob, props *properties.Properties, w
 	k.vaultURI = *vault.Properties.VaultURI
 
 	const vaultEndpoint = "https://vault.azure.net"
-	k.keyClient.Authorizer, err = azauth.NewAuthorizerFromCLIWithResource(vaultEndpoint)
-	if err != nil {
+	if k.keyClient.Authorizer, err = azauth.NewAuthorizerFromCLIWithResource(vaultEndpoint); err != nil {
 		return nil, fmt.Errorf("error creating new authorizer from CLI with resource %s: %v", vaultEndpoint, err)
 	}
 	return k, nil
