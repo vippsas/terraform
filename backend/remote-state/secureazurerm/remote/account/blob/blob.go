@@ -55,13 +55,13 @@ func Setup(container *account.Container, name string) (*Blob, error) {
 }
 
 // Exists check if remote state blob exists already.
-func (b *Blob) Exists() (bool, error) {
+func (b *Blob) Exists() (blobExists bool, err error) {
 	// Check if blob exists.
-	blobExists, err := b.container.GetBlob(b.Name).Exists()
+	blobExists, err = b.container.GetBlob(b.Name).Exists()
 	if err != nil {
 		return false, err // failed to check if blob exists.
 	}
-	return blobExists, nil
+	return
 }
 
 // Get gets the remote state from the blob in the container in the Azure Storage Account.
