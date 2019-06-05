@@ -100,14 +100,14 @@ func (s *State) maskModule(providers []terraform.ResourceProvider, module map[st
 }
 
 // maskAttribute masks the attributes of a resource.
-func (s *State) maskAttribute(path []string, resourceName string, attributes map[string]interface{}, attributeName, attributeValue string, attributeNameSplitted []string, namePos int, resourceSchema *configschema.Block) error {
+func (s *State) maskAttribute(path []string, resourceName string, attributes map[string]interface{}, attributeName, attributeValue string, attributeNameSplitted []string, namePos int, schema *configschema.Block) error {
 	// Check if there exist an attribute.
 	if namePos >= len(attributeNameSplitted) {
 		return nil
 	}
 
 	// Check if attribute from the block exists in the schema.
-	if attribute, ok := resourceSchema.Attributes[attributeNameSplitted[namePos]]; ok {
+	if attribute, ok := schema.Attributes[attributeNameSplitted[namePos]]; ok {
 		// Is resource attribute sensitive?
 		if attribute.Sensitive { // then mask.
 			// Tag secret with related state info.
@@ -175,7 +175,7 @@ func (s *State) maskAttribute(path []string, resourceName string, attributes map
 		}
 	} else {
 		// Nope, then check if it exists in the nested block types.
-		if block, ok := resourceSchema.BlockTypes[attributeNameSplitted[namePos]]; ok {
+		if block, ok := schema.BlockTypes[attributeNameSplitted[namePos]]; ok {
 			s.maskAttribute(
 				path,
 				resourceName,
