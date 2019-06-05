@@ -100,13 +100,13 @@ func (b *Blob) Get() (payload *remote.Payload, returnErr error) {
 	}()
 
 	// Copy the blob data to a byte buffer.
-	buf := bytes.NewBuffer(nil)
-	if _, err := io.Copy(buf, data); err != nil {
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, data); err != nil {
 		return nil, fmt.Errorf("failed to read remote state: %s", err)
 	}
 	// Make payload from remote state blob data.
 	payload = &remote.Payload{Data: buf.Bytes()}
-	if len(payload.Data) == 0 { // is payload empty?
+	if len(payload.Data) == 0 {
 		return nil, nil
 	}
 	return payload, nil
