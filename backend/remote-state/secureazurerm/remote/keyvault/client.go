@@ -119,7 +119,7 @@ func (k *KeyVault) AddIDToAccessPolicies(ctx context.Context, identity *ManagedI
 	if err != nil {
 		return fmt.Errorf("error converting tenant ID-string to UUID: %s", err)
 	}
-	_, err = k.vaultClient.UpdateAccessPolicy(ctx, k.resourceGroupName, k.vaultName, keyvault.Add, keyvault.VaultAccessPolicyParameters{
+	if _, err = k.vaultClient.UpdateAccessPolicy(ctx, k.resourceGroupName, k.vaultName, keyvault.Add, keyvault.VaultAccessPolicyParameters{
 		Properties: &keyvault.VaultAccessPolicyProperties{
 			AccessPolicies: &[]keyvault.AccessPolicyEntry{
 				keyvault.AccessPolicyEntry{
@@ -133,8 +133,7 @@ func (k *KeyVault) AddIDToAccessPolicies(ctx context.Context, identity *ManagedI
 				},
 			},
 		},
-	})
-	if err != nil {
+	}); err != nil {
 		return fmt.Errorf("error updating key vault: %s", err)
 	}
 	return nil
