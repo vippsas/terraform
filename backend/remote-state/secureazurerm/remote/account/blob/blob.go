@@ -92,8 +92,7 @@ func (b *Blob) Get() (payload *remote.Payload, returnErr error) {
 		return nil, err
 	}
 	defer func() {
-		err := data.Close()
-		if err != nil {
+		if err := data.Close(); err != nil {
 			returnErr = fmt.Errorf("error closing blob: %s", err)
 			return
 		}
@@ -163,8 +162,7 @@ func (b *Blob) Delete() (returnErr error) {
 		return fmt.Errorf("error locking blob: %s", err)
 	}
 	defer func() {
-		err := b.Unlock(leaseID)
-		if err != nil {
+		if err := b.Unlock(leaseID); err != nil {
 			returnErr = fmt.Errorf("error unlocking blob: %s", err)
 			return
 		}
@@ -180,22 +178,25 @@ func (b *Blob) Delete() (returnErr error) {
 
 // Lock acquires the lease of the blob.
 func (b *Blob) Lock(info *state.LockInfo) (string, error) {
+	// Check if blob is valid.
 	if err := b.isValid(); err != nil {
 		return "", fmt.Errorf("blob is invalid: %s", err)
 	}
 
-	blob := b.container.GetBlob(b.Name)
-	leaseID, err := blob.AcquireLease(-1, info.ID, &storage.LeaseOptions{})
+	// Acquire lease on blob.
+	leaseID, err := b.container.GetBlob(b.Name).AcquireLease(-1, info.ID, &storage.LeaseOptions{})
 	if err != nil {
 		return "", fmt.Errorf("error acquiring lease: %s", err)
 	}
 	info.ID = leaseID
 	b.leaseID = info.ID
 
+	// Write info about Terraform's lock into the blob's metadata.
 	if err := b.writeLockInfo(info); err != nil {
 		return "", fmt.Errorf("error writing lock info: %s", err)
 	}
 
+	// Return the path and ID to the blob.
 	info.Path = fmt.Sprintf("%s/%s", b.container.Name, b.Name)
 	return info.ID, nil
 }
@@ -224,8 +225,7 @@ func (b *Blob) Unlock(id string) error {
 		return lockErr
 	}
 
-	blob := b.container.GetBlob(b.Name)
-	if err = blob.ReleaseLease(id, &storage.LeaseOptions{}); err != nil {
+	if err = b.container.GetBlob(b.Name).ReleaseLease(id, &storage.LeaseOptions{}); err != nil {
 		lockErr.Err = err
 		return lockErr
 	}
