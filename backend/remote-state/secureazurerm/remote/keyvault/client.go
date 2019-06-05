@@ -141,7 +141,7 @@ func (k *KeyVault) AddIDToAccessPolicies(ctx context.Context, identity *ManagedI
 
 // RemoveIDFromAccessPolicies removes the service principal ID provided from the key vault's access policies.
 func (k *KeyVault) RemoveIDFromAccessPolicies(ctx context.Context, tenantID uuid.UUID, objectID string) error {
-	_, err := k.vaultClient.UpdateAccessPolicy(ctx, k.resourceGroupName, k.vaultName, keyvault.Remove, keyvault.VaultAccessPolicyParameters{
+	if _, err := k.vaultClient.UpdateAccessPolicy(ctx, k.resourceGroupName, k.vaultName, keyvault.Remove, keyvault.VaultAccessPolicyParameters{
 		Properties: &keyvault.VaultAccessPolicyProperties{
 			AccessPolicies: &[]keyvault.AccessPolicyEntry{
 				keyvault.AccessPolicyEntry{
@@ -150,8 +150,7 @@ func (k *KeyVault) RemoveIDFromAccessPolicies(ctx context.Context, tenantID uuid
 				},
 			},
 		},
-	})
-	if err != nil {
+	}); err != nil {
 		return fmt.Errorf("error deleting from the key vault's access policy: %s", err)
 	}
 	return nil
