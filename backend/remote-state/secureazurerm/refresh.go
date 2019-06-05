@@ -49,8 +49,7 @@ func (b *Backend) refresh(stopCtx context.Context, cancelCtx context.Context, op
 	}
 
 	// Write the resulting state to the running operation.
-	runningOp.State = newState
-	if refreshErr != nil {
+	if runningOp.State = newState; refreshErr != nil {
 		runningOp.Err = fmt.Errorf("error refreshing state: %s", refreshErr)
 		return
 	}

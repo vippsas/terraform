@@ -48,8 +48,9 @@ func (b *Backend) plan(stopCtx context.Context, cancelCtx context.Context, op *b
 		defer close(doneCh)
 		plan, err = tfCtx.Plan()
 	}()
+	// Wait for plan to finish.
 	if b.wait(doneCh, stopCtx, cancelCtx, tfCtx, opState) {
-		return
+		return // cancellation.
 	}
 	if err != nil {
 		runningOp.Err = fmt.Errorf("error planning: %s", err)
