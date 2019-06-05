@@ -19,8 +19,7 @@ func getID(ID string) string {
 // SetSecret sets a secret in a key vault. If the secret does not exist, it creates it. Returns the version of the secret.
 func (k *KeyVault) SetSecret(ctx context.Context, name, value string, tags map[string]*string) (string, error) {
 	// Get latest secret.
-	var maxResults int32
-	maxResults = 1
+	var maxResults int32 = 1
 	result, err := k.keyClient.GetSecretVersions(ctx, k.vaultURI, name, &maxResults)
 	if err != nil {
 		return "", fmt.Errorf("error getting secret versions: %s", err)
