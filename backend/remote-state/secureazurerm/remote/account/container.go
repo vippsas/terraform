@@ -70,7 +70,6 @@ func Setup(ctx context.Context, props *properties.Properties, containerName stri
 					EnableHTTPSTrafficOnly: &httpsTrafficOnly,
 				},
 			})
-
 		if err != nil {
 			return nil, fmt.Errorf("failed to start creating storage account: %v", err)
 		}
