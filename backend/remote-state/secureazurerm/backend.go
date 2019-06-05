@@ -89,8 +89,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 	b.props.SubscriptionID = loggedInAccount["id"].(string)
 	tenantID := loggedInAccount["tenantId"].(string)
-	b.props.TenantID, err = uuid.FromString(tenantID)
-	if err != nil {
+	if b.props.TenantID, err = uuid.FromString(tenantID); err != nil {
 		return fmt.Errorf("error converting tenant ID-string to UUID: %s", err)
 	}
 	user := loggedInAccount["user"].(map[string]interface{})
