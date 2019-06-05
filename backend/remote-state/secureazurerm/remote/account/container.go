@@ -127,7 +127,10 @@ func Setup(ctx context.Context, props *properties.Properties, containerName stri
 	}
 
 	// Create a new container in the storage account.
-	skc, _ := azblob.NewSharedKeyCredential(storageAccountName, accessKey1)
+	skc, err := azblob.NewSharedKeyCredential(storageAccountName, accessKey1)
+	if err != nil {
+		return nil, fmt.Errorf("error creating new shared key credential: %s", err)
+	}
 	u, _ := url.Parse(fmt.Sprintf("https://%s.blob.core.windows.net", storageAccountName))
 	if _, err = azblob.NewServiceURL(*u, azblob.NewPipeline(skc, azblob.PipelineOptions{})).NewContainerURL(containerName).Create(
 		ctx,
