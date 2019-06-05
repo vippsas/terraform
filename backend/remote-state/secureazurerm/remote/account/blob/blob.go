@@ -157,16 +157,9 @@ func (b *Blob) Delete() (returnErr error) {
 	// Lock/Lease blob.
 	lockInfo := state.NewLockInfo()
 	lockInfo.Operation = "DeleteState"
-	leaseID, err := b.Lock(lockInfo)
-	if err != nil {
+	if _, err := b.Lock(lockInfo); err != nil {
 		return fmt.Errorf("error locking blob: %s", err)
 	}
-	defer func() {
-		if err := b.Unlock(leaseID); err != nil {
-			returnErr = fmt.Errorf("error unlocking blob: %s", err)
-			return
-		}
-	}()
 
 	// Call the API to delete the blob!
 	del := true
