@@ -78,18 +78,17 @@ func (b *Backend) configure(ctx context.Context) error {
 		return fmt.Errorf("error creating new authorizer from CLI with resource %s: %v", azure.PublicCloud.ResourceManagerEndpoint, err)
 	}
 	// Fetch subscriptionID and tenantID from Azure CLI.
-	var out []byte
-	out, err = exec.Command("az", "account", "show", "--output", "json").Output()
+	out, err := exec.Command("az", "account", "show", "--output", "json").Output()
 	if err != nil {
 		return fmt.Errorf("error fetching subscription id using Azure CLI: %s", err)
 	}
-	var m map[string]interface{}
-	if err = json.Unmarshal(out, &m); err != nil {
+	var loggedInAccount map[string]interface{}
+	if err = json.Unmarshal(out, &loggedInAccount); err != nil {
 		return fmt.Errorf("error unmarshalling subscription ID and tenant ID from JSON output from Azure CLI: %s", err)
 	}
-	b.props.SubscriptionID = m["id"].(string)
-	b.props.TenantID = m["tenantId"].(string)
-	user := m["user"].(map[string]interface{})
+	b.props.SubscriptionID = loggedInAccount["id"].(string)
+	b.props.TenantID = loggedInAccount["tenantId"].(string)
+	user := loggedInAccount["user"].(map[string]interface{})
 
 	// Get the objectID of the signed-in user.
 	userType := user["type"].(string)
