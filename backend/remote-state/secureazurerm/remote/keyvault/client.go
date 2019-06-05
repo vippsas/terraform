@@ -45,13 +45,9 @@ func Setup(ctx context.Context, props *properties.Properties, workspace string) 
 	k.vaultName = props.Name + workspace
 
 	// Setup the key vault.
-	tenantID, err := uuid.FromString(props.TenantID)
-	if err != nil {
-		return nil, fmt.Errorf("error converting tenant ID-string to UUID: %s", err)
-	}
 	accessPolicies := []keyvault.AccessPolicyEntry{
 		keyvault.AccessPolicyEntry{
-			TenantID: &tenantID,
+			TenantID: &props.TenantID,
 			ObjectID: &props.ObjectID,
 			Permissions: &keyvault.Permissions{
 				Secrets: &[]keyvault.SecretPermissions{
@@ -68,7 +64,7 @@ func Setup(ctx context.Context, props *properties.Properties, workspace string) 
 		vault, err = k.vaultClient.CreateOrUpdate(ctx, props.Name, k.vaultName, keyvault.VaultCreateOrUpdateParameters{
 			Location: to.StringPtr(props.Location),
 			Properties: &keyvault.VaultProperties{
-				TenantID: &tenantID,
+				TenantID: &props.TenantID,
 				Sku: &keyvault.Sku{
 					Family: to.StringPtr("A"),
 					Name:   keyvault.Standard,

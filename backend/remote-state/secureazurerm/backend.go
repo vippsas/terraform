@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+	uuid "github.com/satori/go.uuid"
 )
 
 // Backend maintains the remote state in Azure.
@@ -87,7 +88,11 @@ func (b *Backend) configure(ctx context.Context) error {
 		return fmt.Errorf("error unmarshalling subscription ID and tenant ID from JSON output from Azure CLI: %s", err)
 	}
 	b.props.SubscriptionID = loggedInAccount["id"].(string)
-	b.props.TenantID = loggedInAccount["tenantId"].(string)
+	tenantID := loggedInAccount["tenantId"].(string)
+	b.props.TenantID, err = uuid.FromString(tenantID)
+	if err != nil {
+		return fmt.Errorf("error converting tenant ID-string to UUID: %s", err)
+	}
 	user := loggedInAccount["user"].(map[string]interface{})
 
 	// Get the objectID of the signed-in user.
@@ -102,7 +107,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		os.Setenv("ARM_CLIENT_ID", clientID)
 		os.Setenv("ARM_CLIENT_SECRET", os.Getenv("servicePrincipalKey")) // defined in the agent after enabling a setting.
 		os.Setenv("ARM_SUBSCRIPTION_ID", b.props.SubscriptionID)
-		os.Setenv("ARM_TENANT_ID", b.props.TenantID)
+		os.Setenv("ARM_TENANT_ID", tenantID)
 	case "user":
 		out, err = exec.Command("az", "ad", "signed-in-user", "show", "--output", "json", "--query", "objectId").Output()
 		if err != nil {
