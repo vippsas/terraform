@@ -121,12 +121,10 @@ func (b *Backend) configure(ctx context.Context) error {
 
 	// Get the data attributes from the "backend"-block.
 	attributes := schema.FromContextBackendConfig(ctx)
-	b.props.Name = attributes.Get("name").(string)
-	if b.props.Name == "" {
+	if b.props.Name = attributes.Get("name").(string); b.props.Name == "" {
 		return fmt.Errorf("name is empty")
 	}
-	b.props.Location = attributes.Get("location").(string)
-	if b.props.Location == "" {
+	if b.props.Location = attributes.Get("location").(string); b.props.Location == "" {
 		return fmt.Errorf("location is empty")
 	}
 	for _, resourceAddress := range attributes.Get("access_policies").([]interface{}) {
@@ -147,9 +145,9 @@ func (b *Backend) configure(ctx context.Context) error {
 	// Setup the resource group for terraform.State.
 	groupsClient := resources.NewGroupsClient(b.props.SubscriptionID)
 	groupsClient.Authorizer = b.props.MgmtAuthorizer
+
 	// Check if the resource group already exists.
-	_, err = groupsClient.Get(b.props.Name)
-	if err != nil { // resource group does not exist.
+	if _, err = groupsClient.Get(b.props.Name); err != nil { // resource group does not exist.
 		// Create the resource group.
 		_, err = groupsClient.CreateOrUpdate(
 			b.props.Name,
