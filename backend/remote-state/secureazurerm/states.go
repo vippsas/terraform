@@ -40,7 +40,7 @@ func (b *Backend) DeleteState(name string) error {
 		return fmt.Errorf("error deleting key vault: %s", err)
 	}
 
-	// Setup state blob.
+	// Setup the state's blob.
 	blob, err := blob.Setup(b.container, name) // blob name = workspace name.
 	if err != nil {
 		return fmt.Errorf("error setting up state blob: %s", err)
