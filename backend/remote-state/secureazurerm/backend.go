@@ -147,9 +147,10 @@ func (b *Backend) configure(ctx context.Context) error {
 	groupsClient.Authorizer = b.props.MgmtAuthorizer
 
 	// Check if the resource group already exists.
-	if _, err = groupsClient.Get(b.props.Name); err != nil { // resource group does not exist.
+	if _, err = groupsClient.Get(ctx, b.props.Name); err != nil { // resource group does not exist.
 		// Create the resource group.
 		_, err = groupsClient.CreateOrUpdate(
+			ctx,
 			b.props.Name,
 			resources.Group{
 				Location: to.StringPtr(b.props.Location),
