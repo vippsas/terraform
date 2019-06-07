@@ -9,7 +9,7 @@ import (
 
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
 	"github.com/hashicorp/terraform/configs/configschema"
-	"github.com/hashicorp/terraform/terraform"
+	"github.com/hashicorp/terraform/providers"
 )
 
 var chars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
@@ -36,8 +36,8 @@ type secretAttribute struct {
 }
 
 // maskModule masks all sensitive attributes in a module.
-func (s *State) maskModule(providers []terraform.ResourceProvider, module map[string]interface{}) error {
-	if len(providers) == 0 {
+func (s *State) maskModule(provds []providers.Interface, module map[string]interface{}) error {
+	if len(provds) == 0 {
 		panic("forgot to set resource providers")
 	}
 
@@ -46,19 +46,18 @@ func (s *State) maskModule(providers []terraform.ResourceProvider, module map[st
 	for name := range module["resources"].(map[string]interface{}) {
 		resourceList = append(resourceList, strings.Split(name, ".")[0])
 	}
-	var schemas []*terraform.ProviderSchema
-	for _, rp := range providers {
-		schema, err := rp.GetSchema(&terraform.ProviderSchemaRequest{
-			ResourceTypes: resourceList,
-		})
-		if err != nil {
-			return fmt.Errorf("error getting resource schemas: %s", err)
+	var schemas []providers.Schema
+	for _, rp := range provds {
+		schema := rp.GetSchema()
+		for _, r := range resourceList {
+			if s, ok := schema.ResourceTypes[r]; ok {
+				schemas = append(schemas, s)
+			}
 		}
-		schemas = append(schemas, schema)
 	}
-	var resourceSchemas []map[string]*configschema.Block
+	var resourceSchemas []*configschema.Block
 	for _, schema := range schemas {
-		resourceSchemas = append(resourceSchemas, schema.ResourceTypes)
+		resourceSchemas = append(resourceSchemas, schema.Block)
 	}
 
 	// Mask the sensitive resource attributes by moving them to the key vault.
@@ -67,13 +66,7 @@ func (s *State) maskModule(providers []terraform.ResourceProvider, module map[st
 
 		// Filter sensitive attributes into the key vault.
 		primary := r["primary"].(map[string]interface{})
-		for _, value := range resourceSchemas {
-			// Check if schema for the resource exists in the provider.
-			resourceSchema := value[r["type"].(string)]
-			if resourceSchema == nil {
-				continue
-			}
-
+		for _, schema := range resourceSchemas {
 			var path []string
 			for _, value := range module["path"].([]interface{}) {
 				path = append(path, value.(string))
@@ -90,7 +83,7 @@ func (s *State) maskModule(providers []terraform.ResourceProvider, module map[st
 					attributeValue.(string),
 					strings.Split(attributeName, "."),
 					0,
-					resourceSchema,
+					schema,
 				)
 			}
 		}

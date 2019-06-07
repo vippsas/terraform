@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,7 +13,7 @@ import (
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
-	"github.com/hashicorp/terraform/config/module"
+	"github.com/hashicorp/terraform/providers"
 	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/terraform"
 )
@@ -153,29 +152,15 @@ func (s *State) PersistState() error {
 	json.Unmarshal(buf.Bytes(), &stateMap)
 
 	// Get resource providers.
-	mod := s.Props.ContextOpts.Module
-	if mod == nil {
-		// TODO: Read config path from command-line argument.
-		cwd, err := os.Getwd()
-		if err != nil {
-			return fmt.Errorf("error getting current working directory: %s", err)
-		}
-		mod, err = module.NewTreeModule("", cwd)
-		if err != nil {
-			return fmt.Errorf("error making new tree module: %s", err)
-		}
-	}
-	reqd := terraform.ModuleTreeDependencies(mod, nil).AllPluginRequirements()
+	reqd := terraform.ConfigTreeDependencies(s.Props.ContextOpts.Config, s.Props.ContextOpts.State).AllPluginRequirements()
 	if s.Props.ContextOpts.ProviderSHA256s != nil && !s.Props.ContextOpts.SkipProviderVerify {
 		reqd.LockExecutables(s.Props.ContextOpts.ProviderSHA256s)
 	}
 	providerFactories, errs := s.Props.ContextOpts.ProviderResolver.ResolveProviders(reqd)
 	if errs != nil {
-		return &terraform.ResourceProviderError{
-			Errors: errs,
-		}
+		return fmt.Errorf("error resolving providers: %s", errs)
 	}
-	var providers []terraform.ResourceProvider
+	var providers []providers.Interface
 	for _, f := range providerFactories {
 		provider, err := f()
 		if err != nil {
