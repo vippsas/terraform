@@ -10,11 +10,14 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/hashicorp/terraform/states/statefile"
+
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
 	"github.com/hashicorp/terraform/providers"
 	"github.com/hashicorp/terraform/state"
+	"github.com/hashicorp/terraform/states"
 	"github.com/hashicorp/terraform/terraform"
 )
 
@@ -27,14 +30,18 @@ type State struct {
 
 	Props *properties.Properties
 
+	lineage      string
+	serial       uint64
+	disableLocks bool
+
 	state, // current in-memory state.
-	readState *terraform.State // state read from the blob
+	readState *states.State // state read from the blob
 
 	secretIDs map[string]keyvault.SecretMetadata
 }
 
 // State reads the state from the memory.
-func (s *State) State() *terraform.State {
+func (s *State) State() *states.State {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -42,19 +49,12 @@ func (s *State) State() *terraform.State {
 }
 
 // WriteState writes the new state to memory.
-func (s *State) WriteState(ts *terraform.State) error {
-	// Lock, yay!
+func (s *State) WriteState(ts *states.State) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	// Write the state to memory.
 	s.state = ts.DeepCopy()
-	if s.readState != nil {
-		// Fix serial if someone wrote an incorrect serial in the state.
-		s.state.Serial = s.readState.Serial
-		// Serial is *only* increased when the state is persisted.
-	}
-
 	return nil
 }
 
@@ -74,6 +74,8 @@ func (s *State) RefreshState() error {
 		// Sync in-memory state with the empty blob.
 		s.state = nil
 		s.readState = nil
+		s.lineage = ""
+		s.serial = 0
 		// Indicate that the blob contains no state.
 		return nil
 	}
@@ -95,7 +97,7 @@ func (s *State) RefreshState() error {
 	if err != nil {
 		return fmt.Errorf("error marshalling map to JSON: %s", err)
 	}
-	var state terraform.State
+	var state states.State
 	if err := json.Unmarshal(j, &state); err != nil {
 		return fmt.Errorf("error unmarshalling JSON to terraform.State: %s", err)
 	}
@@ -117,8 +119,10 @@ func (s *State) PersistState() error {
 	}
 
 	// Check for any changes to the in-memory state.
-	if !s.state.MarshalEqual(s.readState) {
-		s.state.Serial++
+	if s.readState != nil {
+		if !statefile.StatesMarshalEqual(s.state, s.readState) {
+			s.serial++
+		}
 	}
 
 	// Put the current in-memory state in a byte buffer.
@@ -289,10 +293,21 @@ func (s *State) PersistState() error {
 
 // Lock locks the state.
 func (s *State) Lock(info *state.LockInfo) (string, error) {
+	if s.disableLocks {
+		return "", nil
+	}
 	return s.Blob.Lock(info)
 }
 
 // Unlock unlocks the state.
 func (s *State) Unlock(id string) error {
+	if s.disableLocks {
+		return nil
+	}
 	return s.Blob.Unlock(id)
+}
+
+// DisableLocks turns the Lock and Unlock methods into no-ops.
+func (s *State) DisableLocks() {
+	s.disableLocks = true
 }
