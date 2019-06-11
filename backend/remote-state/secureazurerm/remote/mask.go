@@ -102,26 +102,21 @@ func (s *State) maskAttribute(path []string, resourceName string, attributes map
 	if attribute, ok := schema.Attributes[attributeNameSplitted[namePos]]; ok {
 		// Is resource attribute sensitive?
 		if attribute.Sensitive { // then mask.
-			// Tag secret with related state info.
-			tags := make(map[string]*string)
 			pathInJSONBytes, err := json.Marshal(path)
 			if err != nil {
 				return fmt.Errorf("error marshalling path: %s", err)
 			}
 			pathInJSON := string(pathInJSONBytes)
-			tags["module"] = &pathInJSON
 			resourceNameInJSONBytes, err := json.Marshal(resourceName)
 			if err != nil {
 				return fmt.Errorf("error marshalling resource name: %s", err)
 			}
 			resourceNameInJSON := string(resourceNameInJSONBytes)
-			tags["resource"] = &resourceNameInJSON
 			attributeNameInJSONBytes, err := json.Marshal(attributeName)
 			if err != nil {
 				return fmt.Errorf("error marshalling attribute: %s", err)
 			}
 			attributeNameInJSON := string(attributeNameInJSONBytes)
-			tags["attribute"] = &attributeNameInJSON
 
 			// Set existing secret name or generate a new one.
 			var secretName string
@@ -131,6 +126,13 @@ func (s *State) maskAttribute(path []string, resourceName string, attributes map
 					break
 				}
 			}
+
+			// Tag secret with related state info.
+			tags := make(map[string]*string)
+			tags["module"] = &pathInJSON
+			tags["resource"] = &resourceNameInJSON
+			tags["attribute"] = &attributeNameInJSON
+
 			if secretName == "" {
 				retry := 0
 				maxRetries := 3
