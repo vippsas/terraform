@@ -12,10 +12,9 @@ import (
 	"github.com/hashicorp/terraform/providers"
 )
 
-var chars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
-
 // generateLowerAlphanumericChars generates a random lowercase alphanumeric string of len n.
 func generateLowerAlphanumericChars(n int) (string, error) {
+	var chars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
 	b := make([]byte, n)
 	_, err := rand.Read(b)
 	if err != nil {
