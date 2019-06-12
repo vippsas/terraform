@@ -54,7 +54,6 @@ func Setup(container *account.Container, name string) (*Blob, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error marshalling secure state to JSON: %s", err)
 		}
-		b = append(b, '\n')
 		if err := blob.Put(b); err != nil {
 			return nil, fmt.Errorf("error writing buffer to state blob: %s", err)
 		}

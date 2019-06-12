@@ -500,7 +500,6 @@ func (s *State) PersistState() error {
 	if err != nil {
 		return fmt.Errorf("error marshalling map: %s", err)
 	}
-	b = append(b, '\n')
 
 	// Put it into the blob.
 	if err := s.Blob.Put(b); err != nil {
