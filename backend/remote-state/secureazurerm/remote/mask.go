@@ -5,11 +5,11 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
 	"github.com/hashicorp/terraform/configs/configschema"
 	"github.com/hashicorp/terraform/providers"
+	"github.com/hashicorp/terraform/terraform"
 )
 
 // generateLowerAlphanumericChars generates a random lowercase alphanumeric string of len n.
@@ -34,23 +34,36 @@ type secretAttribute struct {
 	Version string `json:"version"` // Version of the secret.
 }
 
-// maskModule masks all sensitive attributes in a module.
-func (s *State) maskModule(provds []providers.Interface, module map[string]interface{}) error {
-	if len(provds) == 0 {
-		panic("forgot to set resource providers")
+// mask masks all sensitive attributes in a resource state.
+func (s *State) mask(rs []resourceState) error {
+	// Get resource providers.
+	reqd := terraform.ConfigTreeDependencies(s.Props.ContextOpts.Config, s.Props.ContextOpts.State).AllPluginRequirements()
+	if s.Props.ContextOpts.ProviderSHA256s != nil && !s.Props.ContextOpts.SkipProviderVerify {
+		reqd.LockExecutables(s.Props.ContextOpts.ProviderSHA256s)
+	}
+	providerFactories, errs := s.Props.ContextOpts.ProviderResolver.ResolveProviders(reqd)
+	if errs != nil {
+		return fmt.Errorf("error resolving providers: %s", errs)
+	}
+	var provds []providers.Interface
+	for _, f := range providerFactories {
+		provider, err := f()
+		if err != nil {
+			return fmt.Errorf("error retrieving provider: %s", err)
+		}
+		provds = append(provds, provider)
 	}
 
 	// Get the schemas for the resource attributes.
-	resourceList := []string{}
-	for name := range module["resources"].(map[string]interface{}) {
-		resourceList = append(resourceList, strings.Split(name, ".")[0])
+	types := []string{}
+	for _, r := range rs {
+		types = append(types, r.Type)
 	}
 	var schemas []providers.Schema
 	for _, rp := range provds {
-		schema := rp.GetSchema()
-		for _, r := range resourceList {
-			if s, ok := schema.ResourceTypes[r]; ok {
-				schemas = append(schemas, s)
+		for _, t := range types {
+			if schema, ok := rp.GetSchema().ResourceTypes[t]; ok {
+				schemas = append(schemas, schema)
 			}
 		}
 	}
@@ -60,30 +73,25 @@ func (s *State) maskModule(provds []providers.Interface, module map[string]inter
 	}
 
 	// Mask the sensitive resource attributes by moving them to the key vault.
-	for resourceName, resource := range module["resources"].(map[string]interface{}) {
-		r := resource.(map[string]interface{})
-
+	for _, resource := range rs {
 		// Filter sensitive attributes into the key vault.
-		primary := r["primary"].(map[string]interface{})
 		for _, schema := range resourceSchemas {
-			var path []string
-			for _, value := range module["path"].([]interface{}) {
-				path = append(path, value.(string))
-			}
-
-			// Insert the resource's attributes in the key vault.
-			attributes := primary["attributes"].(map[string]interface{})
-			for attributeName, attributeValue := range attributes {
-				s.maskAttribute(
-					path,
-					resourceName,
-					attributes,
-					attributeName,
-					attributeValue.(string),
-					strings.Split(attributeName, "."),
-					0,
-					schema,
-				)
+			for _, instance := range resource.Instances {
+				// Insert the resource's attributes in the key vault.
+				var attributes map[string]interface{}
+				if err := json.Unmarshal(instance.AttributesRaw, attributes); err != nil {
+					return fmt.Errorf("error unmarshalling attributes: %s", err)
+				}
+				for attributeName, attributeValue := range attributes {
+					s.maskAttribute(
+						resource.Module,
+						resource.Name,
+						attributes,
+						attributeName,
+						attributeValue.(string),
+						schema,
+					)
+				}
 			}
 		}
 	}
@@ -92,36 +100,15 @@ func (s *State) maskModule(provds []providers.Interface, module map[string]inter
 }
 
 // maskAttribute masks the attributes of a resource.
-func (s *State) maskAttribute(path []string, resourceName string, attributes map[string]interface{}, attributeName, attributeValue string, attributeNameSplitted []string, namePos int, schema *configschema.Block) error {
-	// Check if there exist an attribute.
-	if namePos >= len(attributeNameSplitted) {
-		return nil
-	}
-
+func (s *State) maskAttribute(moduleName string, resourceName string, attributes map[string]interface{}, attributeName, attributeValue string, schema *configschema.Block) error {
 	// Check if attribute from the block exists in the schema.
-	if attribute, ok := schema.Attributes[attributeNameSplitted[namePos]]; ok {
+	if attribute, ok := schema.Attributes[attributeName]; ok {
 		// Is resource attribute sensitive?
 		if attribute.Sensitive { // then mask.
-			pathInJSONBytes, err := json.Marshal(path)
-			if err != nil {
-				return fmt.Errorf("error marshalling path: %s", err)
-			}
-			pathInJSON := string(pathInJSONBytes)
-			resourceNameInJSONBytes, err := json.Marshal(resourceName)
-			if err != nil {
-				return fmt.Errorf("error marshalling resource name: %s", err)
-			}
-			resourceNameInJSON := string(resourceNameInJSONBytes)
-			attributeNameInJSONBytes, err := json.Marshal(attributeName)
-			if err != nil {
-				return fmt.Errorf("error marshalling attribute: %s", err)
-			}
-			attributeNameInJSON := string(attributeNameInJSONBytes)
-
 			// Set existing secret name or generate a new one.
 			var secretName string
 			for secretID, value := range s.secretIDs {
-				if *value.Tags["module"] == pathInJSON && *value.Tags["resource"] == resourceNameInJSON && *value.Tags["attribute"] == attributeNameInJSON {
+				if *value.Tags["module"] == moduleName && *value.Tags["resource"] == resourceName && *value.Tags["attribute"] == attributeName {
 					secretName = secretID
 					break
 				}
@@ -129,16 +116,16 @@ func (s *State) maskAttribute(path []string, resourceName string, attributes map
 
 			// Tag secret with related state info.
 			tags := make(map[string]*string)
-			tags["module"] = &pathInJSON
-			tags["resource"] = &resourceNameInJSON
-			tags["attribute"] = &attributeNameInJSON
+			tags["module"] = &moduleName
+			tags["resource"] = &resourceName
+			tags["attribute"] = &attributeName
 
 			if secretName == "" {
 				retry := 0
 				maxRetries := 3
 				for ; retry < maxRetries; retry++ {
 					// Generate secret name for the attribute.
-					secretName, err = generateLowerAlphanumericChars(32) // it's as long as the version string in length.
+					secretName, err := generateLowerAlphanumericChars(32) // it's as long as the version string in length.
 					if err != nil {
 						return fmt.Errorf("error generating secret name: %s", err)
 					}
@@ -169,15 +156,13 @@ func (s *State) maskAttribute(path []string, resourceName string, attributes map
 		}
 	} else {
 		// Nope, then check if it exists in the nested block types.
-		if block, ok := schema.BlockTypes[attributeNameSplitted[namePos]]; ok {
+		if block, ok := schema.BlockTypes[attributeName]; ok {
 			s.maskAttribute(
-				path,
+				moduleName,
 				resourceName,
 				attributes,
 				attributeName,
 				attributeValue,
-				attributeNameSplitted,
-				namePos+2,
 				&block.Block,
 			)
 		}
@@ -186,17 +171,22 @@ func (s *State) maskAttribute(path []string, resourceName string, attributes map
 	return nil
 }
 
-// unmaskModule unmasks all sensitive attributes in a module.
-func (s *State) unmaskModule(module map[string]interface{}) error {
-	for _, resource := range module["resources"].(map[string]interface{}) {
-		attributes := resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{})
-		for key, value := range attributes {
-			if secretAttribute, ok := value.(map[string]interface{}); ok {
-				secretAttributeValue, err := s.KeyVault.GetSecret(context.Background(), secretAttribute["id"].(string), secretAttribute["version"].(string))
-				if err != nil {
-					return fmt.Errorf("error getting secret from key vault: %s", err)
+// unmask unmasks all sensitive attributes in a resource state.
+func (s *State) unmask(rs []resourceState) error {
+	for _, resource := range rs {
+		for _, instance := range resource.Instances {
+			var attributes map[string]interface{}
+			if err := json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
+				return fmt.Errorf("error unmarshalling attributes: %s", err)
+			}
+			for key, value := range attributes {
+				if secretAttribute, ok := value.(secretAttribute); ok {
+					secretAttributeValue, err := s.KeyVault.GetSecret(context.Background(), secretAttribute.ID, secretAttribute.Version)
+					if err != nil {
+						return fmt.Errorf("error getting secret from key vault: %s", err)
+					}
+					attributes[key] = secretAttributeValue
 				}
-				attributes[key] = secretAttributeValue
 			}
 		}
 	}
