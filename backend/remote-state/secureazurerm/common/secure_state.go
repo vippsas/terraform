@@ -22,16 +22,13 @@ type ResourceState struct {
 
 // InstanceObjectState contains the state of each instance of a resource.
 type InstanceObjectState struct {
-	IndexKey interface{} `json:"index_key,omitempty"`
-	Status   string      `json:"status,omitempty"`
-	Deposed  string      `json:"deposed,omitempty"`
-
+	IndexKey      interface{}     `json:"index_key,omitempty"`
+	Status        string          `json:"status,omitempty"`
+	Deposed       string          `json:"deposed,omitempty"`
 	SchemaVersion uint64          `json:"schema_version"`
 	AttributesRaw json.RawMessage `json:"attributes,omitempty"`
-
-	PrivateRaw []byte `json:"private,omitempty"`
-
-	Dependencies []string `json:"depends_on,omitempty"`
+	PrivateRaw    []byte          `json:"private,omitempty"`
+	Dependencies  []string        `json:"depends_on,omitempty"`
 }
 
 // SecureState describes the current state of infrastructure managed by Terraform in JSON.
