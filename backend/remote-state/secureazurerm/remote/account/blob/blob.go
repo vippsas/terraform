@@ -2,14 +2,17 @@ package blob
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
+	"github.com/hashicorp/go-uuid"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/common"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account"
 	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/state/remote"
-	"github.com/hashicorp/terraform/terraform"
+	"github.com/hashicorp/terraform/version"
 )
 
 // Blob communicates to the remote blob in a container in a storage account in Azure.
@@ -37,16 +40,22 @@ func Setup(container *account.Container, name string) (*Blob, error) {
 	}
 	// If not exists, write empty state blob.
 	if !exists {
-		// Create new state in-memory.
-		tfState := terraform.NewState()
-		tfState.Serial++
-
-		// Write state to blob.
-		var buf bytes.Buffer
-		if err := terraform.WriteState(tfState, &buf); err != nil {
-			return nil, fmt.Errorf("error writing state to buffer: %s", err)
+		lineage, err := uuid.GenerateUUID()
+		if err != nil {
+			return nil, fmt.Errorf("error generating initial lineage: %s", err)
 		}
-		if err := blob.Put(buf.Bytes()); err != nil {
+		state := common.SecureState{
+			Version:          "1",
+			TerraformVersion: version.Version,
+			Lineage:          lineage,
+			Serial:           0,
+		}
+		b, err := json.MarshalIndent(&state, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("error marshalling secure state to JSON: %s", err)
+		}
+		b = append(b, '\n')
+		if err := blob.Put(b); err != nil {
 			return nil, fmt.Errorf("error writing buffer to state blob: %s", err)
 		}
 	}

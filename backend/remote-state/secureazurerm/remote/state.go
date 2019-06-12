@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/terraform/addrs"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/common"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account/blob"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
@@ -37,48 +38,6 @@ type State struct {
 	secretIDs map[string]keyvault.SecretMetadata
 }
 
-// outputState contains the state of each output variable.
-type outputState struct {
-	ValueRaw     json.RawMessage `json:"value"`
-	ValueTypeRaw json.RawMessage `json:"type"`
-	Sensitive    bool            `json:"sensitive,omitempty"`
-}
-
-// resourceState contains the state of each resource.
-type resourceState struct {
-	Module         string                `json:"module,omitempty"`
-	Mode           string                `json:"mode"`
-	Type           string                `json:"type"`
-	Name           string                `json:"name"`
-	EachMode       string                `json:"each,omitempty"`
-	ProviderConfig string                `json:"provider"`
-	Instances      []instanceObjectState `json:"instances"`
-}
-
-// instanceObjectState contains the state of each instance of a resource.
-type instanceObjectState struct {
-	IndexKey interface{} `json:"index_key,omitempty"`
-	Status   string      `json:"status,omitempty"`
-	Deposed  string      `json:"deposed,omitempty"`
-
-	SchemaVersion uint64          `json:"schema_version"`
-	AttributesRaw json.RawMessage `json:"attributes,omitempty"`
-
-	PrivateRaw []byte `json:"private,omitempty"`
-
-	Dependencies []string `json:"depends_on,omitempty"`
-}
-
-// secureState contains the current state of infrastructure managed by Terraform.
-type secureState struct {
-	Version          string                 `json:"version"`
-	TerraformVersion string                 `json:"terraform_version"`
-	Serial           uint64                 `json:"serial"`
-	Lineage          string                 `json:"lineage"`
-	RootOutputs      map[string]outputState `json:"outputs"`
-	Resources        []resourceState        `json:"resources"`
-}
-
 // State reads the state from the memory.
 func (s *State) State() *states.State {
 	s.mu.Lock()
@@ -87,7 +46,7 @@ func (s *State) State() *states.State {
 	return s.state.DeepCopy()
 }
 
-// WriteState writes the new state to memory.
+// WriteState writes the state to memory.
 func (s *State) WriteState(ts *states.State) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -120,7 +79,7 @@ func (s *State) RefreshState() error {
 	}
 
 	// Unmask remote state.
-	var secureState secureState
+	var secureState common.SecureState
 	if err = json.Unmarshal(payload.Data, &secureState); err != nil {
 		return fmt.Errorf("error unmarshalling state: %s", err)
 	}
@@ -289,7 +248,7 @@ func (s *State) RefreshState() error {
 	return nil
 }
 
-func appendInstanceObjectState(rs *states.Resource, is *states.ResourceInstance, key addrs.InstanceKey, instance *states.ResourceInstanceObjectSrc, deposed states.DeposedKey, instanceState []instanceObjectState) ([]instanceObjectState, error) {
+func appendInstanceObjectState(rs *states.Resource, is *states.ResourceInstance, key addrs.InstanceKey, instance *states.ResourceInstanceObjectSrc, deposed states.DeposedKey, instanceState []common.InstanceObjectState) ([]common.InstanceObjectState, error) {
 	var status string
 	switch instance.Status {
 	case states.ObjectReady:
@@ -324,7 +283,7 @@ func appendInstanceObjectState(rs *states.Resource, is *states.ResourceInstance,
 
 	j := instance.AttrsJSON
 
-	return append(instanceState, instanceObjectState{
+	return append(instanceState, common.InstanceObjectState{
 		IndexKey:      rawKey,
 		Deposed:       string(deposed),
 		Status:        status,
@@ -372,12 +331,12 @@ func (s *State) PersistState() error {
 	}
 
 	file := statefile.New(s.state, s.lineage, s.serial)
-	state := &secureState{
+	state := &common.SecureState{
 		TerraformVersion: file.TerraformVersion.String(),
 		Serial:           file.Serial,
 		Lineage:          file.Lineage,
-		RootOutputs:      map[string]outputState{},
-		Resources:        []resourceState{},
+		RootOutputs:      map[string]common.OutputState{},
+		Resources:        []common.ResourceState{},
 	}
 
 	for name, os := range file.State.RootModule().OutputValues {
@@ -391,7 +350,7 @@ func (s *State) PersistState() error {
 			return fmt.Errorf("error serializing the type of output value %q: %s", name, err)
 		}
 
-		state.RootOutputs[name] = outputState{
+		state.RootOutputs[name] = common.OutputState{
 			Sensitive:    os.Sensitive,
 			ValueRaw:     json.RawMessage(src),
 			ValueTypeRaw: json.RawMessage(typeSrc),
@@ -429,14 +388,14 @@ func (s *State) PersistState() error {
 			}
 
 			// Append resource to the state-file.
-			state.Resources = append(state.Resources, resourceState{
+			state.Resources = append(state.Resources, common.ResourceState{
 				Module:         moduleAddr.String(),
 				Mode:           mode,
 				Type:           resourceAddr.Type,
 				Name:           resourceAddr.Name,
 				EachMode:       eachMode,
 				ProviderConfig: resource.ProviderConfig.String(),
-				Instances:      []instanceObjectState{},
+				Instances:      []common.InstanceObjectState{},
 			})
 
 			// Append instances to the state of resource.
@@ -537,13 +496,14 @@ func (s *State) PersistState() error {
 	}
 
 	// Marshal state map to JSON.
-	data, err := json.MarshalIndent(state, "", "  ")
+	b, err := json.MarshalIndent(&state, "", "  ")
 	if err != nil {
 		return fmt.Errorf("error marshalling map: %s", err)
 	}
-	data = append(data, '\n')
+	b = append(b, '\n')
+
 	// Put it into the blob.
-	if err := s.Blob.Put(data); err != nil {
+	if err := s.Blob.Put(b); err != nil {
 		return fmt.Errorf("error leasing and putting buffer: %s", err)
 	}
 

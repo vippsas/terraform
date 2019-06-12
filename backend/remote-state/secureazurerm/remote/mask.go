@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/common"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
 	"github.com/hashicorp/terraform/configs/configschema"
 	"github.com/hashicorp/terraform/providers"
@@ -35,7 +36,7 @@ type secretAttribute struct {
 }
 
 // mask masks all sensitive attributes in a resource state.
-func (s *State) mask(rs []resourceState) error {
+func (s *State) mask(rs []common.ResourceState) error {
 	// Get resource providers.
 	reqd := terraform.ConfigTreeDependencies(s.Props.ContextOpts.Config, s.Props.ContextOpts.State).AllPluginRequirements()
 	if s.Props.ContextOpts.ProviderSHA256s != nil && !s.Props.ContextOpts.SkipProviderVerify {
@@ -172,7 +173,7 @@ func (s *State) maskAttribute(moduleName string, resourceName string, attributes
 }
 
 // unmask unmasks all sensitive attributes in a resource state.
-func (s *State) unmask(rs []resourceState) error {
+func (s *State) unmask(rs []common.ResourceState) error {
 	for _, resource := range rs {
 		for _, instance := range resource.Instances {
 			var attributes map[string]interface{}
