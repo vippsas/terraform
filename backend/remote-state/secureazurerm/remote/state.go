@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform/state"
 	"github.com/hashicorp/terraform/states"
 	"github.com/hashicorp/terraform/states/statefile"
+	"github.com/hashicorp/terraform/tfdiags"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 )
 
@@ -119,24 +120,169 @@ func (s *State) RefreshState() error {
 	}
 
 	// Unmask remote state.
-	var state secureState
-	if err = json.Unmarshal(payload.Data, &state); err != nil {
+	var secureState secureState
+	if err = json.Unmarshal(payload.Data, &secureState); err != nil {
 		return fmt.Errorf("error unmarshalling state: %s", err)
 	}
-	if err = s.unmask(state.Resources); err != nil {
-		return fmt.Errorf("error unmasking state: %s")
+	if err = s.unmask(secureState.Resources); err != nil {
+		return fmt.Errorf("error unmasking state: %s", err)
 	}
 
-	// Convert it back to terraform.State.
-	j, err := json.Marshal(stateMap)
-	if err != nil {
-		return fmt.Errorf("error marshalling map to JSON: %s", err)
+	state := states.NewState()
+	for _, resourceState := range secureState.Resources {
+		resourceAddr := addrs.Resource{
+			Type: resourceState.Type,
+			Name: resourceState.Name,
+		}
+		switch resourceState.Mode {
+		case "managed":
+			resourceAddr.Mode = addrs.ManagedResourceMode
+		case "data":
+			resourceAddr.Mode = addrs.DataResourceMode
+		default:
+			return fmt.Errorf("state contains a resource with mode %q (%q %q) which is not supported", resourceState.Mode, resourceAddr.Type, resourceAddr.Name)
+		}
+
+		moduleAddr := addrs.RootModuleInstance
+		if resourceState.Module != "" {
+			var diags tfdiags.Diagnostics
+			moduleAddr, diags = addrs.ParseModuleInstanceStr(resourceState.Module)
+			if diags.HasErrors() {
+				return fmt.Errorf("error parsing module: %s", err)
+			}
+		}
+
+		providerAddr, addrDiags := addrs.ParseAbsProviderConfigStr(resourceState.ProviderConfig)
+		if addrDiags.HasErrors() {
+			return fmt.Errorf("error parsing provider: %s", err)
+		}
+
+		var eachMode states.EachMode
+		switch resourceState.EachMode {
+		case "":
+			eachMode = states.NoEach
+		case "list":
+			eachMode = states.EachList
+		case "map":
+			eachMode = states.EachMap
+		default:
+			return fmt.Errorf("resource %s has invalid \"each\" value %q in state", resourceAddr.Absolute(moduleAddr), eachMode)
+		}
+
+		module := state.EnsureModule(moduleAddr)
+
+		// Ensure the resource container object is present in the state.
+		module.SetResourceMeta(resourceAddr, eachMode, providerAddr)
+
+		for _, instanceState := range resourceState.Instances {
+			keyRaw := instanceState.IndexKey
+			var key addrs.InstanceKey
+			switch tk := keyRaw.(type) {
+			case int:
+				key = addrs.IntKey(tk)
+			case float64:
+				// Since JSON only has one number type, reading from encoding/json
+				// gives us a float64 here even if the number is whole.
+				// float64 has a smaller integer range than int, but in practice
+				// we rarely have more than a few tens of instances and so
+				// it's unlikely that we'll exhaust the 52 bits in a float64.
+				key = addrs.IntKey(int(tk))
+			case string:
+				key = addrs.StringKey(tk)
+			default:
+				if keyRaw != nil {
+					return fmt.Errorf("resource %s has an instance with the invalid instance key %#v", resourceAddr.Absolute(moduleAddr), keyRaw)
+				}
+				key = addrs.NoKey
+			}
+
+			instanceAddress := resourceAddr.Instance(key)
+
+			obj := &states.ResourceInstanceObjectSrc{
+				SchemaVersion: instanceState.SchemaVersion,
+			}
+
+			// Instance attributes
+			switch {
+			case instanceState.AttributesRaw != nil:
+				obj.AttrsJSON = instanceState.AttributesRaw
+			default:
+				return fmt.Errorf("empty attributes: %s", err)
+			}
+
+			// Status
+			raw := instanceState.Status
+			switch raw {
+			case "":
+				obj.Status = states.ObjectReady
+			case "tainted":
+				obj.Status = states.ObjectTainted
+			default:
+				return fmt.Errorf("instance %s has invalid status %q", instanceAddress.Absolute(moduleAddr), raw)
+			}
+			if raw := instanceState.PrivateRaw; len(raw) > 0 {
+				obj.Private = raw
+			}
+
+			depsRaw := instanceState.Dependencies
+			deps := make([]addrs.Referenceable, 0, len(depsRaw))
+			for _, depRaw := range depsRaw {
+				ref, refDiags := addrs.ParseRefStr(depRaw)
+				if refDiags.HasErrors() {
+					return fmt.Errorf("error parsing refStr: %s", err)
+				}
+				if len(ref.Remaining) != 0 {
+					return fmt.Errorf("instance %s declares dependency on %q, which is not a reference to a dependable object", instanceAddress.Absolute(moduleAddr), depRaw)
+				}
+				if ref.Subject == nil {
+					return fmt.Errorf("parsing dependency %q for instance %s returned a nil address", depRaw, instanceAddress.Absolute(moduleAddr)) // should never happen.
+				}
+				deps = append(deps, ref.Subject)
+			}
+			obj.Dependencies = deps
+
+			if instanceState.Deposed != "" {
+				dk := states.DeposedKey(instanceState.Deposed)
+				if len(dk) != 8 {
+					return fmt.Errorf("instance %s has an object with deposed key %q, which is not correctly formatted", instanceAddress.Absolute(moduleAddr), instanceState.Deposed)
+				}
+				is := module.ResourceInstance(instanceAddress)
+				if is.HasDeposed(dk) {
+					return fmt.Errorf("instance %s deposed object %q appears multiple times in the state file", instanceAddress.Absolute(moduleAddr), dk)
+				}
+				module.SetResourceInstanceDeposed(instanceAddress, dk, obj, providerAddr)
+			} else {
+				is := module.ResourceInstance(instanceAddress)
+				if is.HasCurrent() {
+					return fmt.Errorf("instance %s appears multiple times in the state file", instanceAddress.Absolute(moduleAddr))
+				}
+				module.SetResourceInstanceCurrent(instanceAddress, obj, providerAddr)
+			}
+		}
+
+		module.SetResourceMeta(resourceAddr, eachMode, providerAddr)
 	}
-	var state states.State
-	if err := json.Unmarshal(j, &state); err != nil {
-		return fmt.Errorf("error unmarshalling JSON to terraform.State: %s", err)
+
+	rootModule := state.RootModule()
+	for name, output := range secureState.RootOutputs {
+		os := &states.OutputValue{}
+		os.Sensitive = output.Sensitive
+
+		ty, err := ctyjson.UnmarshalType([]byte(output.ValueTypeRaw))
+		if err != nil {
+			return fmt.Errorf("state has an invalid type specification for output %q: %s", name, err)
+		}
+
+		val, err := ctyjson.Unmarshal([]byte(output.ValueRaw), ty)
+		if err != nil {
+			return fmt.Errorf("state has an invalid value for output %q: %s", name, err)
+		}
+
+		os.Value = val
+		rootModule.OutputValues[name] = os
 	}
-	s.state = &state
+
+	s.state = state
 
 	// Make a copy used to track changes.
 	s.readState = s.state.DeepCopy()
