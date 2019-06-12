@@ -5,9 +5,11 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/common"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
+	"github.com/hashicorp/terraform/configs/configload"
 	"github.com/hashicorp/terraform/configs/configschema"
 	"github.com/hashicorp/terraform/providers"
 	"github.com/hashicorp/terraform/terraform"
@@ -37,12 +39,26 @@ type secretAttribute struct {
 
 // mask masks all sensitive attributes in a resource state.
 func (s *State) mask(rs []common.ResourceState) error {
-	// Get resource providers.
-	reqd := terraform.ConfigTreeDependencies(s.Props.ContextOpts.Config, s.Props.ContextOpts.State).AllPluginRequirements()
-	if s.Props.ContextOpts.ProviderSHA256s != nil && !s.Props.ContextOpts.SkipProviderVerify {
-		reqd.LockExecutables(s.Props.ContextOpts.ProviderSHA256s)
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("error getting current working directory: %s", err)
 	}
-	providerFactories, errs := s.Props.ContextOpts.ProviderResolver.ResolveProviders(reqd)
+	loader, err := configload.NewLoader(&configload.Config{
+		ModulesDir: ".terraform/modules",
+	})
+	if err != nil {
+		return fmt.Errorf("error creating new loader: %s", err)
+	}
+	config, diags := loader.LoadConfig(wd)
+	if diags.HasErrors() {
+		return fmt.Errorf("error loading config: %s", diags)
+	}
+
+	// Get resource providers.
+	reqd := terraform.ConfigTreeDependencies(config, s.state).AllPluginRequirements()
+
+	// TODO!
+	providerFactories, errs := resolver.ResolveProviders(reqd)
 	if errs != nil {
 		return fmt.Errorf("error resolving providers: %s", errs)
 	}
