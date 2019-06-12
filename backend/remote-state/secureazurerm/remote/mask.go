@@ -80,7 +80,7 @@ func (s *State) mask(rs []common.ResourceState) error {
 			for _, instance := range resource.Instances {
 				// Insert the resource's attributes in the key vault.
 				var attributes map[string]interface{}
-				if err := json.Unmarshal(instance.AttributesRaw, attributes); err != nil {
+				if err := json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
 					return fmt.Errorf("error unmarshalling attributes: %s", err)
 				}
 				for attributeName, attributeValue := range attributes {
