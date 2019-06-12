@@ -39,6 +39,7 @@ type secretAttribute struct {
 
 // mask masks all sensitive attributes in a resource state.
 func (s *State) mask(rs []common.ResourceState) error {
+	// Get resource providers.
 	wd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("error getting current working directory: %s", err)
@@ -53,12 +54,11 @@ func (s *State) mask(rs []common.ResourceState) error {
 	if diags.HasErrors() {
 		return fmt.Errorf("error loading config: %s", diags)
 	}
-
-	// Get resource providers.
 	reqd := terraform.ConfigTreeDependencies(config, s.state).AllPluginRequirements()
-
-	// TODO!
-	providerFactories, errs := resolver.ResolveProviders(reqd)
+	if s.Props.ContextOpts.ProviderSHA256s != nil && !s.Props.ContextOpts.SkipProviderVerify {
+		reqd.LockExecutables(s.Props.ContextOpts.ProviderSHA256s)
+	}
+	providerFactories, errs := s.Props.ContextOpts.ProviderResolver.ResolveProviders(reqd)
 	if errs != nil {
 		return fmt.Errorf("error resolving providers: %s", errs)
 	}
@@ -105,7 +105,7 @@ func (s *State) mask(rs []common.ResourceState) error {
 						resource.Name,
 						attributes,
 						attributeName,
-						attributeValue.(string),
+						attributeValue,
 						schema,
 					)
 				}
@@ -117,13 +117,14 @@ func (s *State) mask(rs []common.ResourceState) error {
 }
 
 // maskAttribute masks the attributes of a resource.
-func (s *State) maskAttribute(moduleName string, resourceName string, attributes map[string]interface{}, attributeName, attributeValue string, schema *configschema.Block) error {
+func (s *State) maskAttribute(moduleName string, resourceName string, attributes map[string]interface{}, attributeName string, attributeValue interface{}, schema *configschema.Block) error {
 	// Check if attribute from the block exists in the schema.
 	if attribute, ok := schema.Attributes[attributeName]; ok {
 		// Is resource attribute sensitive?
 		if attribute.Sensitive { // then mask.
 			// Set existing secret name or generate a new one.
 			var secretName string
+			var err error
 			for secretID, value := range s.secretIDs {
 				if *value.Tags["module"] == moduleName && *value.Tags["resource"] == resourceName && *value.Tags["attribute"] == attributeName {
 					secretName = secretID
@@ -142,7 +143,7 @@ func (s *State) maskAttribute(moduleName string, resourceName string, attributes
 				maxRetries := 3
 				for ; retry < maxRetries; retry++ {
 					// Generate secret name for the attribute.
-					secretName, err := generateLowerAlphanumericChars(32) // it's as long as the version string in length.
+					secretName, err = generateLowerAlphanumericChars(32) // it's as long as the version string in length.
 					if err != nil {
 						return fmt.Errorf("error generating secret name: %s", err)
 					}
@@ -160,7 +161,7 @@ func (s *State) maskAttribute(moduleName string, resourceName string, attributes
 			}
 
 			// Set value in keyvault.
-			version, err := s.KeyVault.SetSecret(context.Background(), secretName, attributeValue, tags)
+			version, err := s.KeyVault.SetSecret(context.Background(), secretName, attributeValue.(string), tags)
 			if err != nil {
 				return fmt.Errorf("error inserting secret into key vault: %s", err)
 			}

@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/terraform/states"
 	"github.com/hashicorp/terraform/states/statefile"
 	"github.com/hashicorp/terraform/tfdiags"
+	"github.com/kr/pretty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 )
 
@@ -488,6 +489,7 @@ func (s *State) PersistState() error {
 	}
 	for secretID := range s.secretIDs {
 		if _, ok := resourceAttributeSecretIDs[secretID]; !ok {
+			pretty.Printf("DeleteSecret: %s\n", secretID)
 			if err := s.KeyVault.DeleteSecret(context.Background(), secretID); err != nil {
 				return fmt.Errorf("error deleting secret %s: %s", secretID, err)
 			}
