@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/terraform/configs/configschema"
 	"github.com/hashicorp/terraform/providers"
 	"github.com/hashicorp/terraform/terraform"
-	"github.com/kr/pretty"
 )
 
 // generateLowerAlphanumericChars generates a random lowercase alphanumeric string of len n.
@@ -211,7 +210,6 @@ func (s *State) unmask(rs *[]common.ResourceState) error {
 						return fmt.Errorf("error getting secret from key vault: %s", err)
 					}
 					attributes[key] = secretAttributeValue
-					pretty.Println("found secretAttribute")
 				}
 			}
 			if instance.AttributesRaw, err = json.Marshal(&attributes); err != nil {

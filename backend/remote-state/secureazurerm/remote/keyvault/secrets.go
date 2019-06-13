@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	KV "github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
-	"github.com/kr/pretty"
 )
 
 // getID gets the secret name (ID without the base URI) from the key vault's ID.
@@ -19,9 +18,6 @@ func getID(ID string) string {
 
 // SetSecret sets a secret in a key vault. If the secret does not exist, it creates it. Returns the version of the secret.
 func (k *KeyVault) SetSecret(ctx context.Context, name, value string, tags map[string]*string) (string, error) {
-	pretty.Printf("name: %# v\n", name)
-	pretty.Printf("value: %# v\n", value)
-
 	// Get latest secret.
 	var maxResults int32 = 1
 	result, err := k.keyClient.GetSecretVersions(ctx, k.vaultURI, name, &maxResults)
