@@ -93,14 +93,9 @@ func (s *State) mask(r *common.ResourceState) error {
 				return fmt.Errorf("error unmarshalling attributes: %s", err)
 			}
 			for attributeName, attributeValue := range attributes {
-				s.maskAttribute(
-					r.Module,
-					r.Name,
-					attributes,
-					attributeName,
-					attributeValue,
-					schema,
-				)
+				if err = s.maskAttribute(r.Module, r.Name, attributes, attributeName, attributeValue, schema); err != nil {
+					return fmt.Errorf("error masking attribute: %s", err)
+				}
 			}
 			if instance.AttributesRaw, err = json.Marshal(attributes); err != nil {
 				return fmt.Errorf("error marshalling attributes: %s", err)
@@ -176,14 +171,9 @@ func (s *State) maskAttribute(moduleName string, resourceName string, attributes
 	} else {
 		// Nope, then check if it exists in the nested block types.
 		if block, ok := schema.BlockTypes[attributeName]; ok {
-			s.maskAttribute(
-				moduleName,
-				resourceName,
-				attributes,
-				attributeName,
-				attributeValue,
-				&block.Block,
-			)
+			if err := s.maskAttribute(moduleName, resourceName, attributes, attributeName, attributeValue, &block.Block); err != nil {
+				return fmt.Errorf("error masking attribute in block type: %s", err)
+			}
 		}
 	}
 
