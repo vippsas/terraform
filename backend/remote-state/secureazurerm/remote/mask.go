@@ -158,8 +158,10 @@ func (s *State) maskAttribute(moduleName, resourceName string, attributes map[st
 				m["version"] = version
 				attributes[attributeName] = m
 			case []interface{}:
+				m["type"] = "[]interface{}"
 				return fmt.Errorf("list not implemented yet")
 			case map[string]interface{}:
+				m["type"] = "map[string]interface{}"
 				return fmt.Errorf("map not implemented yet")
 			default:
 				return fmt.Errorf("got attribute value of unknown type: %v", attributeValue)
