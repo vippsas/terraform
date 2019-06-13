@@ -124,7 +124,7 @@ func (s *State) maskAttribute(moduleName, resourceName string, attributes map[st
 
 			if secretName == "" {
 				retry := 0
-				maxRetries := 3
+				const maxRetries = 3
 				for ; retry < maxRetries; retry++ {
 					// Generate secret name for the attribute.
 					secretName, err = generateLowerAlphanumericChars(32) // it's as long as the version string in length.
