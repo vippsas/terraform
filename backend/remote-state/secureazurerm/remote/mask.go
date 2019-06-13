@@ -101,7 +101,7 @@ func (s *State) mask(r *common.ResourceState) error {
 }
 
 // maskAttribute masks the attributes of a resource.
-func (s *State) maskAttribute(moduleName string, resourceName string, attributes map[string]interface{}, attributeName string, attributeValue interface{}, schema *configschema.Block) error {
+func (s *State) maskAttribute(moduleName, resourceName string, attributes map[string]interface{}, attributeName string, attributeValue interface{}, schema *configschema.Block) error {
 	// Check if attribute from the block exists in the schema.
 	if attribute, ok := schema.Attributes[attributeName]; ok {
 		// Is resource attribute sensitive?
