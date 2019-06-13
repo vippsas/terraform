@@ -85,10 +85,11 @@ func (s *State) mask(r *common.ResourceState) error {
 
 	// Mask the sensitive resource attributes by moving them to the key vault.
 	for _, schema := range resourceSchemas {
-		for _, instance := range r.Instances {
+		for i := range r.Instances {
+			instance := &r.Instances[i]
 			// Insert the resource's attributes in the key vault.
 			var attributes map[string]interface{}
-			if err := json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
+			if err = json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
 				return fmt.Errorf("error unmarshalling attributes: %s", err)
 			}
 			for attributeName, attributeValue := range attributes {
@@ -100,6 +101,9 @@ func (s *State) mask(r *common.ResourceState) error {
 					attributeValue,
 					schema,
 				)
+			}
+			if instance.AttributesRaw, err = json.Marshal(attributes); err != nil {
+				return fmt.Errorf("error marshalling attributes: %s", err)
 			}
 		}
 	}

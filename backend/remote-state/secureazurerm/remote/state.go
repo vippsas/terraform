@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/terraform/states"
 	"github.com/hashicorp/terraform/states/statefile"
 	"github.com/hashicorp/terraform/tfdiags"
-	"github.com/kr/pretty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 )
 
@@ -338,7 +337,7 @@ func (s *State) PersistState() error {
 	}
 
 	file := statefile.New(s.state, s.lineage, s.serial)
-	state := &common.SecureState{
+	state := common.SecureState{
 		Version:          s.version,
 		TerraformVersion: file.TerraformVersion.String(),
 		Serial:           file.Serial,
@@ -406,7 +405,7 @@ func (s *State) PersistState() error {
 				Instances:      []common.InstanceObjectState{},
 			})
 
-			// Append instances to the state of resource.
+			// Append instances of the resource to the resource's state.
 			resourceState := &state.Resources[len(state.Resources)-1]
 			for key, instance := range resource.Instances {
 				if instance.HasCurrent() {
@@ -479,30 +478,32 @@ func (s *State) PersistState() error {
 		*/
 	}
 
-	// Delete the resource's attributes that does not exists anymore in the key vault.
-	resourceAttributeSecretIDs := make(map[string]struct{})
-	for _, resource := range state.Resources {
-		for _, instance := range resource.Instances {
-			var attributes map[string]interface{}
-			if err = json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
-				return fmt.Errorf("error unmarshalling attributes: %s", err)
-			}
-			for _, attribute := range attributes {
-				if object, ok := attribute.(secretAttribute); ok {
-					resourceAttributeSecretIDs[object.ID] = struct{}{}
+	/*
+		// Delete the resource's attributes that does not exists anymore in the key vault.
+		resourceAttributeSecretIDs := make(map[string]struct{})
+		for _, resource := range state.Resources {
+			for _, instance := range resource.Instances {
+				var attributes map[string]interface{}
+				if err = json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
+					return fmt.Errorf("error unmarshalling attributes: %s", err)
+				}
+				for _, attribute := range attributes {
+					if object, ok := attribute.(secretAttribute); ok {
+						resourceAttributeSecretIDs[object.ID] = struct{}{}
+					}
 				}
 			}
 		}
-	}
-	for secretID := range s.secretIDs {
-		if _, ok := resourceAttributeSecretIDs[secretID]; !ok {
-			pretty.Printf("DeleteSecret: %s\n", secretID)
-			if err := s.KeyVault.DeleteSecret(context.Background(), secretID); err != nil {
-				return fmt.Errorf("error deleting secret %s: %s", secretID, err)
+		for secretID := range s.secretIDs {
+			if _, ok := resourceAttributeSecretIDs[secretID]; !ok {
+				pretty.Printf("DeleteSecret: %s\n", secretID)
+				if err := s.KeyVault.DeleteSecret(context.Background(), secretID); err != nil {
+					return fmt.Errorf("error deleting secret %s: %s", secretID, err)
+				}
+				delete(s.secretIDs, secretID)
 			}
-			delete(s.secretIDs, secretID)
 		}
-	}
+	*/
 
 	// Marshal state map to JSON.
 	b, err := json.MarshalIndent(&state, "", "  ")
