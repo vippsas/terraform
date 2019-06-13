@@ -31,12 +31,6 @@ func generateLowerAlphanumericChars(n int) (string, error) {
 	return string(s), nil
 }
 
-// secretAttribute is a sensitive attribute that is located as a secret in the Azure key vault.
-type secretAttribute struct {
-	ID      string `json:"id"`      // ID of the secret.
-	Version string `json:"version"` // Version of the secret.
-}
-
 // mask masks all sensitive attributes in a resource state.
 func (s *State) mask(r *common.ResourceState) error {
 	// Get resource providers.
@@ -151,21 +145,24 @@ func (s *State) maskAttribute(moduleName string, resourceName string, attributes
 			}
 
 			var version string
+			m := make(map[string]interface{})
 			switch v := attributeValue.(type) {
 			case string:
 				// Set value in keyvault.
 				if version, err = s.KeyVault.SetSecret(context.Background(), secretName, v, tags); err != nil {
 					return fmt.Errorf("error inserting secret into key vault: %s", err)
 				}
-			// TODO: Add support for more types!
+				// Replace attribute value with a reference/pointer to the secret value in the state key vault.
+				m["type"] = "string"
+				m["id"] = secretName
+				m["version"] = version
+				attributes[attributeName] = m
+			case []interface{}:
+				return fmt.Errorf("list not implemented yet")
+			case map[string]interface{}:
+				return fmt.Errorf("map not implemented yet")
 			default:
 				return fmt.Errorf("got attribute value of unknown type: %v", attributeValue)
-			}
-
-			// Replace attribute value with a reference/pointer to the secret value in the state key vault.
-			attributes[attributeName] = secretAttribute{
-				ID:      secretName,
-				Version: version,
 			}
 		}
 	} else {
@@ -193,6 +190,10 @@ func (s *State) unmask(rs *[]common.ResourceState) error {
 			}
 			for key, value := range attributes {
 				if secretAttribute, ok := value.(map[string]interface{}); ok {
+					t, ok := secretAttribute["type"].(string)
+					if !ok {
+						continue
+					}
 					id, ok := secretAttribute["id"].(string)
 					if !ok {
 						continue
@@ -201,11 +202,20 @@ func (s *State) unmask(rs *[]common.ResourceState) error {
 					if !ok {
 						continue
 					}
-					secretAttributeValue, err := s.KeyVault.GetSecret(context.Background(), id, version)
-					if err != nil {
-						return fmt.Errorf("error getting secret from key vault: %s", err)
+					switch t {
+					case "string":
+						secretAttributeValue, err := s.KeyVault.GetSecret(context.Background(), id, version)
+						if err != nil {
+							return fmt.Errorf("error getting secret from key vault: %s", err)
+						}
+						attributes[key] = secretAttributeValue
+					case "[]interface{}":
+						return fmt.Errorf("list not implemented yet")
+					case "map[string]interface{}":
+						return fmt.Errorf("map not implemented yet")
+					default:
+						return fmt.Errorf("unknown sensitive attribute type: %s", t)
 					}
-					attributes[key] = secretAttributeValue
 				}
 			}
 			if instance.AttributesRaw, err = json.Marshal(&attributes); err != nil {
