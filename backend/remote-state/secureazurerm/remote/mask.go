@@ -201,6 +201,7 @@ func (s *State) unmask(rs []common.ResourceState) error {
 					attributes[key] = secretAttributeValue
 				}
 			}
+			// TODO: Marshal here.
 		}
 	}
 	return nil
