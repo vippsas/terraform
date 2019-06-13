@@ -415,7 +415,7 @@ func (s *State) PersistState() error {
 			}
 
 			// Mask the resource state.
-			if err := s.mask(state.Resources); err != nil {
+			if err := s.mask(resourceState); err != nil {
 				return fmt.Errorf("error masking module: %s", err)
 			}
 		}
@@ -477,7 +477,7 @@ func (s *State) PersistState() error {
 	for _, resource := range state.Resources {
 		for _, instance := range resource.Instances {
 			var attributes map[string]interface{}
-			if err := json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
+			if err = json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
 				return fmt.Errorf("error unmarshalling attributes: %s", err)
 			}
 			for _, attribute := range attributes {

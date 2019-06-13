@@ -38,7 +38,7 @@ type secretAttribute struct {
 }
 
 // mask masks all sensitive attributes in a resource state.
-func (s *State) mask(rs []common.ResourceState) error {
+func (s *State) mask(r *common.ResourceState) error {
 	// Get resource providers.
 	wd, err := os.Getwd()
 	if err != nil {
@@ -72,16 +72,10 @@ func (s *State) mask(rs []common.ResourceState) error {
 	}
 
 	// Get the schemas for the resource attributes.
-	types := []string{}
-	for _, r := range rs {
-		types = append(types, r.Type)
-	}
 	var schemas []providers.Schema
 	for _, rp := range provds {
-		for _, t := range types {
-			if schema, ok := rp.GetSchema().ResourceTypes[t]; ok {
-				schemas = append(schemas, schema)
-			}
+		if schema, ok := rp.GetSchema().ResourceTypes[r.Type]; ok {
+			schemas = append(schemas, schema)
 		}
 	}
 	var resourceSchemas []*configschema.Block
@@ -90,25 +84,22 @@ func (s *State) mask(rs []common.ResourceState) error {
 	}
 
 	// Mask the sensitive resource attributes by moving them to the key vault.
-	for _, resource := range rs {
-		// Filter sensitive attributes into the key vault.
-		for _, schema := range resourceSchemas {
-			for _, instance := range resource.Instances {
-				// Insert the resource's attributes in the key vault.
-				var attributes map[string]interface{}
-				if err := json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
-					return fmt.Errorf("error unmarshalling attributes: %s", err)
-				}
-				for attributeName, attributeValue := range attributes {
-					s.maskAttribute(
-						resource.Module,
-						resource.Name,
-						attributes,
-						attributeName,
-						attributeValue,
-						schema,
-					)
-				}
+	for _, schema := range resourceSchemas {
+		for _, instance := range r.Instances {
+			// Insert the resource's attributes in the key vault.
+			var attributes map[string]interface{}
+			if err := json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
+				return fmt.Errorf("error unmarshalling attributes: %s", err)
+			}
+			for attributeName, attributeValue := range attributes {
+				s.maskAttribute(
+					r.Module,
+					r.Name,
+					attributes,
+					attributeName,
+					attributeValue,
+					schema,
+				)
 			}
 		}
 	}
