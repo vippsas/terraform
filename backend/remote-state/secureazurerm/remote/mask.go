@@ -155,10 +155,16 @@ func (s *State) maskAttribute(moduleName string, resourceName string, attributes
 				}
 			}
 
-			// Set value in keyvault.
-			version, err := s.KeyVault.SetSecret(context.Background(), secretName, attributeValue.(string), tags)
-			if err != nil {
-				return fmt.Errorf("error inserting secret into key vault: %s", err)
+			var version string
+			switch v := attributeValue.(type) {
+			case string:
+				// Set value in keyvault.
+				if version, err = s.KeyVault.SetSecret(context.Background(), secretName, v, tags); err != nil {
+					return fmt.Errorf("error inserting secret into key vault: %s", err)
+				}
+			// TODO: Add support for more types!
+			default:
+				return fmt.Errorf("got attribute value of unknown type: %v", attributeValue)
 			}
 
 			// Replace attribute value with a reference/pointer to the secret value in the state key vault.
