@@ -194,16 +194,16 @@ func (s *State) unmask(rs *[]common.ResourceState) error {
 					if !ok {
 						continue
 					}
-					id, ok := secretAttribute["id"].(string)
-					if !ok {
-						continue
-					}
-					version, ok := secretAttribute["version"].(string)
-					if !ok {
-						continue
-					}
 					switch t {
 					case "string":
+						id, ok := secretAttribute["id"].(string)
+						if !ok {
+							continue
+						}
+						version, ok := secretAttribute["version"].(string)
+						if !ok {
+							continue
+						}
 						secretAttributeValue, err := s.KeyVault.GetSecret(context.Background(), id, version)
 						if err != nil {
 							return fmt.Errorf("error getting secret from key vault: %s", err)
