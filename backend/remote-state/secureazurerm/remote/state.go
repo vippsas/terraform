@@ -168,22 +168,21 @@ func (s *State) RefreshState() error {
 			}
 
 			// Instance attributes
-			switch {
-			case instanceState.AttributesRaw != nil:
+			if instanceState.AttributesRaw != nil {
 				obj.AttrsJSON = instanceState.AttributesRaw
-			default:
+			} else {
 				return fmt.Errorf("empty attributes: %s", err)
 			}
 
 			// Status
-			raw := instanceState.Status
-			switch raw {
+			status := instanceState.Status
+			switch status {
 			case "":
 				obj.Status = states.ObjectReady
 			case "tainted":
 				obj.Status = states.ObjectTainted
 			default:
-				return fmt.Errorf("instance %s has invalid status %q", instanceAddress.Absolute(moduleAddr), raw)
+				return fmt.Errorf("instance %s has invalid status %q", instanceAddress.Absolute(moduleAddr), status)
 			}
 			if raw := instanceState.PrivateRaw; len(raw) > 0 {
 				obj.Private = raw
