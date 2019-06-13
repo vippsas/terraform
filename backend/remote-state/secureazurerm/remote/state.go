@@ -29,8 +29,10 @@ type State struct {
 
 	Props *properties.Properties
 
-	lineage      string
-	serial       uint64
+	version,
+	lineage string
+	serial uint64
+
 	disableLocks bool
 
 	state, // current in-memory state.
@@ -79,15 +81,19 @@ func (s *State) RefreshState() error {
 		return nil
 	}
 
-	// Unmask remote state.
+	// Unmask remote secure state.
 	var secureState common.SecureState
 	if err = json.Unmarshal(payload.Data, &secureState); err != nil {
 		return fmt.Errorf("error unmarshalling state: %s", err)
 	}
+	s.version = secureState.Version
+	s.lineage = secureState.Lineage
+	s.serial = secureState.Serial
 	if err = s.unmask(secureState.Resources); err != nil {
 		return fmt.Errorf("error unmasking state: %s", err)
 	}
 
+	// Convert the secure state to the "top-level" state.
 	state := states.NewState()
 	for _, resourceState := range secureState.Resources {
 		resourceAddr := addrs.Resource{
@@ -333,6 +339,7 @@ func (s *State) PersistState() error {
 
 	file := statefile.New(s.state, s.lineage, s.serial)
 	state := &common.SecureState{
+		Version:          s.version,
 		TerraformVersion: file.TerraformVersion.String(),
 		Serial:           file.Serial,
 		Lineage:          file.Lineage,
