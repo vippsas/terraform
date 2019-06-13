@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 	"sync"
 
 	"github.com/Azure/azure-sdk-for-go/profiles/2017-03-09/resources/mgmt/resources"
@@ -128,18 +127,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		return fmt.Errorf("location is empty")
 	}
 	for _, resourceAddress := range attributes.Get("access_policies").([]interface{}) {
-		sa := []string{"root"}
-		splitted := strings.Split(resourceAddress.(string), ".")
-		for i := 0; i < len(splitted); {
-			if splitted[i] == "module" {
-				sa = append(sa, splitted[i+1])
-				i += 2
-			} else {
-				sa = append(sa, splitted[i])
-				i++
-			}
-		}
-		b.props.AccessPolicies = append(b.props.AccessPolicies, strings.Join(sa, "."))
+		b.props.AccessPolicies = append(b.props.AccessPolicies, resourceAddress.(string))
 	}
 
 	// Setup the resource group for terraform.State.

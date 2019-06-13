@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/hashicorp/terraform/addrs"
@@ -450,31 +451,34 @@ func (s *State) PersistState() error {
 		end:
 		}
 
-		/*
-			// Give resources access to the state as described in access_policies in the configuration.
-			for _, accessPolicy := range s.Props.AccessPolicies {
-				resource, ok := mod["resources"].(map[string]interface{})[strings.Join(accessPolicyDotSplitted[len(path):], ".")]
-				if !ok {
+		// Give resources access to the state as described in access_policies in the configuration.
+		for _, accessPolicy := range s.Props.AccessPolicies {
+			splitted := strings.Split(accessPolicy, ".")
+			tp, name := splitted[0], splitted[1]
+			for _, resource := range state.Resources {
+				if resource.Type != tp || resource.Name != name {
 					continue // could not find resource, perhaps due to being destroyed.
 				}
-				attributes := resource.(map[string]interface{})["primary"].(map[string]interface{})["attributes"].(map[string]interface{})
-				value, ok := attributes["identity.#"]
-				if !ok {
-					return fmt.Errorf("access_policies contains a resource with no managed identity: %s", err)
-				}
-				length, err := strconv.Atoi(value.(string))
-				if err != nil {
-					return fmt.Errorf("error converting identity.# to integer: %s", err)
-				}
-				for i := 0; i < length; i++ {
-					managedIdentity := keyvault.ManagedIdentity{
-						PrincipalID: attributes[fmt.Sprintf("identity.%d.principal_id", i)].(string),
-						TenantID:    attributes[fmt.Sprintf("identity.%d.tenant_id", i)].(string),
+				for _, instance := range resource.Instances {
+					var attributes map[string]interface{}
+					if err = json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
+						return fmt.Errorf("error unmarshalling attributes: %s", err)
 					}
-					s.KeyVault.AddIDToAccessPolicies(context.Background(), &managedIdentity)
+					identities, ok := attributes["identity"].([]interface{})
+					if !ok {
+						return fmt.Errorf("access_policies contains a resource with no managed identity: %s", err)
+					}
+					for _, value := range identities {
+						v := value.(map[string]interface{})
+						managedIdentity := keyvault.ManagedIdentity{
+							PrincipalID: v["principal_id"].(string),
+							TenantID:    v["tenant_id"].(string),
+						}
+						s.KeyVault.AddIDToAccessPolicies(context.Background(), &managedIdentity)
+					}
 				}
 			}
-		*/
+		}
 	}
 
 	// Delete the resource's attributes that does not exists anymore in the key vault.
