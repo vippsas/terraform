@@ -88,7 +88,7 @@ func (s *State) RefreshState() error {
 	s.version = secureState.Version
 	s.lineage = secureState.Lineage
 	s.serial = secureState.Serial
-	if err = s.unmask(secureState.Resources); err != nil {
+	if err = s.unmask(&secureState.Resources); err != nil {
 		return fmt.Errorf("error unmasking state: %s", err)
 	}
 

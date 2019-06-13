@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform/configs/configschema"
 	"github.com/hashicorp/terraform/providers"
 	"github.com/hashicorp/terraform/terraform"
+	"github.com/kr/pretty"
 )
 
 // generateLowerAlphanumericChars generates a random lowercase alphanumeric string of len n.
@@ -184,24 +185,38 @@ func (s *State) maskAttribute(moduleName string, resourceName string, attributes
 	return nil
 }
 
-// unmask unmasks all sensitive attributes in a resource state.
-func (s *State) unmask(rs []common.ResourceState) error {
-	for _, resource := range rs {
-		for _, instance := range resource.Instances {
+// unmask unmasks all sensitive attributes in resource states.
+func (s *State) unmask(rs *[]common.ResourceState) error {
+	for i := range *rs {
+		r := &(*rs)[i]
+		for j := range r.Instances {
+			instance := &r.Instances[j]
 			var attributes map[string]interface{}
+			var err error
 			if err := json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
 				return fmt.Errorf("error unmarshalling attributes: %s", err)
 			}
 			for key, value := range attributes {
-				if secretAttribute, ok := value.(secretAttribute); ok {
-					secretAttributeValue, err := s.KeyVault.GetSecret(context.Background(), secretAttribute.ID, secretAttribute.Version)
+				if secretAttribute, ok := value.(map[string]interface{}); ok {
+					id, ok := secretAttribute["id"].(string)
+					if !ok {
+						continue
+					}
+					version, ok := secretAttribute["version"].(string)
+					if !ok {
+						continue
+					}
+					secretAttributeValue, err := s.KeyVault.GetSecret(context.Background(), id, version)
 					if err != nil {
 						return fmt.Errorf("error getting secret from key vault: %s", err)
 					}
 					attributes[key] = secretAttributeValue
+					pretty.Println("found secretAttribute")
 				}
 			}
-			// TODO: Marshal here.
+			if instance.AttributesRaw, err = json.Marshal(&attributes); err != nil {
+				return fmt.Errorf("error marshalling attributes: %s", err)
+			}
 		}
 	}
 	return nil
