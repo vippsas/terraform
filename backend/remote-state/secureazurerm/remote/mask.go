@@ -242,8 +242,8 @@ func (s *State) unmask(rs *[]common.ResourceState) error {
 							return
 						case "[]interface{}":
 							var l []interface{}
-							for _, v := range secretAttribute["value"].([]map[string]interface{}) {
-								secretAttributeValue, cont, err = f(v)
+							for _, v := range secretAttribute["value"].([]interface{}) {
+								secretAttributeValue, cont, err = f(v.(map[string]interface{}))
 								if cont {
 									return
 								}
