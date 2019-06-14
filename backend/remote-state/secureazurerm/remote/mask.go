@@ -102,69 +102,90 @@ func (s *State) mask(r *common.ResourceState) error {
 func (s *State) maskAttribute(moduleName, resourceName string, attributes map[string]interface{}, schema *configschema.Block) error {
 	for attributeName, attributeValue := range attributes {
 		// Check if attribute from the block exists in the schema.
-		if attribute, ok := schema.Attributes[attributeName]; ok {
-			// Is resource attribute sensitive?
-			if attribute.Sensitive { // then mask.
-				// Set existing secret name or generate a new one.
-				var secretName string
-				var err error
-				for secretID, value := range s.secretIDs {
-					if *value.Tags["module"] == moduleName && *value.Tags["resource"] == resourceName && *value.Tags["attribute"] == attributeName {
-						secretName = secretID
-						break
-					}
-				}
+		if attribute, ok := schema.Attributes[attributeName]; ok && attribute.Sensitive { // Is resource attribute sensitive? Then mask.
+			// Tag secret with related state info.
+			tags := make(map[string]*string)
+			tags["module"] = &moduleName
+			tags["resource"] = &resourceName
+			a := attributeName
+			tags["attribute"] = &a
 
-				// Tag secret with related state info.
-				tags := make(map[string]*string)
-				tags["module"] = &moduleName
-				tags["resource"] = &resourceName
-				tags["attribute"] = &attributeName
-
-				if secretName == "" {
-					retry := 0
-					const maxRetries = 3
-					for ; retry < maxRetries; retry++ {
-						// Generate secret name for the attribute.
-						secretName, err = generateLowerAlphanumericChars(32) // it's as long as the version string in length.
-						if err != nil {
-							return fmt.Errorf("error generating secret name: %s", err)
-						}
-						// Check for the highly unlikely secret name collision.
-						if _, ok := s.secretIDs[secretName]; ok {
-							// Name collision! Retrying...
-							continue
-						}
-						s.secretIDs[secretName] = keyvault.SecretMetadata{Tags: tags}
-						break
-					}
-					if retry >= maxRetries {
-						return fmt.Errorf("error generating random secret name %d times", maxRetries)
-					}
-				}
-
-				var version string
+			var f func(interface{}, map[string]*string) (interface{}, error)
+			f = func(attributeValue interface{}, tags map[string]*string) (interface{}, error) {
 				m := make(map[string]interface{})
 				switch v := attributeValue.(type) {
 				case string:
+					// Set existing secret name.
+					var secretName string
+					var err error
+					for secretID, secretValue := range s.secretIDs {
+						if index, ok := tags["index"]; ok && *secretValue.Tags["index"] == *index && *secretValue.Tags["module"] == *tags["module"] && *secretValue.Tags["resource"] == *tags["resource"] && *secretValue.Tags["attribute"] == *tags["attribute"] {
+							secretName = secretID
+							break
+						}
+						if *secretValue.Tags["module"] == *tags["module"] && *secretValue.Tags["resource"] == *tags["resource"] && *secretValue.Tags["attribute"] == *tags["attribute"] {
+							secretName = secretID
+							break
+						}
+					}
+					// If not existing, generate a new one.
+					if secretName == "" {
+						retry := 0
+						const maxRetries = 3
+						for ; retry < maxRetries; retry++ {
+							// Generate secret name for the attribute.
+							secretName, err = generateLowerAlphanumericChars(32) // it's as long as the version string in length.
+							if err != nil {
+								return nil, fmt.Errorf("error generating secret name: %s", err)
+							}
+							// Check for the highly unlikely secret name collision.
+							if _, ok := s.secretIDs[secretName]; ok {
+								continue // name collision! retrying...
+							}
+							s.secretIDs[secretName] = keyvault.SecretMetadata{Tags: tags}
+							break
+						}
+						if retry >= maxRetries {
+							return nil, fmt.Errorf("error generating random secret name %d times", maxRetries)
+						}
+					}
 					// Set value in keyvault.
-					if version, err = s.KeyVault.SetSecret(context.Background(), secretName, v, tags); err != nil {
-						return fmt.Errorf("error inserting secret into key vault: %s", err)
+					version, err := s.KeyVault.SetSecret(context.Background(), secretName, v, tags)
+					if err != nil {
+						return nil, fmt.Errorf("error inserting secret into key vault: %s", err)
 					}
 					// Replace attribute value with a reference/pointer to the secret value in the state key vault.
 					m["type"] = "string"
 					m["id"] = secretName
 					m["version"] = version
-					attributes[attributeName] = m
+					return m, nil
 				case []interface{}:
 					m["type"] = "[]interface{}"
-					return fmt.Errorf("list not implemented yet")
+					var l []interface{}
+					for i, v := range v {
+						mtags := make(map[string]*string)
+						for k, v := range tags {
+							mtags[k] = v
+						}
+						index := string(i)
+						mtags["index"] = &index
+						k, err := f(v, mtags)
+						if err != nil {
+							return nil, err
+						}
+						l[i] = k
+					}
+					m["value"] = l
+					return m, nil
 				case map[string]interface{}:
 					m["type"] = "map[string]interface{}"
-					return fmt.Errorf("map not implemented yet")
-				default:
-					return fmt.Errorf("got attribute value of unknown type: %v", attributeValue)
+					return nil, fmt.Errorf("map not implemented yet")
 				}
+				return nil, fmt.Errorf("got attribute value of unknown type: %v", attributeValue)
+			}
+			var err error
+			if attributes[attributeName], err = f(attributeValue, tags); err != nil {
+				return err
 			}
 		} else {
 			// Nope, then check if it exists in the nested block types.
@@ -192,31 +213,59 @@ func (s *State) unmask(rs *[]common.ResourceState) error {
 			}
 			for key, value := range attributes {
 				if secretAttribute, ok := value.(map[string]interface{}); ok {
-					t, ok := secretAttribute["type"].(string)
-					if !ok {
+					var f func(map[string]interface{}) (interface{}, bool, error)
+					f = func(secretAttribute map[string]interface{}) (secretAttributeValue interface{}, cont bool, err error) {
+						t, ok := secretAttribute["type"].(string)
+						if !ok {
+							cont = true
+							return
+						}
+						switch t {
+						case "string":
+							id, ok := secretAttribute["id"].(string)
+							if !ok {
+								cont = true
+								return
+							}
+							version, ok := secretAttribute["version"].(string)
+							if !ok {
+								cont = true
+								return
+							}
+							secretAttributeValue, err = s.KeyVault.GetSecret(context.Background(), id, version)
+							if err != nil {
+								err = fmt.Errorf("error getting secret from key vault: %s", err)
+								return
+							}
+							return
+						case "[]interface{}":
+							var l []interface{}
+							for _, v := range secretAttribute["value"].([]map[string]interface{}) {
+								secretAttributeValue, cont, err = f(v)
+								if cont {
+									return
+								}
+								if err != nil {
+									return
+								}
+								l = append(l, secretAttributeValue)
+							}
+							secretAttributeValue = l
+							return
+						case "map[string]interface{}":
+							err = fmt.Errorf("map not implemented yet")
+							return
+						}
+						err = fmt.Errorf("unknown sensitive attribute type: %s", t)
+						return
+					}
+					var cont bool
+					attributes[key], cont, err = f(secretAttribute)
+					if cont {
 						continue
 					}
-					switch t {
-					case "string":
-						id, ok := secretAttribute["id"].(string)
-						if !ok {
-							continue
-						}
-						version, ok := secretAttribute["version"].(string)
-						if !ok {
-							continue
-						}
-						secretAttributeValue, err := s.KeyVault.GetSecret(context.Background(), id, version)
-						if err != nil {
-							return fmt.Errorf("error getting secret from key vault: %s", err)
-						}
-						attributes[key] = secretAttributeValue
-					case "[]interface{}":
-						return fmt.Errorf("list not implemented yet")
-					case "map[string]interface{}":
-						return fmt.Errorf("map not implemented yet")
-					default:
-						return fmt.Errorf("unknown sensitive attribute type: %s", t)
+					if err != nil {
+						return err
 					}
 				}
 			}
