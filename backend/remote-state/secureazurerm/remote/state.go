@@ -505,8 +505,7 @@ func (s *State) PersistState() error {
 								cont = true
 								return
 							}
-							_, ok = object["version"].(string)
-							if !ok {
+							if _, ok = object["version"].(string); !ok {
 								cont = true
 								return
 							}
@@ -514,11 +513,9 @@ func (s *State) PersistState() error {
 							return false, nil
 						case "[]interface{}":
 							for _, v := range object["value"].([]interface{}) {
-								cont, err := f(v.(map[string]interface{}))
-								if cont {
+								if cont, err := f(v.(map[string]interface{})); cont {
 									return false, fmt.Errorf("state is corrupt")
-								}
-								if err != nil {
+								} else if err != nil {
 									return false, err
 								}
 							}
@@ -528,11 +525,9 @@ func (s *State) PersistState() error {
 						}
 						return false, fmt.Errorf("unknown type: %s", tp)
 					}
-					cont, err := f(object)
-					if cont {
+					if cont, err := f(object); cont {
 						continue
-					}
-					if err != nil {
+					} else if err != nil {
 						return fmt.Errorf("error getting the attribute's secred ID: %s", err)
 					}
 				}
