@@ -100,6 +100,7 @@ func (s *State) mask(r *common.ResourceState) error {
 
 // maskAttributes masks the attributes of a resource.
 func (s *State) maskAttributes(moduleName, resourceName string, attributes map[string]interface{}, schema *configschema.Block) error {
+	var err error
 	for attributeName, attributeValue := range attributes {
 		// Check if attribute from the block exists in the schema.
 		if attribute, ok := schema.Attributes[attributeName]; ok && attribute.Sensitive { // Is resource attribute sensitive? Then mask.
@@ -117,7 +118,6 @@ func (s *State) maskAttributes(moduleName, resourceName string, attributes map[s
 				case string:
 					// Set existing secret name.
 					var secretName string
-					var err error
 					for secretID, secretValue := range s.secretIDs {
 						if *secretValue.Tags["module"] == *tags["module"] && *secretValue.Tags["resource"] == *tags["resource"] && *secretValue.Tags["attribute"] == *tags["attribute"] {
 							if tagIndex, ok := secretValue.Tags["index"]; ok {
@@ -184,7 +184,6 @@ func (s *State) maskAttributes(moduleName, resourceName string, attributes map[s
 				}
 				return nil, fmt.Errorf("got attribute value of unknown type: %v", attributeValue)
 			}
-			var err error
 			if attributes[attributeName], err = f(attributeValue, tags); err != nil {
 				return fmt.Errorf("error masking attribute %s with value %v: %s", attributeName, attributeValue, err)
 			}
