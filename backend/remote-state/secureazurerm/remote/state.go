@@ -481,39 +481,72 @@ func (s *State) PersistState() error {
 		}
 	}
 
-	/*
-		// Delete the resource's attributes that does not exists anymore in the key vault.
-		resourceAttributeSecretIDs := make(map[string]struct{})
-		for _, resource := range state.Resources {
-			for _, instance := range resource.Instances {
-				var attributes map[string]interface{}
-				if err = json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
-					return fmt.Errorf("error unmarshalling attributes: %s", err)
-				}
-				for _, attribute := range attributes {
-					if object, ok := attribute.(map[string]interface{}); ok {
-						id, ok := object["id"].(string)
+	// Delete the resource's attributes that does not exists anymore in the key vault.
+	resourceAttributeSecretIDs := make(map[string]struct{})
+	for _, resource := range state.Resources {
+		for _, instance := range resource.Instances {
+			var attributes map[string]interface{}
+			if err = json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
+				return fmt.Errorf("error unmarshalling attributes: %s", err)
+			}
+			for _, attribute := range attributes {
+				if object, ok := attribute.(map[string]interface{}); ok {
+					var f func(object map[string]interface{}) (bool, error)
+					f = func(object map[string]interface{}) (cont bool, err error) {
+						tp, ok := object["type"].(string)
 						if !ok {
-							continue
+							cont = true
+							return
 						}
-						_, ok = object["version"].(string)
-						if !ok {
-							continue
+						switch tp {
+						case "string":
+							id, ok := object["id"].(string)
+							if !ok {
+								cont = true
+								return
+							}
+							_, ok = object["version"].(string)
+							if !ok {
+								cont = true
+								return
+							}
+							resourceAttributeSecretIDs[id] = struct{}{}
+							return false, nil
+						case "[]interface{}":
+							for _, v := range object["value"].([]interface{}) {
+								cont, err := f(v.(map[string]interface{}))
+								if cont {
+									return false, fmt.Errorf("state is corrupt")
+								}
+								if err != nil {
+									return false, err
+								}
+							}
+							return false, nil
+						case "map[string]interface{}":
+							return false, fmt.Errorf("map not implemented yet")
 						}
-						resourceAttributeSecretIDs[id] = struct{}{}
+						return false, fmt.Errorf("unknown type: %s", tp)
+					}
+					cont, err := f(object)
+					if cont {
+						continue
+					}
+					if err != nil {
+						return fmt.Errorf("error getting the attribute's secred ID: %s", err)
 					}
 				}
 			}
 		}
-		for secretID := range s.secretIDs {
-			if _, ok := resourceAttributeSecretIDs[secretID]; !ok {
-				if err := s.KeyVault.DeleteSecret(context.Background(), secretID); err != nil {
-					return fmt.Errorf("error deleting secret %s: %s", secretID, err)
-				}
-				delete(s.secretIDs, secretID)
+	}
+	for secretID := range s.secretIDs {
+		if _, ok := resourceAttributeSecretIDs[secretID]; !ok {
+			if err := s.KeyVault.DeleteSecret(context.Background(), secretID); err != nil {
+				return fmt.Errorf("error deleting secret %s: %s", secretID, err)
 			}
+			delete(s.secretIDs, secretID)
 		}
-	*/
+	}
 
 	// Marshal state map to JSON.
 	b, err := json.MarshalIndent(&state, "", "  ")
