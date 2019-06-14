@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/common"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/keyvault"
@@ -168,7 +169,7 @@ func (s *State) maskAttributes(moduleName, resourceName string, attributes map[s
 						for k, v := range tags {
 							mtags[k] = v
 						}
-						index := string(i)
+						index := strconv.Itoa(i)
 						mtags["index"] = &index
 						k, err := f(v, mtags)
 						if err != nil {
