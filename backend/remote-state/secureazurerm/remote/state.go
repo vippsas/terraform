@@ -481,37 +481,39 @@ func (s *State) PersistState() error {
 		}
 	}
 
-	// Delete the resource's attributes that does not exists anymore in the key vault.
-	resourceAttributeSecretIDs := make(map[string]struct{})
-	for _, resource := range state.Resources {
-		for _, instance := range resource.Instances {
-			var attributes map[string]interface{}
-			if err = json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
-				return fmt.Errorf("error unmarshalling attributes: %s", err)
-			}
-			for _, attribute := range attributes {
-				if object, ok := attribute.(map[string]interface{}); ok {
-					id, ok := object["id"].(string)
-					if !ok {
-						continue
+	/*
+		// Delete the resource's attributes that does not exists anymore in the key vault.
+		resourceAttributeSecretIDs := make(map[string]struct{})
+		for _, resource := range state.Resources {
+			for _, instance := range resource.Instances {
+				var attributes map[string]interface{}
+				if err = json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
+					return fmt.Errorf("error unmarshalling attributes: %s", err)
+				}
+				for _, attribute := range attributes {
+					if object, ok := attribute.(map[string]interface{}); ok {
+						id, ok := object["id"].(string)
+						if !ok {
+							continue
+						}
+						_, ok = object["version"].(string)
+						if !ok {
+							continue
+						}
+						resourceAttributeSecretIDs[id] = struct{}{}
 					}
-					_, ok = object["version"].(string)
-					if !ok {
-						continue
-					}
-					resourceAttributeSecretIDs[id] = struct{}{}
 				}
 			}
 		}
-	}
-	for secretID := range s.secretIDs {
-		if _, ok := resourceAttributeSecretIDs[secretID]; !ok {
-			if err := s.KeyVault.DeleteSecret(context.Background(), secretID); err != nil {
-				return fmt.Errorf("error deleting secret %s: %s", secretID, err)
+		for secretID := range s.secretIDs {
+			if _, ok := resourceAttributeSecretIDs[secretID]; !ok {
+				if err := s.KeyVault.DeleteSecret(context.Background(), secretID); err != nil {
+					return fmt.Errorf("error deleting secret %s: %s", secretID, err)
+				}
+				delete(s.secretIDs, secretID)
 			}
-			delete(s.secretIDs, secretID)
 		}
-	}
+	*/
 
 	// Marshal state map to JSON.
 	b, err := json.MarshalIndent(&state, "", "  ")
