@@ -19,12 +19,16 @@ func (b *Backend) Workspaces() ([]string, error) {
 		return nil, fmt.Errorf("error listing blobs: %s", err)
 	}
 
-	// List workspaces (which is equivalent to blobs) in the container.
 	workspaces := []string{}
+	// If no workspaces exist, create the "default" workspace.
+	if len(blobs) == 0 {
+		b.StateMgr("default")
+		workspaces = append(workspaces, "default")
+	}
+	// List workspaces (which is equivalent to blobs) in the container.
 	for _, blob := range blobs {
 		workspaces = append(workspaces, blob.Name)
 	}
-
 	return workspaces, nil
 }
 
