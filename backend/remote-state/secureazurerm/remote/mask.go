@@ -119,13 +119,12 @@ func (s *State) maskAttributes(moduleName, resourceName string, attributes map[s
 					var secretName string
 					var err error
 					for secretID, secretValue := range s.secretIDs {
-						if _, ok := secretValue.Tags["index"]; ok {
-							if index, ok := tags["index"]; ok && *secretValue.Tags["index"] == *index && *secretValue.Tags["module"] == *tags["module"] && *secretValue.Tags["resource"] == *tags["resource"] && *secretValue.Tags["attribute"] == *tags["attribute"] {
-								secretName = secretID
-								break
-							}
-						}
 						if *secretValue.Tags["module"] == *tags["module"] && *secretValue.Tags["resource"] == *tags["resource"] && *secretValue.Tags["attribute"] == *tags["attribute"] {
+							if tagIndex, ok := secretValue.Tags["index"]; ok {
+								if index, ok := tags["index"]; ok && *tagIndex != *index {
+									break
+								}
+							}
 							secretName = secretID
 							break
 						}
