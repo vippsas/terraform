@@ -86,10 +86,8 @@ func (s *State) mask(r *common.ResourceState) error {
 			if err = json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
 				return fmt.Errorf("error unmarshalling attributes: %s", err)
 			}
-			for attributeName, attributeValue := range attributes {
-				if err = s.maskAttribute(r.Module, r.Name, attributes, attributeName, attributeValue, schema); err != nil {
-					return fmt.Errorf("error masking attribute: %s", err)
-				}
+			if err = s.maskAttribute(r.Module, r.Name, attributes, schema); err != nil {
+				return fmt.Errorf("error masking attribute: %s", err)
 			}
 			if instance.AttributesRaw, err = json.Marshal(attributes); err != nil {
 				return fmt.Errorf("error marshalling attributes: %s", err)
@@ -101,77 +99,79 @@ func (s *State) mask(r *common.ResourceState) error {
 }
 
 // maskAttribute masks the attributes of a resource.
-func (s *State) maskAttribute(moduleName, resourceName string, attributes map[string]interface{}, attributeName string, attributeValue interface{}, schema *configschema.Block) error {
-	// Check if attribute from the block exists in the schema.
-	if attribute, ok := schema.Attributes[attributeName]; ok {
-		// Is resource attribute sensitive?
-		if attribute.Sensitive { // then mask.
-			// Set existing secret name or generate a new one.
-			var secretName string
-			var err error
-			for secretID, value := range s.secretIDs {
-				if *value.Tags["module"] == moduleName && *value.Tags["resource"] == resourceName && *value.Tags["attribute"] == attributeName {
-					secretName = secretID
-					break
-				}
-			}
-
-			// Tag secret with related state info.
-			tags := make(map[string]*string)
-			tags["module"] = &moduleName
-			tags["resource"] = &resourceName
-			tags["attribute"] = &attributeName
-
-			if secretName == "" {
-				retry := 0
-				const maxRetries = 3
-				for ; retry < maxRetries; retry++ {
-					// Generate secret name for the attribute.
-					secretName, err = generateLowerAlphanumericChars(32) // it's as long as the version string in length.
-					if err != nil {
-						return fmt.Errorf("error generating secret name: %s", err)
+func (s *State) maskAttribute(moduleName, resourceName string, attributes map[string]interface{}, schema *configschema.Block) error {
+	for attributeName, attributeValue := range attributes {
+		// Check if attribute from the block exists in the schema.
+		if attribute, ok := schema.Attributes[attributeName]; ok {
+			// Is resource attribute sensitive?
+			if attribute.Sensitive { // then mask.
+				// Set existing secret name or generate a new one.
+				var secretName string
+				var err error
+				for secretID, value := range s.secretIDs {
+					if *value.Tags["module"] == moduleName && *value.Tags["resource"] == resourceName && *value.Tags["attribute"] == attributeName {
+						secretName = secretID
+						break
 					}
-					// Check for the highly unlikely secret name collision.
-					if _, ok := s.secretIDs[secretName]; ok {
-						// Name collision! Retrying...
-						continue
-					}
-					s.secretIDs[secretName] = keyvault.SecretMetadata{Tags: tags}
-					break
 				}
-				if retry >= maxRetries {
-					return fmt.Errorf("error generating random secret name %d times", maxRetries)
-				}
-			}
 
-			var version string
-			m := make(map[string]interface{})
-			switch v := attributeValue.(type) {
-			case string:
-				// Set value in keyvault.
-				if version, err = s.KeyVault.SetSecret(context.Background(), secretName, v, tags); err != nil {
-					return fmt.Errorf("error inserting secret into key vault: %s", err)
+				// Tag secret with related state info.
+				tags := make(map[string]*string)
+				tags["module"] = &moduleName
+				tags["resource"] = &resourceName
+				tags["attribute"] = &attributeName
+
+				if secretName == "" {
+					retry := 0
+					const maxRetries = 3
+					for ; retry < maxRetries; retry++ {
+						// Generate secret name for the attribute.
+						secretName, err = generateLowerAlphanumericChars(32) // it's as long as the version string in length.
+						if err != nil {
+							return fmt.Errorf("error generating secret name: %s", err)
+						}
+						// Check for the highly unlikely secret name collision.
+						if _, ok := s.secretIDs[secretName]; ok {
+							// Name collision! Retrying...
+							continue
+						}
+						s.secretIDs[secretName] = keyvault.SecretMetadata{Tags: tags}
+						break
+					}
+					if retry >= maxRetries {
+						return fmt.Errorf("error generating random secret name %d times", maxRetries)
+					}
 				}
-				// Replace attribute value with a reference/pointer to the secret value in the state key vault.
-				m["type"] = "string"
-				m["id"] = secretName
-				m["version"] = version
-				attributes[attributeName] = m
-			case []interface{}:
-				m["type"] = "[]interface{}"
-				return fmt.Errorf("list not implemented yet")
-			case map[string]interface{}:
-				m["type"] = "map[string]interface{}"
-				return fmt.Errorf("map not implemented yet")
-			default:
-				return fmt.Errorf("got attribute value of unknown type: %v", attributeValue)
+
+				var version string
+				m := make(map[string]interface{})
+				switch v := attributeValue.(type) {
+				case string:
+					// Set value in keyvault.
+					if version, err = s.KeyVault.SetSecret(context.Background(), secretName, v, tags); err != nil {
+						return fmt.Errorf("error inserting secret into key vault: %s", err)
+					}
+					// Replace attribute value with a reference/pointer to the secret value in the state key vault.
+					m["type"] = "string"
+					m["id"] = secretName
+					m["version"] = version
+					attributes[attributeName] = m
+				case []interface{}:
+					m["type"] = "[]interface{}"
+					return fmt.Errorf("list not implemented yet")
+				case map[string]interface{}:
+					m["type"] = "map[string]interface{}"
+					return fmt.Errorf("map not implemented yet")
+				default:
+					return fmt.Errorf("got attribute value of unknown type: %v", attributeValue)
+				}
 			}
-		}
-	} else {
-		// Nope, then check if it exists in the nested block types.
-		if block, ok := schema.BlockTypes[attributeName]; ok {
-			if err := s.maskAttribute(moduleName, resourceName, attributes, attributeName, attributeValue, &block.Block); err != nil {
-				return fmt.Errorf("error masking attribute in block type: %s", err)
+		} else {
+			// Nope, then check if it exists in the nested block types.
+			if block, ok := schema.BlockTypes[attributeName]; ok {
+				if err := s.maskAttribute(moduleName, resourceName, attributes, &block.Block); err != nil {
+					return fmt.Errorf("error masking attribute in block type: %s", err)
+				}
 			}
 		}
 	}
