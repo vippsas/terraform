@@ -213,7 +213,7 @@ func (s *State) unmask(rs *[]common.ResourceState) error {
 				return fmt.Errorf("error unmarshalling attributes: %s", err)
 			}
 			for key, value := range attributes {
-				if secretAttribute, ok := value.(map[string]interface{}); ok {
+				if secretReference, ok := value.(map[string]interface{}); ok {
 					var f func(map[string]interface{}) (interface{}, bool, error)
 					f = func(secretAttribute map[string]interface{}) (secretAttributeValue interface{}, cont bool, err error) {
 						t, ok := secretAttribute["type"].(string)
@@ -261,12 +261,10 @@ func (s *State) unmask(rs *[]common.ResourceState) error {
 						return
 					}
 					var cont bool
-					attributes[key], cont, err = f(secretAttribute)
-					if cont {
+					if attributes[key], cont, err = f(secretReference); cont {
 						continue
-					}
-					if err != nil {
-						return err
+					} else if err != nil {
+						return fmt.Errorf("error unmasking attribute %s with reference %v: %s", key, secretReference, err)
 					}
 				}
 			}
