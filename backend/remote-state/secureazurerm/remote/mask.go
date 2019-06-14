@@ -209,7 +209,7 @@ func (s *State) unmask(rs *[]common.ResourceState) error {
 			instance := &r.Instances[j]
 			var attributes map[string]interface{}
 			var err error
-			if err := json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
+			if err = json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
 				return fmt.Errorf("error unmarshalling attributes: %s", err)
 			}
 			for key, value := range attributes {
