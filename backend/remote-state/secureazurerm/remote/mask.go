@@ -87,7 +87,7 @@ func (s *State) mask(r *common.ResourceState) error {
 			if err = json.Unmarshal(instance.AttributesRaw, &attributes); err != nil {
 				return fmt.Errorf("error unmarshalling attributes: %s", err)
 			}
-			if err = s.maskAttributes(r.Module, r.Name, attributes, schema); err != nil {
+			if err = s.maskAttributes(r.Module, r.Type, r.Name, attributes, schema); err != nil {
 				return fmt.Errorf("error masking attributes: %s", err)
 			}
 			if instance.AttributesRaw, err = json.Marshal(attributes); err != nil {
@@ -100,7 +100,7 @@ func (s *State) mask(r *common.ResourceState) error {
 }
 
 // maskAttributes masks the attributes of a resource.
-func (s *State) maskAttributes(moduleName, resourceName string, attributes map[string]interface{}, schema *configschema.Block) error {
+func (s *State) maskAttributes(moduleName, typ, name string, attributes map[string]interface{}, schema *configschema.Block) error {
 	var err error
 	for attributeName, attributeValue := range attributes {
 		// Check if attribute from the block exists in the schema.
@@ -108,7 +108,8 @@ func (s *State) maskAttributes(moduleName, resourceName string, attributes map[s
 			// Tag secret with related state info.
 			tags := make(map[string]*string)
 			tags["module"] = &moduleName
-			tags["resource"] = &resourceName
+			tags["type"] = &typ
+			tags["name"] = &name
 			a := attributeName
 			tags["attribute"] = &a
 
@@ -120,7 +121,7 @@ func (s *State) maskAttributes(moduleName, resourceName string, attributes map[s
 					// Set existing secret name.
 					var secretName string
 					for secretID, secretValue := range s.secretIDs {
-						if *secretValue.Tags["module"] == *tags["module"] && *secretValue.Tags["resource"] == *tags["resource"] && *secretValue.Tags["attribute"] == *tags["attribute"] {
+						if *secretValue.Tags["module"] == *tags["module"] && *secretValue.Tags["type"] == *tags["type"] && *secretValue.Tags["name"] == *tags["name"] && *secretValue.Tags["attribute"] == *tags["attribute"] {
 							if tagIndex, ok := secretValue.Tags["index"]; ok {
 								if index, ok := tags["index"]; ok && *tagIndex != *index {
 									break
@@ -191,7 +192,7 @@ func (s *State) maskAttributes(moduleName, resourceName string, attributes map[s
 		} else {
 			// Nope, then check if it exists in the nested block types.
 			if block, ok := schema.BlockTypes[attributeName]; ok {
-				if err := s.maskAttributes(moduleName, resourceName, attributes, &block.Block); err != nil {
+				if err := s.maskAttributes(moduleName, typ, name, attributes, &block.Block); err != nil {
 					return fmt.Errorf("error masking attributes in block type: %s", err)
 				}
 			}
