@@ -117,7 +117,7 @@ func (s *State) maskAttributes(moduleName, typ, name string, attributes map[stri
 			f = func(attributeValue interface{}, tags map[string]*string) (interface{}, error) {
 				m := make(map[string]interface{})
 				switch v := attributeValue.(type) {
-				case string:
+				case string, nil:
 					// Set existing secret name.
 					var secretName string
 					for secretID, secretValue := range s.secretIDs {
@@ -153,7 +153,11 @@ func (s *State) maskAttributes(moduleName, typ, name string, attributes map[stri
 						}
 					}
 					// Set value in keyvault.
-					version, err := s.KeyVault.SetSecret(context.Background(), secretName, v, tags)
+					var sv string
+					if sv, ok = v.(string); !ok {
+						sv = ""
+					}
+					version, err := s.KeyVault.SetSecret(context.Background(), secretName, sv, tags)
 					if err != nil {
 						return nil, fmt.Errorf("error inserting secret into key vault: %s", err)
 					}
