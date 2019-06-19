@@ -161,7 +161,6 @@ func (s *State) RefreshState() error {
 				}
 				key = addrs.NoKey
 			}
-
 			instanceAddress := resourceAddr.Instance(key)
 
 			obj := &states.ResourceInstanceObjectSrc{
@@ -231,6 +230,8 @@ func (s *State) RefreshState() error {
 	rootModule := state.RootModule()
 	for name, output := range secureState.RootOutputs {
 		os := &states.OutputValue{}
+
+		// TODO: Handle sensitive outputs.
 		os.Sensitive = output.Sensitive
 
 		ty, err := ctyjson.UnmarshalType([]byte(output.ValueTypeRaw))
