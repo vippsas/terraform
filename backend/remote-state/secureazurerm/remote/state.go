@@ -546,7 +546,7 @@ func (s *State) PersistState() error {
 
 	// Put it into the blob.
 	if err := s.Blob.Put(b); err != nil {
-		return fmt.Errorf("error leasing and putting buffer: %s", err)
+		return fmt.Errorf("error putting buffer into the state's blob: %s", err)
 	}
 
 	// Set the persisted state as our new main reference state.
