@@ -61,7 +61,7 @@ func (s *State) WriteState(ts *states.State) error {
 
 // RefreshState fetches the state from the blob.
 func (s *State) RefreshState() error {
-	// Lock, milady.
+	// Lock.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -114,13 +114,13 @@ func (s *State) RefreshState() error {
 			var diags tfdiags.Diagnostics
 			moduleAddr, diags = addrs.ParseModuleInstanceStr(resourceState.Module)
 			if diags.HasErrors() {
-				return fmt.Errorf("error parsing module: %s", err)
+				return fmt.Errorf("error parsing module: %s", diags)
 			}
 		}
 
 		providerAddr, addrDiags := addrs.ParseAbsProviderConfigStr(resourceState.ProviderConfig)
 		if addrDiags.HasErrors() {
-			return fmt.Errorf("error parsing provider: %s", err)
+			return fmt.Errorf("error parsing provider config: %s", addrDiags)
 		}
 
 		var eachMode states.EachMode
