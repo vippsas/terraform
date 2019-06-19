@@ -167,14 +167,12 @@ func (s *State) RefreshState() error {
 				SchemaVersion: instanceState.SchemaVersion,
 			}
 
-			// Instance attributes
 			if instanceState.AttributesRaw != nil {
 				obj.AttrsJSON = instanceState.AttributesRaw
 			} else {
 				return fmt.Errorf("empty attributes: %s", err)
 			}
 
-			// Status
 			status := instanceState.Status
 			switch status {
 			case "":
