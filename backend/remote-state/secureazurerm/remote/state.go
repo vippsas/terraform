@@ -288,14 +288,12 @@ func appendInstanceObjectState(rs *states.Resource, is *states.ResourceInstance,
 		}
 	}
 
-	j := instance.AttrsJSON
-
 	return append(instanceState, common.InstanceObjectState{
 		IndexKey:      rawKey,
 		Deposed:       string(deposed),
 		Status:        status,
 		SchemaVersion: instance.SchemaVersion,
-		AttributesRaw: j,
+		AttributesRaw: instance.AttrsJSON,
 		PrivateRaw:    privateRaw,
 		Dependencies:  deps,
 	}), nil
