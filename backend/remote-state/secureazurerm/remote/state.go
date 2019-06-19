@@ -193,7 +193,7 @@ func (s *State) RefreshState() error {
 			for _, depRaw := range depsRaw {
 				ref, refDiags := addrs.ParseRefStr(depRaw)
 				if refDiags.HasErrors() {
-					return fmt.Errorf("error parsing refStr: %s", err)
+					return fmt.Errorf("error parsing refStr: %s", refDiags)
 				}
 				if len(ref.Remaining) != 0 {
 					return fmt.Errorf("instance %s declares dependency on %q, which is not a reference to a dependable object", instanceAddress.Absolute(moduleAddr), depRaw)
