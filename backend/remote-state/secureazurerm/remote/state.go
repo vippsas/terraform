@@ -327,10 +327,8 @@ func (s *State) PersistState() error {
 	}
 
 	// Check for any changes to the in-memory state.
-	if s.readState != nil {
-		if !statefile.StatesMarshalEqual(s.state, s.readState) {
-			s.serial++
-		}
+	if s.readState != nil && !statefile.StatesMarshalEqual(s.state, s.readState) {
+		s.serial++
 	}
 
 	file := statefile.New(s.state, s.lineage, s.serial)
