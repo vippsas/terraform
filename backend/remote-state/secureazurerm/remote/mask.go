@@ -34,22 +34,27 @@ func generateLowerAlphanumericChars(n int) (string, error) {
 
 // mask masks all sensitive attributes in a resource state.
 func (s *State) mask(r *common.ResourceState) error {
+	var err error
+
 	// Get resource providers.
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("error getting current working directory: %s", err)
+	if s.Props.ContextOpts.Config == nil {
+		wd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("error getting current working directory: %s", err)
+		}
+		loader, err := configload.NewLoader(&configload.Config{
+			ModulesDir: ".terraform/modules",
+		})
+		if err != nil {
+			return fmt.Errorf("error creating new loader: %s", err)
+		}
+		config, diags := loader.LoadConfig(wd)
+		if diags.HasErrors() {
+			return fmt.Errorf("error loading config: %s", diags)
+		}
+		s.Props.ContextOpts.Config = config
 	}
-	loader, err := configload.NewLoader(&configload.Config{
-		ModulesDir: ".terraform/modules",
-	})
-	if err != nil {
-		return fmt.Errorf("error creating new loader: %s", err)
-	}
-	config, diags := loader.LoadConfig(wd)
-	if diags.HasErrors() {
-		return fmt.Errorf("error loading config: %s", diags)
-	}
-	reqd := terraform.ConfigTreeDependencies(config, s.state).AllPluginRequirements()
+	reqd := terraform.ConfigTreeDependencies(s.Props.ContextOpts.Config, s.state).AllPluginRequirements()
 	if s.Props.ContextOpts.ProviderSHA256s != nil && !s.Props.ContextOpts.SkipProviderVerify {
 		reqd.LockExecutables(s.Props.ContextOpts.ProviderSHA256s)
 	}
