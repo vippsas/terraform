@@ -283,7 +283,7 @@ func (s *State) unmask(rs *[]common.ResourceState) error {
 							secretAttributeValue = l
 							return
 						case "map[string]interface{}":
-							var kvmap map[string]interface{}
+							kvmap := make(map[string]interface{})
 							for k, v := range secretAttribute["value"].(map[string]interface{}) {
 								secretAttributeValue, cont, err = f(v.(map[string]interface{}))
 								if cont {
