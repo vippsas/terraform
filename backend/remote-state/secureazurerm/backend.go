@@ -13,7 +13,7 @@ import (
 	azauth "github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/hashicorp/terraform/backend"
-	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/common"
 	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/remote/account"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/mitchellh/cli"
@@ -33,7 +33,7 @@ type Backend struct {
 
 	container *account.Container
 
-	props properties.Properties
+	props common.Properties
 }
 
 // New creates a new backend for remote state stored in Azure storage account and key vault.
