@@ -6,7 +6,7 @@ import (
 
 	KV "github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/mgmt/2016-10-01/keyvault"
-	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/common"
 	uuid "github.com/satori/go.uuid"
 
 	azauth "github.com/Azure/go-autorest/autorest/azure/auth"
@@ -31,7 +31,7 @@ func (k *KeyVault) Name() string {
 }
 
 // Setup creates a new Azure Key Vault.
-func Setup(ctx context.Context, props *properties.Properties, workspace string) (*KeyVault, error) {
+func Setup(ctx context.Context, props *common.Properties, workspace string) (*KeyVault, error) {
 	k := &KeyVault{
 		resourceGroupName: props.Name,
 		vaultClient:       keyvault.NewVaultsClient(props.SubscriptionID),
