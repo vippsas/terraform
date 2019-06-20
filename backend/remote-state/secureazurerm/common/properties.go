@@ -1,4 +1,4 @@
-package properties
+package common
 
 import (
 	"github.com/Azure/go-autorest/autorest"
