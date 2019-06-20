@@ -7,7 +7,7 @@ import (
 	"net/url"
 
 	"github.com/Azure/go-autorest/autorest/to"
-	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/properties"
+	"github.com/hashicorp/terraform/backend/remote-state/secureazurerm/common"
 
 	armStorage "github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2018-07-01/storage"
 	"github.com/Azure/azure-sdk-for-go/storage"
@@ -21,7 +21,7 @@ type Container struct {
 }
 
 // Setup creates a new remote client to the storage account.
-func Setup(ctx context.Context, props *properties.Properties, containerName string) (*Container, error) {
+func Setup(ctx context.Context, props *common.Properties, containerName string) (*Container, error) {
 	var c Container
 
 	accountsClient := armStorage.NewAccountsClient(props.SubscriptionID)
