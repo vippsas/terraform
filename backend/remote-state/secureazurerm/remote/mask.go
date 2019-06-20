@@ -132,6 +132,11 @@ func (s *State) maskAttributes(moduleName, typ, name string, attributes map[stri
 									break
 								}
 							}
+							if tagKey, ok := secretValue.Tags["key"]; ok {
+								if key, ok := tags["key"]; ok && *tagKey != *key {
+									break
+								}
+							}
 							secretName = secretID
 							break
 						}
