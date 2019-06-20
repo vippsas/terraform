@@ -191,7 +191,21 @@ func (s *State) maskAttributes(moduleName, typ, name string, attributes map[stri
 					return m, nil
 				case map[string]interface{}:
 					m["type"] = "map[string]interface{}"
-					return nil, fmt.Errorf("map not implemented yet")
+					kvmap := make(map[string]interface{})
+					for key, val := range v {
+						mtags := make(map[string]*string)
+						for k, v := range tags {
+							mtags[k] = v
+						}
+						kcopy := key
+						mtags["key"] = &kcopy
+						k, err := f(val, mtags)
+						if err != nil {
+							return nil, err
+						}
+						kvmap[key] = k
+					}
+					m["value"] = kvmap
 				}
 				return nil, fmt.Errorf("got attribute value of unknown type: %v", attributeValue)
 			}
@@ -264,7 +278,18 @@ func (s *State) unmask(rs *[]common.ResourceState) error {
 							secretAttributeValue = l
 							return
 						case "map[string]interface{}":
-							err = fmt.Errorf("map not implemented yet")
+							var kvmap map[string]interface{}
+							for k, v := range secretAttribute["value"].(map[string]interface{}) {
+								secretAttributeValue, cont, err = f(v.(map[string]interface{}))
+								if cont {
+									return
+								}
+								if err != nil {
+									return
+								}
+								kvmap[k] = secretAttributeValue
+							}
+							secretAttributeValue = kvmap
 							return
 						}
 						err = fmt.Errorf("unknown sensitive attribute type: %s", t)
