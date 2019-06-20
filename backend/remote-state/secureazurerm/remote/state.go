@@ -515,7 +515,14 @@ func (s *State) PersistState() error {
 							}
 							return false, nil
 						case "map[string]interface{}":
-							return false, fmt.Errorf("map not implemented yet")
+							for _, v := range object["value"].(map[string]interface{}) {
+								if cont, err := f(v.(map[string]interface{})); cont {
+									return false, fmt.Errorf("state is corrupt")
+								} else if err != nil {
+									return false, err
+								}
+							}
+							return false, nil
 						}
 						return false, fmt.Errorf("unknown type: %s", tp)
 					}
