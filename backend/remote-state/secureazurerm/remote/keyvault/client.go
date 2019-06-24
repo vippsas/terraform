@@ -76,13 +76,15 @@ func Setup(ctx context.Context, props *common.Properties, workspace string) (*Ke
 			return nil, fmt.Errorf("error creating key vault: %s", err)
 		}
 	} else {
+		// Check if user is already in the key vault's access policy and has the right (exact) permissions.
 		found := false
 		for _, policy := range *vault.Properties.AccessPolicies {
-			if *policy.ObjectID == props.ObjectID {
+			if *policy.ObjectID == props.ObjectID && *policy.Permissions == *accessPolicies[0].Permissions {
 				found = true
 				break
 			}
 		}
+		// If not found, add him.
 		if !found {
 			_, err = k.vaultClient.UpdateAccessPolicy(ctx, k.resourceGroupName, k.vaultName, keyvault.Add, keyvault.VaultAccessPolicyParameters{
 				Properties: &keyvault.VaultAccessPolicyProperties{
