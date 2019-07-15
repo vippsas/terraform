@@ -2,7 +2,6 @@ package remote
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,23 +13,9 @@ import (
 	"github.com/hashicorp/terraform/configs/configschema"
 	"github.com/hashicorp/terraform/providers"
 	"github.com/hashicorp/terraform/terraform"
+
+	uuid "github.com/satori/go.uuid"
 )
-
-// generateLowerAlphanumericChars generates a random lowercase alphanumeric string of len n.
-func generateLowerAlphanumericChars(n int) (string, error) {
-	var chars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
-	b := make([]byte, n)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", fmt.Errorf("error reading from secure random generator: %s", err)
-	}
-
-	var s []rune
-	for _, number := range b {
-		s = append(s, chars[int(number)%len(chars)])
-	}
-	return string(s), nil
-}
 
 // mask masks all sensitive attributes in a resource state.
 func (s *State) mask(r *common.ResourceState) error {
@@ -149,10 +134,11 @@ func (s *State) maskAttributes(moduleName, typ, name string, i int, attributes m
 						const maxRetries = 3
 						for ; retry < maxRetries; retry++ {
 							// Generate secret name for the attribute.
-							secretName, err = generateLowerAlphanumericChars(32) // it's as long as the version string in length.
+							id, err := uuid.NewV4()
 							if err != nil {
-								return nil, fmt.Errorf("error generating secret name: %s", err)
+								return nil, fmt.Errorf("error generating UUIDv4 used as secret name: %s", err)
 							}
+							secretName = id.String()
 							// Check for the highly unlikely secret name collision.
 							if _, ok := s.secretIDs[secretName]; ok {
 								continue // name collision! retrying...
