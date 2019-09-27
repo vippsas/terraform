@@ -2,8 +2,14 @@ module github.com/hashicorp/terraform
 
 require (
 	cloud.google.com/go v0.45.1
-	github.com/Azure/azure-sdk-for-go v21.3.0+incompatible
-	github.com/Azure/go-autorest v10.15.4+incompatible
+	github.com/Azure/azure-sdk-for-go v33.4.0+incompatible
+	github.com/Azure/azure-storage-blob-go v0.8.0
+	github.com/Azure/go-autorest v13.0.1+incompatible
+	github.com/Azure/go-autorest/autorest v0.9.1
+	github.com/Azure/go-autorest/autorest/adal v0.6.0
+	github.com/Azure/go-autorest/autorest/azure/auth v0.3.0
+	github.com/Azure/go-autorest/autorest/to v0.3.0
+	github.com/Azure/go-autorest/autorest/validation v0.2.0 // indirect
 	github.com/Unknwon/com v0.0.0-20151008135407-28b053d5a292 // indirect
 	github.com/abdullin/seq v0.0.0-20160510034733-d5467c17e7af // indirect
 	github.com/agext/levenshtein v1.2.2
@@ -39,7 +45,6 @@ require (
 	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.3.2
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
-	github.com/google/btree v1.0.0 // indirect
 	github.com/google/go-cmp v0.3.0
 	github.com/google/uuid v1.1.1
 	github.com/gophercloud/gophercloud v0.0.0-20190208042652-bc37892e1968
@@ -107,6 +112,7 @@ require (
 	github.com/pkg/errors v0.8.0
 	github.com/posener/complete v1.2.1
 	github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829 // indirect
+	github.com/satori/go.uuid v1.2.0
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
 	github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d // indirect
 	github.com/smartystreets/goconvey v0.0.0-20180222194500-ef6db91d284a // indirect
@@ -133,3 +139,5 @@ require (
 	gopkg.in/ini.v1 v1.42.0 // indirect
 	gopkg.in/yaml.v2 v2.2.2
 )
+
+go 1.13

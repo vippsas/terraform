@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/terraform/providers"
 	"github.com/hashicorp/terraform/terraform"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/hashicorp/go-uuid"
 )
 
 // mask masks all sensitive attributes in a resource state.
@@ -134,11 +134,11 @@ func (s *State) maskAttributes(moduleName, typ, name string, i int, attributes m
 						const maxRetries = 3
 						for ; retry < maxRetries; retry++ {
 							// Generate secret name for the attribute.
-							id, err := uuid.NewV4()
+							id, err := uuid.GenerateUUID()
 							if err != nil {
-								return nil, fmt.Errorf("error generating UUIDv4 used as secret name: %s", err)
+								return nil, fmt.Errorf("error generating UUID used as secret name: %s", err)
 							}
-							secretName = id.String()
+							secretName = id
 							// Check for the highly unlikely secret name collision.
 							if _, ok := s.secretIDs[secretName]; ok {
 								continue // name collision! retrying...
